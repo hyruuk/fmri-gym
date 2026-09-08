@@ -6,10 +6,11 @@ The pipeline currently follows:
 
 1. Save temporally sampled gameplay frames and align them with available gameplay metadata
 2. Segment relevant visual regions
-3. Extract DINO features and cluster regions based on similarity
-4. Label objects / regions
-5. Format the resulting information into a symbolic game-state representation
-6. Extract representations for downstream analysis
+3. Apply conservative crop preprocessing to remove degenerate regions
+4. Extract DINO features and cluster regions based on similarity
+5. Label objects / regions
+6. Format the resulting information into a symbolic game-state representation
+7. Extract representations for downstream analysis
 
 Current priority: make the configuration format consistent across games so the same pipeline can be run with minimal game-specific changes.
 
@@ -17,7 +18,7 @@ Current priority: make the configuration format consistent across games so the s
 
 ```bash
 python extraction/utils/config_parser.py \
-configs/dbp_games/vizdoom__defend_center.json
+  configs/dbp_games/vizdoom__defend_center.json
 ```
 
 ## Run frame extraction
@@ -73,8 +74,8 @@ cd ..
 mkdir -p segment-anything-2/checkpoints
 
 curl -L \
-https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_small.pt \
--o segment-anything-2/checkpoints/sam2.1_hiera_small.pt
+  https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_small.pt \
+  -o segment-anything-2/checkpoints/sam2.1_hiera_small.pt
 ```
 
 ## Run SAM2 segmentation
@@ -113,6 +114,23 @@ data/segmentation/vizdoom__defend_center/
 
 The original gameplay frame is not duplicated. The saved masks and SAM2 metadata can be used later to reconstruct crops or masked regions as needed.
 
+## Run crop preprocessing
+
+```bash
+python extraction/utils/crop_entropy_filter.py \
+  data/extracted_frames/vizdoom__defend_center \
+  data/segmentation/vizdoom__defend_center \
+  --output data/filtered_segments/vizdoom__defend_center
+```
+
+Before downstream feature extraction and VLM labeling, segmented regions are passed through a conservative preprocessing step. The current filter computes grayscale Shannon entropy within each SAM2 mask and removes only zero-entropy regions, which are treated as degenerate crops. Can try to look at more preprocessing or better cutoff value. Some crops are very noisy for VLM and produces bad output.
+
+Filter metadata is saved under:
+
+```text
+data/filtered_segments/<game_name>/
+```
+
 ## Run DINOv2 embedding extraction
 
 ```bash
@@ -150,11 +168,6 @@ cluster_labels.npy
 clusters.json
 cluster_sheets/
 ```
-## TODO
-
-Add a conservative crop-filtering stage between segmentation and DINO embedding extraction.
-
-The filter should only remove unusable regions, such as empty or degenerate crops, while preserving very small but potentially meaningful game elements. Check first what gets removed.
 
 ## Next goal
 
