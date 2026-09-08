@@ -8,3 +8,4 @@ __pycache__/
 
 # Rush Hour: build-from-source Go engine (clone+build locally; see rushhour config _note)
 vendor/rush-hour-src/
+segment-anything-2/

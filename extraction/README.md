@@ -53,3 +53,35 @@ data/extracted_frames/vizdoom__defend_center/
 ├── frame_000018.png
 └── metadata.npz
 ```
+### Run SAM2 segmentation
+
+### SAM2 setup
+
+Clone SAM2 into the repository
+
+```bash
+git clone https://github.com/facebookresearch/sam2.git segment-anything-2
+cd segment-anything-2
+pip install -e .
+```
+
+downlaod the checkpoints 
+
+```bash
+cd ..
+mkdir -p segment-anything-2/checkpoints
+curl -L \
+https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_small.pt \
+-o segment-anything-2/checkpoints/sam2.1_hiera_small.pt
+```
+
+
+```bash
+python -m extraction.segmentation vizdoom__defend_center
+```
+
+to test a small number of frames 
+
+```bash
+python -m extraction.segmentation vizdoom__defend_center --limit 5
+```
