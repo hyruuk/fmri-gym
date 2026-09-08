@@ -6,7 +6,7 @@ The pipeline currently follows:
 
 1. Save temporally sampled gameplay frames and align them with available gameplay metadata
 2. Segment relevant visual regions
-3. Apply conservative crop preprocessing to remove degenerate regions
+3. Apply conservative crop preprocessing to remove clearly degenerate or uninformative regions before VLM labeling
 4. Extract DINO features and cluster regions based on similarity
 5. Label objects / regions
 6. Format the resulting information into a symbolic game-state representation
@@ -72,7 +72,6 @@ Download the SAM2.1 Hiera Small checkpoint:
 ```bash
 cd ..
 mkdir -p segment-anything-2/checkpoints
-
 curl -L \
   https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_small.pt \
   -o segment-anything-2/checkpoints/sam2.1_hiera_small.pt
@@ -116,6 +115,10 @@ The original gameplay frame is not duplicated. The saved masks and SAM2 metadata
 
 ## Run crop preprocessing
 
+Before downstream feature extraction and VLM labeling, segmented regions are passed through conservative preprocessing. The goal is to remove regions that contain too little useful visual information so the VLM receives cleaner, more interpretable inputs and has an easier labeling task.
+
+### Shannon entropy filter
+
 ```bash
 python extraction/utils/crop_entropy_filter.py \
   data/extracted_frames/vizdoom__defend_center \
@@ -123,13 +126,20 @@ python extraction/utils/crop_entropy_filter.py \
   --output data/filtered_segments/vizdoom__defend_center
 ```
 
-Before downstream feature extraction and VLM labeling, segmented regions are passed through a conservative preprocessing step. The current filter computes grayscale Shannon entropy within each SAM2 mask and removes only zero-entropy regions, which are treated as degenerate crops. Can try to look at more preprocessing or better cutoff value. Some crops are very noisy for VLM and produces bad output.
+The entropy filter computes grayscale Shannon entropy within each SAM2 mask and marks zero-entropy regions as degenerate.
 
-Filter metadata is saved under:
+### Native crop-size filter
 
-```text
-data/filtered_segments/<game_name>/
+```bash
+python extraction/utils/crop_size_filter.py \
+  data/segmentation/vizdoom__defend_center \
+  --output data/filtered_segments/vizdoom__defend_center \
+  --min-pixels 75
 ```
+
+The size filter measures the native bounding-box area of each SAM2 segment and marks crops with fewer than 75 native pixels for removal. This threshold was selected conservatively after visually inspecting the smallest segments and observing that very small crops were predominantly uninformative noise or fragments.
+
+Need to evaluate more, with the goal of improving input quality without removing small but genuinely informative game elements.
 
 ## Run DINOv2 embedding extraction
 
@@ -137,7 +147,7 @@ data/filtered_segments/<game_name>/
 python -m extraction.features.dino_embeddings vizdoom__defend_center
 ```
 
-DINOv2 embeddings are extracted for all SAM2-masked regions. The script also saves metadata linking each embedding back to its source frame and segment, and computes the full pairwise cosine-similarity matrix.
+DINOv2 embeddings are extracted for SAM2-masked regions. The script also saves metadata linking each embedding back to its source frame and segment, and computes the full pairwise cosine-similarity matrix.
 
 Outputs are saved under:
 
@@ -174,3 +184,5 @@ cluster_sheets/
 The next goal is to assign reliable semantic labels to the segmented visual regions for game replay.
 
 Low-resolution, stylized game visuals can be difficult to recognize reliably because limited detail makes segmentation and object classification harder. Standard object detectors can also suffer from domain and vocabulary mismatch with game-specific entities (Chen & Jhala, 2025).
+
+A current focus is therefore improving preprocessing so that clearly degenerate, noisy, or visually uninformative segments are filtered before VLM labeling, reducing unnecessary ambiguity in the model inputs.
