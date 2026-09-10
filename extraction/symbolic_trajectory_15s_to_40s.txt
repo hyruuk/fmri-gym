@@ -1,0 +1,6500 @@
+[USER  t=525]
+Observation:
+Score: 53
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=525]
+Action: MOVE_FORWARD
+
+[USER  t=526]
+Observation:
+Score: 56
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=526]
+Action: MOVE_FORWARD
+
+[USER  t=527]
+Observation:
+Score: 60
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=527]
+Action: MOVE_FORWARD
+
+[USER  t=528]
+Observation:
+Score: 63
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=528]
+Action: MOVE_FORWARD
+
+[USER  t=529]
+Observation:
+Score: 67
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=529]
+Action: MOVE_FORWARD
+
+[USER  t=530]
+Observation:
+Score: 71
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=530]
+Action: MOVE_FORWARD
+
+[USER  t=531]
+Observation:
+Score: 76
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=531]
+Action: MOVE_FORWARD
+
+[USER  t=532]
+Observation:
+Score: 80
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=532]
+Action: MOVE_FORWARD
+
+[USER  t=533]
+Observation:
+Score: 85
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=533]
+Action: MOVE_FORWARD
+
+[USER  t=534]
+Observation:
+Score: 90
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=534]
+Action: MOVE_FORWARD
+
+[USER  t=535]
+Observation:
+Score: 95
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=535]
+Action: MOVE_FORWARD
+
+[USER  t=536]
+Observation:
+Score: 100
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=536]
+Action: MOVE_FORWARD
+
+[USER  t=537]
+Observation:
+Score: 103
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=537]
+Action: MOVE_FORWARD
+
+[USER  t=538]
+Observation:
+Score: 105
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=538]
+Action: MOVE_FORWARD
+
+[USER  t=539]
+Observation:
+Score: 108
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=539]
+Action: MOVE_FORWARD
+
+[USER  t=540]
+Observation:
+Score: 111
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=540]
+Action: MOVE_FORWARD
+
+[USER  t=541]
+Observation:
+Score: 114
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=541]
+Action: MOVE_FORWARD
+
+[USER  t=542]
+Observation:
+Score: 117
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=542]
+Action: MOVE_FORWARD
+
+[USER  t=543]
+Observation:
+Score: 121
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=543]
+Action: MOVE_FORWARD
+
+[USER  t=544]
+Observation:
+Score: 125
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=544]
+Action: MOVE_FORWARD
+
+[USER  t=545]
+Observation:
+Score: 129
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=545]
+Action: MOVE_FORWARD
+
+[USER  t=546]
+Observation:
+Score: 133
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=546]
+Action: MOVE_FORWARD
+
+[USER  t=547]
+Observation:
+Score: 137
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=547]
+Action: MOVE_FORWARD
+
+[USER  t=548]
+Observation:
+Score: 141
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- Shotgun at (162, 75)
+
+[ASSISTANT t=548]
+Action: NO-OP (Do nothing)
+
+[USER  t=549]
+Observation:
+Score: 145
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+
+[ASSISTANT t=549]
+Action: NO-OP (Do nothing)
+
+[USER  t=550]
+Observation:
+Score: 148
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+
+[ASSISTANT t=550]
+Action: NO-OP (Do nothing)
+
+[USER  t=551]
+Observation:
+Score: 151
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+
+[ASSISTANT t=551]
+Action: NO-OP (Do nothing)
+
+[USER  t=552]
+Observation:
+Score: 154
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+
+[ASSISTANT t=552]
+Action: TURN_RIGHT
+
+[USER  t=553]
+Observation:
+Score: 157
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=553]
+Action: TURN_RIGHT
+
+[USER  t=554]
+Observation:
+Score: 159
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=554]
+Action: TURN_RIGHT
+
+[USER  t=555]
+Observation:
+Score: 161
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadShotgunGuy at (178, 71)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=555]
+Action: TURN_RIGHT
+
+[USER  t=556]
+Observation:
+Score: 163
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- DeadShotgunGuy at (178, 71)
+
+[ASSISTANT t=556]
+Action: TURN_RIGHT
+
+[USER  t=557]
+Observation:
+Score: 165
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=557]
+Action: TURN_RIGHT
+
+[USER  t=558]
+Observation:
+Score: 167
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=558]
+Action: TURN_RIGHT
+
+[USER  t=559]
+Observation:
+Score: 168
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=559]
+Action: TURN_RIGHT
+
+[USER  t=560]
+Observation:
+Score: 169
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=560]
+Action: TURN_RIGHT
+
+[USER  t=561]
+Observation:
+Score: 171
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=561]
+Action: TURN_RIGHT
+
+[USER  t=562]
+Observation:
+Score: 172
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=562]
+Action: TURN_RIGHT
+
+[USER  t=563]
+Observation:
+Score: 173
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=563]
+Action: TURN_RIGHT
+
+[USER  t=564]
+Observation:
+Score: 174
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=564]
+Action: TURN_RIGHT
+
+[USER  t=565]
+Observation:
+Score: 174
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=565]
+Action: TURN_RIGHT
+
+[USER  t=566]
+Observation:
+Score: 175
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=566]
+Action: TURN_RIGHT
+
+[USER  t=567]
+Observation:
+Score: 176
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=567]
+Action: NO-OP (Do nothing)
+
+[USER  t=568]
+Observation:
+Score: 176
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=568]
+Action: NO-OP (Do nothing)
+
+[USER  t=569]
+Observation:
+Score: 177
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=569]
+Action: NO-OP (Do nothing)
+
+[USER  t=570]
+Observation:
+Score: 177
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=570]
+Action: NO-OP (Do nothing)
+
+[USER  t=571]
+Observation:
+Score: 178
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=571]
+Action: NO-OP (Do nothing)
+
+[USER  t=572]
+Observation:
+Score: 178
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=572]
+Action: NO-OP (Do nothing)
+
+[USER  t=573]
+Observation:
+Score: 179
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=573]
+Action: NO-OP (Do nothing)
+
+[USER  t=574]
+Observation:
+Score: 179
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=574]
+Action: TURN_RIGHT
+
+[USER  t=575]
+Observation:
+Score: 179
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=575]
+Action: TURN_RIGHT
+
+[USER  t=576]
+Observation:
+Score: 179
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=576]
+Action: TURN_RIGHT
+
+[USER  t=577]
+Observation:
+Score: 180
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=577]
+Action: NO-OP (Do nothing)
+
+[USER  t=578]
+Observation:
+Score: 180
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=578]
+Action: NO-OP (Do nothing)
+
+[USER  t=579]
+Observation:
+Score: 180
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=579]
+Action: NO-OP (Do nothing)
+
+[USER  t=580]
+Observation:
+Score: 180
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=580]
+Action: NO-OP (Do nothing)
+
+[USER  t=581]
+Observation:
+Score: 180
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=581]
+Action: NO-OP (Do nothing)
+
+[USER  t=582]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=582]
+Action: NO-OP (Do nothing)
+
+[USER  t=583]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=583]
+Action: NO-OP (Do nothing)
+
+[USER  t=584]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=584]
+Action: NO-OP (Do nothing)
+
+[USER  t=585]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=585]
+Action: TURN_LEFT
+
+[USER  t=586]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=586]
+Action: TURN_LEFT
+
+[USER  t=587]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=587]
+Action: TURN_LEFT
+
+[USER  t=588]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=588]
+Action: NO-OP (Do nothing)
+
+[USER  t=589]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=589]
+Action: NO-OP (Do nothing)
+
+[USER  t=590]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=590]
+Action: NO-OP (Do nothing)
+
+[USER  t=591]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=591]
+Action: NO-OP (Do nothing)
+
+[USER  t=592]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=592]
+Action: NO-OP (Do nothing)
+
+[USER  t=593]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=593]
+Action: NO-OP (Do nothing)
+
+[USER  t=594]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=594]
+Action: ATTACK
+
+[USER  t=595]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=595]
+Action: ATTACK
+
+[USER  t=596]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=596]
+Action: ATTACK
+
+[USER  t=597]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=597]
+Action: ATTACK + TURN_RIGHT
+
+[USER  t=598]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=598]
+Action: ATTACK + TURN_RIGHT
+
+[USER  t=599]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=599]
+Action: ATTACK + TURN_RIGHT
+
+[USER  t=600]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=600]
+Action: ATTACK + TURN_RIGHT
+
+[USER  t=601]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=601]
+Action: TURN_RIGHT
+
+[USER  t=602]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=602]
+Action: NO-OP (Do nothing)
+
+[USER  t=603]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=603]
+Action: NO-OP (Do nothing)
+
+[USER  t=604]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=604]
+Action: NO-OP (Do nothing)
+
+[USER  t=605]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=605]
+Action: NO-OP (Do nothing)
+
+[USER  t=606]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=606]
+Action: NO-OP (Do nothing)
+
+[USER  t=607]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=607]
+Action: TURN_LEFT
+
+[USER  t=608]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=608]
+Action: TURN_LEFT
+
+[USER  t=609]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=609]
+Action: TURN_LEFT
+
+[USER  t=610]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=610]
+Action: NO-OP (Do nothing)
+
+[USER  t=611]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=611]
+Action: NO-OP (Do nothing)
+
+[USER  t=612]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=612]
+Action: NO-OP (Do nothing)
+
+[USER  t=613]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=613]
+Action: NO-OP (Do nothing)
+
+[USER  t=614]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=614]
+Action: NO-OP (Do nothing)
+
+[USER  t=615]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=615]
+Action: NO-OP (Do nothing)
+
+[USER  t=616]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=616]
+Action: NO-OP (Do nothing)
+
+[USER  t=617]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=617]
+Action: ATTACK
+
+[USER  t=618]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=618]
+Action: ATTACK
+
+[USER  t=619]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=619]
+Action: ATTACK
+
+[USER  t=620]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=620]
+Action: ATTACK
+
+[USER  t=621]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=621]
+Action: ATTACK
+
+[USER  t=622]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=622]
+Action: ATTACK
+
+[USER  t=623]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=623]
+Action: ATTACK
+
+[USER  t=624]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=624]
+Action: ATTACK
+
+[USER  t=625]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=625]
+Action: ATTACK
+
+[USER  t=626]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=626]
+Action: NO-OP (Do nothing)
+
+[USER  t=627]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=627]
+Action: NO-OP (Do nothing)
+
+[USER  t=628]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=628]
+Action: NO-OP (Do nothing)
+
+[USER  t=629]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=629]
+Action: NO-OP (Do nothing)
+
+[USER  t=630]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=630]
+Action: NO-OP (Do nothing)
+
+[USER  t=631]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=631]
+Action: NO-OP (Do nothing)
+
+[USER  t=632]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=632]
+Action: NO-OP (Do nothing)
+
+[USER  t=633]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=633]
+Action: ATTACK
+
+[USER  t=634]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=634]
+Action: ATTACK + TURN_LEFT
+
+[USER  t=635]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=635]
+Action: TURN_LEFT
+
+[USER  t=636]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=636]
+Action: TURN_LEFT
+
+[USER  t=637]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=637]
+Action: TURN_LEFT
+
+[USER  t=638]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=638]
+Action: NO-OP (Do nothing)
+
+[USER  t=639]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=639]
+Action: NO-OP (Do nothing)
+
+[USER  t=640]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=640]
+Action: NO-OP (Do nothing)
+
+[USER  t=641]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=641]
+Action: NO-OP (Do nothing)
+
+[USER  t=642]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=642]
+Action: NO-OP (Do nothing)
+
+[USER  t=643]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=643]
+Action: NO-OP (Do nothing)
+
+[USER  t=644]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=644]
+Action: TURN_RIGHT
+
+[USER  t=645]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=645]
+Action: TURN_RIGHT
+
+[USER  t=646]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=646]
+Action: TURN_RIGHT
+
+[USER  t=647]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=647]
+Action: TURN_RIGHT
+
+[USER  t=648]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=648]
+Action: NO-OP (Do nothing)
+
+[USER  t=649]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=649]
+Action: NO-OP (Do nothing)
+
+[USER  t=650]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=650]
+Action: NO-OP (Do nothing)
+
+[USER  t=651]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=651]
+Action: NO-OP (Do nothing)
+
+[USER  t=652]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=652]
+Action: NO-OP (Do nothing)
+
+[USER  t=653]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=653]
+Action: NO-OP (Do nothing)
+
+[USER  t=654]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=654]
+Action: NO-OP (Do nothing)
+
+[USER  t=655]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=655]
+Action: ATTACK
+
+[USER  t=656]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=656]
+Action: ATTACK
+
+[USER  t=657]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=657]
+Action: ATTACK
+
+[USER  t=658]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=658]
+Action: NO-OP (Do nothing)
+
+[USER  t=659]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=659]
+Action: NO-OP (Do nothing)
+
+[USER  t=660]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=660]
+Action: NO-OP (Do nothing)
+
+[USER  t=661]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=661]
+Action: NO-OP (Do nothing)
+
+[USER  t=662]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=662]
+Action: NO-OP (Do nothing)
+
+[USER  t=663]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=663]
+Action: NO-OP (Do nothing)
+
+[USER  t=664]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=664]
+Action: NO-OP (Do nothing)
+
+[USER  t=665]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=665]
+Action: NO-OP (Do nothing)
+
+[USER  t=666]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=666]
+Action: NO-OP (Do nothing)
+
+[USER  t=667]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=667]
+Action: NO-OP (Do nothing)
+
+[USER  t=668]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=668]
+Action: TURN_LEFT
+
+[USER  t=669]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=669]
+Action: TURN_LEFT
+
+[USER  t=670]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=670]
+Action: NO-OP (Do nothing)
+
+[USER  t=671]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=671]
+Action: NO-OP (Do nothing)
+
+[USER  t=672]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=672]
+Action: NO-OP (Do nothing)
+
+[USER  t=673]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- BulletPuff at (436, -31)
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=673]
+Action: NO-OP (Do nothing)
+
+[USER  t=674]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=674]
+Action: NO-OP (Do nothing)
+
+[USER  t=675]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=675]
+Action: NO-OP (Do nothing)
+
+[USER  t=676]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=676]
+Action: NO-OP (Do nothing)
+
+[USER  t=677]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=677]
+Action: NO-OP (Do nothing)
+
+[USER  t=678]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=678]
+Action: NO-OP (Do nothing)
+
+[USER  t=679]
+Observation:
+Score: 181
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=679]
+Action: MOVE_FORWARD
+
+[USER  t=680]
+Observation:
+Score: 182
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=680]
+Action: MOVE_FORWARD
+
+[USER  t=681]
+Observation:
+Score: 184
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=681]
+Action: MOVE_FORWARD
+
+[USER  t=682]
+Observation:
+Score: 186
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=682]
+Action: MOVE_FORWARD
+
+[USER  t=683]
+Observation:
+Score: 188
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=683]
+Action: MOVE_FORWARD
+
+[USER  t=684]
+Observation:
+Score: 192
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=684]
+Action: MOVE_FORWARD
+
+[USER  t=685]
+Observation:
+Score: 195
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=685]
+Action: MOVE_FORWARD
+
+[USER  t=686]
+Observation:
+Score: 200
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=686]
+Action: MOVE_FORWARD
+
+[USER  t=687]
+Observation:
+Score: 204
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=687]
+Action: MOVE_FORWARD
+
+[USER  t=688]
+Observation:
+Score: 209
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=688]
+Action: MOVE_FORWARD
+
+[USER  t=689]
+Observation:
+Score: 214
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=689]
+Action: MOVE_FORWARD
+
+[USER  t=690]
+Observation:
+Score: 220
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=690]
+Action: MOVE_FORWARD
+
+[USER  t=691]
+Observation:
+Score: 225
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=691]
+Action: MOVE_FORWARD
+
+[USER  t=692]
+Observation:
+Score: 231
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+
+[ASSISTANT t=692]
+Action: MOVE_FORWARD + TURN_RIGHT
+
+[USER  t=693]
+Observation:
+Score: 237
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=693]
+Action: MOVE_FORWARD + TURN_RIGHT
+
+[USER  t=694]
+Observation:
+Score: 244
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=694]
+Action: MOVE_FORWARD + TURN_RIGHT
+
+[USER  t=695]
+Observation:
+Score: 250
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=695]
+Action: MOVE_FORWARD
+
+[USER  t=696]
+Observation:
+Score: 257
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=696]
+Action: NO-OP (Do nothing)
+
+[USER  t=697]
+Observation:
+Score: 263
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=697]
+Action: NO-OP (Do nothing)
+
+[USER  t=698]
+Observation:
+Score: 269
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=698]
+Action: NO-OP (Do nothing)
+
+[USER  t=699]
+Observation:
+Score: 274
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=699]
+Action: NO-OP (Do nothing)
+
+[USER  t=700]
+Observation:
+Score: 278
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=700]
+Action: NO-OP (Do nothing)
+
+[USER  t=701]
+Observation:
+Score: 282
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=701]
+Action: NO-OP (Do nothing)
+
+[USER  t=702]
+Observation:
+Score: 286
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=702]
+Action: NO-OP (Do nothing)
+
+[USER  t=703]
+Observation:
+Score: 289
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=703]
+Action: NO-OP (Do nothing)
+
+[USER  t=704]
+Observation:
+Score: 292
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=704]
+Action: NO-OP (Do nothing)
+
+[USER  t=705]
+Observation:
+Score: 295
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=705]
+Action: NO-OP (Do nothing)
+
+[USER  t=706]
+Observation:
+Score: 298
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=706]
+Action: NO-OP (Do nothing)
+
+[USER  t=707]
+Observation:
+Score: 300
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=707]
+Action: NO-OP (Do nothing)
+
+[USER  t=708]
+Observation:
+Score: 302
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=708]
+Action: ATTACK
+
+[USER  t=709]
+Observation:
+Score: 304
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=709]
+Action: ATTACK
+
+[USER  t=710]
+Observation:
+Score: 305
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=710]
+Action: ATTACK
+
+[USER  t=711]
+Observation:
+Score: 307
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=711]
+Action: ATTACK + MOVE_FORWARD
+
+[USER  t=712]
+Observation:
+Score: 309
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (608, -64)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=712]
+Action: ATTACK + MOVE_FORWARD
+
+[USER  t=713]
+Observation:
+Score: 312
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (609, -64)
+- Blood at (587, -62)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=713]
+Action: ATTACK + MOVE_FORWARD
+
+[USER  t=714]
+Observation:
+Score: 315
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (611, -64)
+- Blood at (587, -62)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=714]
+Action: ATTACK
+
+[USER  t=715]
+Observation:
+Score: 318
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (613, -65)
+- Blood at (587, -62)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=715]
+Action: ATTACK
+
+[USER  t=716]
+Observation:
+Score: 321
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (614, -65)
+- Blood at (587, -62)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=716]
+Action: ATTACK
+
+[USER  t=717]
+Observation:
+Score: 323
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (615, -65)
+- Blood at (587, -62)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=717]
+Action: ATTACK
+
+[USER  t=718]
+Observation:
+Score: 325
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (616, -65)
+- Blood at (587, -62)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=718]
+Action: ATTACK
+
+[USER  t=719]
+Observation:
+Score: 327
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (617, -65)
+- DeadChaingunGuy at (617, -66)
+- Blood at (587, -62)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=719]
+Action: ATTACK
+
+[USER  t=720]
+Observation:
+Score: 329
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (618, -66)
+- Chaingun at (616, -65)
+- Blood at (587, -62)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=720]
+Action: ATTACK
+
+[USER  t=721]
+Observation:
+Score: 330
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (619, -66)
+- Chaingun at (616, -64)
+- Blood at (587, -62)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=721]
+Action: ATTACK
+
+[USER  t=722]
+Observation:
+Score: 332
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (620, -66)
+- Chaingun at (615, -64)
+- Blood at (587, -62)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=722]
+Action: NO-OP (Do nothing)
+
+[USER  t=723]
+Observation:
+Score: 333
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (620, -66)
+- BulletPuff at (458, -35)
+- Chaingun at (615, -63)
+- Blood at (587, -62)
+- Zombieman at (608, 64)
+
+[ASSISTANT t=723]
+Action: TURN_LEFT
+
+[USER  t=724]
+Observation:
+Score: 334
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (621, -66)
+- Chaingun at (614, -63)
+- BulletPuff at (458, -35)
+- Blood at (587, -62)
+
+[ASSISTANT t=724]
+Action: TURN_LEFT
+
+[USER  t=725]
+Observation:
+Score: 336
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (622, -66)
+- Chaingun at (614, -62)
+- BulletPuff at (458, -35)
+- Blood at (587, -62)
+
+[ASSISTANT t=725]
+Action: TURN_LEFT
+
+[USER  t=726]
+Observation:
+Score: 337
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (622, -67)
+- Chaingun at (613, -62)
+- BulletPuff at (458, -35)
+- Blood at (587, -62)
+
+[ASSISTANT t=726]
+Action: TURN_LEFT
+
+[USER  t=727]
+Observation:
+Score: 337
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (623, -67)
+- Chaingun at (613, -62)
+- BulletPuff at (458, -35)
+- Blood at (587, -62)
+
+[ASSISTANT t=727]
+Action: TURN_LEFT
+
+[USER  t=728]
+Observation:
+Score: 338
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (623, -67)
+- Chaingun at (613, -61)
+- BulletPuff at (458, -35)
+- Blood at (587, -62)
+
+[ASSISTANT t=728]
+Action: TURN_LEFT
+
+[USER  t=729]
+Observation:
+Score: 339
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (623, -67)
+- Chaingun at (612, -61)
+- BulletPuff at (458, -35)
+- Blood at (587, -62)
+
+[ASSISTANT t=729]
+Action: TURN_LEFT
+
+[USER  t=730]
+Observation:
+Score: 340
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (624, -67)
+- Chaingun at (612, -60)
+- BulletPuff at (458, -35)
+- Blood at (587, -62)
+
+[ASSISTANT t=730]
+Action: TURN_LEFT
+
+[USER  t=731]
+Observation:
+Score: 340
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (624, -67)
+- Chaingun at (611, -60)
+- BulletPuff at (458, -35)
+- Blood at (587, -62)
+
+[ASSISTANT t=731]
+Action: TURN_LEFT
+
+[USER  t=732]
+Observation:
+Score: 341
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (624, -67)
+- Chaingun at (611, -59)
+- BulletPuff at (458, -35)
+- Blood at (587, -62)
+
+[ASSISTANT t=732]
+Action: TURN_LEFT
+
+[USER  t=733]
+Observation:
+Score: 341
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (625, -67)
+- Chaingun at (610, -59)
+- BulletPuff at (458, -35)
+
+[ASSISTANT t=733]
+Action: TURN_LEFT
+
+[USER  t=734]
+Observation:
+Score: 342
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (625, -67)
+- Chaingun at (610, -58)
+- BulletPuff at (458, -35)
+
+[ASSISTANT t=734]
+Action: TURN_LEFT
+
+[USER  t=735]
+Observation:
+Score: 342
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (625, -67)
+- Chaingun at (609, -58)
+- BulletPuff at (458, -35)
+
+[ASSISTANT t=735]
+Action: ATTACK
+
+[USER  t=736]
+Observation:
+Score: 343
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (625, -67)
+- Chaingun at (609, -58)
+- BulletPuff at (458, -35)
+
+[ASSISTANT t=736]
+Action: ATTACK
+
+[USER  t=737]
+Observation:
+Score: 343
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (625, -67)
+- Chaingun at (608, -57)
+- BulletPuff at (458, -35)
+
+[ASSISTANT t=737]
+Action: ATTACK
+
+[USER  t=738]
+Observation:
+Score: 343
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (626, -67)
+- Chaingun at (608, -57)
+
+[ASSISTANT t=738]
+Action: NO-OP (Do nothing)
+
+[USER  t=739]
+Observation:
+Score: 343
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (626, -67)
+- Chaingun at (608, -57)
+
+[ASSISTANT t=739]
+Action: NO-OP (Do nothing)
+
+[USER  t=740]
+Observation:
+Score: 344
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- BulletPuff at (610, 94)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (626, -67)
+- Chaingun at (607, -56)
+
+[ASSISTANT t=740]
+Action: NO-OP (Do nothing)
+
+[USER  t=741]
+Observation:
+Score: 344
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- BulletPuff at (610, 94)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (626, -67)
+- Chaingun at (607, -56)
+
+[ASSISTANT t=741]
+Action: NO-OP (Do nothing)
+
+[USER  t=742]
+Observation:
+Score: 344
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- BulletPuff at (610, 94)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (626, -67)
+- Chaingun at (607, -56)
+
+[ASSISTANT t=742]
+Action: NO-OP (Do nothing)
+
+[USER  t=743]
+Observation:
+Score: 344
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- BulletPuff at (610, 94)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (626, -67)
+- Chaingun at (607, -56)
+
+[ASSISTANT t=743]
+Action: NO-OP (Do nothing)
+
+[USER  t=744]
+Observation:
+Score: 344
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- BulletPuff at (610, 94)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (626, -67)
+- Chaingun at (607, -56)
+
+[ASSISTANT t=744]
+Action: TURN_RIGHT
+
+[USER  t=745]
+Observation:
+Score: 345
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- BulletPuff at (610, 94)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (626, -67)
+- Chaingun at (606, -55)
+
+[ASSISTANT t=745]
+Action: TURN_RIGHT
+
+[USER  t=746]
+Observation:
+Score: 345
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- BulletPuff at (610, 94)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (626, -67)
+- Chaingun at (606, -55)
+
+[ASSISTANT t=746]
+Action: TURN_RIGHT
+
+[USER  t=747]
+Observation:
+Score: 345
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- BulletPuff at (610, 94)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (626, -67)
+- Chaingun at (606, -55)
+
+[ASSISTANT t=747]
+Action: NO-OP (Do nothing)
+
+[USER  t=748]
+Observation:
+Score: 345
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- BulletPuff at (610, 94)
+- Zombieman at (608, 64)
+- DeadChaingunGuy at (627, -67)
+- Chaingun at (606, -55)
+
+[ASSISTANT t=748]
+Action: NO-OP (Do nothing)
+
+[USER  t=749]
+Observation:
+Score: 345
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- BulletPuff at (610, 94)
+- Zombieman at (608, 64)
+- Chaingun at (606, -55)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=749]
+Action: NO-OP (Do nothing)
+
+[USER  t=750]
+Observation:
+Score: 345
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- BulletPuff at (610, 94)
+- Zombieman at (608, 64)
+- Chaingun at (606, -55)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=750]
+Action: NO-OP (Do nothing)
+
+[USER  t=751]
+Observation:
+Score: 345
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- BulletPuff at (610, 94)
+- Zombieman at (608, 64)
+- Chaingun at (606, -55)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=751]
+Action: NO-OP (Do nothing)
+
+[USER  t=752]
+Observation:
+Score: 345
+Inventory: [Health: 10]
+Objects:
+- GreenArmor at (1312, 0)
+- BulletPuff at (610, 94)
+- Zombieman at (608, 64)
+- Chaingun at (606, -55)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=752]
+Action: ATTACK
+
+[USER  t=753]
+Observation:
+Score: 345
+Inventory: [Health: 4]
+Objects:
+- Blood at (360, -3)
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=753]
+Action: ATTACK
+
+[USER  t=754]
+Observation:
+Score: 345
+Inventory: [Health: 4]
+Objects:
+- Blood at (360, -3)
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=754]
+Action: ATTACK
+
+[USER  t=755]
+Observation:
+Score: 344
+Inventory: [Health: 4]
+Objects:
+- Blood at (360, -3)
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=755]
+Action: NO-OP (Do nothing)
+
+[USER  t=756]
+Observation:
+Score: 344
+Inventory: [Health: 4]
+Objects:
+- Blood at (360, -3)
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=756]
+Action: NO-OP (Do nothing)
+
+[USER  t=757]
+Observation:
+Score: 343
+Inventory: [Health: 4]
+Objects:
+- Blood at (360, -3)
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=757]
+Action: NO-OP (Do nothing)
+
+[USER  t=758]
+Observation:
+Score: 343
+Inventory: [Health: 4]
+Objects:
+- Blood at (360, -3)
+- GreenArmor at (1312, 0)
+- Zombieman at (608, 64)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=758]
+Action: NO-OP (Do nothing)
+
+[USER  t=759]
+Observation:
+Score: 342
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (609, 64)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=759]
+Action: NO-OP (Do nothing)
+
+[USER  t=760]
+Observation:
+Score: 342
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (611, 64)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=760]
+Action: NO-OP (Do nothing)
+
+[USER  t=761]
+Observation:
+Score: 342
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (612, 65)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=761]
+Action: NO-OP (Do nothing)
+
+[USER  t=762]
+Observation:
+Score: 341
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (614, 65)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=762]
+Action: NO-OP (Do nothing)
+
+[USER  t=763]
+Observation:
+Score: 341
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (615, 66)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=763]
+Action: NO-OP (Do nothing)
+
+[USER  t=764]
+Observation:
+Score: 341
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (616, 66)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=764]
+Action: NO-OP (Do nothing)
+
+[USER  t=765]
+Observation:
+Score: 341
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (617, 66)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=765]
+Action: NO-OP (Do nothing)
+
+[USER  t=766]
+Observation:
+Score: 340
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (618, 66)
+- DeadZombieman at (618, 66)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=766]
+Action: NO-OP (Do nothing)
+
+[USER  t=767]
+Observation:
+Score: 340
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (619, 67)
+- Clip at (617, 65)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=767]
+Action: NO-OP (Do nothing)
+
+[USER  t=768]
+Observation:
+Score: 340
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (620, 67)
+- Clip at (617, 65)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=768]
+Action: NO-OP (Do nothing)
+
+[USER  t=769]
+Observation:
+Score: 340
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (620, 67)
+- Clip at (616, 64)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=769]
+Action: NO-OP (Do nothing)
+
+[USER  t=770]
+Observation:
+Score: 340
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (621, 67)
+- Clip at (616, 64)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=770]
+Action: TURN_RIGHT
+
+[USER  t=771]
+Observation:
+Score: 340
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (621, 67)
+- Clip at (615, 63)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=771]
+Action: TURN_RIGHT
+
+[USER  t=772]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (622, 68)
+- Clip at (615, 63)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=772]
+Action: TURN_RIGHT
+
+[USER  t=773]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (622, 68)
+- Clip at (615, 62)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=773]
+Action: TURN_RIGHT
+
+[USER  t=774]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (623, 68)
+- Clip at (614, 62)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=774]
+Action: TURN_RIGHT
+
+[USER  t=775]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (623, 68)
+- Clip at (614, 61)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=775]
+Action: NO-OP (Do nothing)
+
+[USER  t=776]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (623, 68)
+- Clip at (613, 61)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=776]
+Action: NO-OP (Do nothing)
+
+[USER  t=777]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (624, 68)
+- Clip at (613, 60)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=777]
+Action: NO-OP (Do nothing)
+
+[USER  t=778]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (624, 68)
+- Clip at (613, 60)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=778]
+Action: NO-OP (Do nothing)
+
+[USER  t=779]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (624, 68)
+- Clip at (612, 59)
+- Blood at (587, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=779]
+Action: NO-OP (Do nothing)
+
+[USER  t=780]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (625, 68)
+- Clip at (612, 59)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=780]
+Action: NO-OP (Do nothing)
+
+[USER  t=781]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (625, 68)
+- Clip at (611, 58)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=781]
+Action: NO-OP (Do nothing)
+
+[USER  t=782]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (625, 68)
+- Clip at (611, 58)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=782]
+Action: TURN_RIGHT
+
+[USER  t=783]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (625, 68)
+- Clip at (610, 57)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=783]
+Action: TURN_RIGHT
+
+[USER  t=784]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (625, 68)
+- Clip at (610, 57)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=784]
+Action: TURN_RIGHT
+
+[USER  t=785]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (625, 68)
+- Clip at (610, 56)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=785]
+Action: TURN_RIGHT
+
+[USER  t=786]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (626, 69)
+- Clip at (609, 56)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=786]
+Action: NO-OP (Do nothing)
+
+[USER  t=787]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (626, 69)
+- Clip at (609, 55)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=787]
+Action: TURN_RIGHT
+
+[USER  t=788]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (626, 69)
+- Clip at (609, 55)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=788]
+Action: NO-OP (Do nothing)
+
+[USER  t=789]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (626, 69)
+- Clip at (608, 55)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=789]
+Action: NO-OP (Do nothing)
+
+[USER  t=790]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (626, 69)
+- Clip at (608, 54)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=790]
+Action: NO-OP (Do nothing)
+
+[USER  t=791]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (626, 69)
+- Clip at (608, 54)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=791]
+Action: NO-OP (Do nothing)
+
+[USER  t=792]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (626, 69)
+- Clip at (608, 54)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=792]
+Action: NO-OP (Do nothing)
+
+[USER  t=793]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (626, 69)
+- Clip at (608, 54)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=793]
+Action: NO-OP (Do nothing)
+
+[USER  t=794]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadZombieman at (626, 69)
+- Clip at (608, 54)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=794]
+Action: NO-OP (Do nothing)
+
+[USER  t=795]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (607, 53)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=795]
+Action: NO-OP (Do nothing)
+
+[USER  t=796]
+Observation:
+Score: 339
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (607, 53)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=796]
+Action: MOVE_BACKWARD
+
+[USER  t=797]
+Observation:
+Score: 338
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (607, 53)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=797]
+Action: MOVE_BACKWARD
+
+[USER  t=798]
+Observation:
+Score: 337
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (607, 53)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=798]
+Action: NO-OP (Do nothing)
+
+[USER  t=799]
+Observation:
+Score: 335
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (607, 53)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=799]
+Action: NO-OP (Do nothing)
+
+[USER  t=800]
+Observation:
+Score: 334
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (607, 53)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=800]
+Action: NO-OP (Do nothing)
+
+[USER  t=801]
+Observation:
+Score: 333
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (607, 53)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=801]
+Action: NO-OP (Do nothing)
+
+[USER  t=802]
+Observation:
+Score: 332
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (607, 53)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=802]
+Action: NO-OP (Do nothing)
+
+[USER  t=803]
+Observation:
+Score: 331
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (607, 53)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=803]
+Action: NO-OP (Do nothing)
+
+[USER  t=804]
+Observation:
+Score: 330
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (607, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=804]
+Action: NO-OP (Do nothing)
+
+[USER  t=805]
+Observation:
+Score: 330
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (607, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=805]
+Action: NO-OP (Do nothing)
+
+[USER  t=806]
+Observation:
+Score: 329
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=806]
+Action: NO-OP (Do nothing)
+
+[USER  t=807]
+Observation:
+Score: 328
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=807]
+Action: NO-OP (Do nothing)
+
+[USER  t=808]
+Observation:
+Score: 328
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=808]
+Action: NO-OP (Do nothing)
+
+[USER  t=809]
+Observation:
+Score: 327
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=809]
+Action: NO-OP (Do nothing)
+
+[USER  t=810]
+Observation:
+Score: 327
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=810]
+Action: NO-OP (Do nothing)
+
+[USER  t=811]
+Observation:
+Score: 326
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=811]
+Action: MOVE_BACKWARD
+
+[USER  t=812]
+Observation:
+Score: 325
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=812]
+Action: MOVE_BACKWARD
+
+[USER  t=813]
+Observation:
+Score: 323
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=813]
+Action: MOVE_BACKWARD
+
+[USER  t=814]
+Observation:
+Score: 321
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=814]
+Action: NO-OP (Do nothing)
+
+[USER  t=815]
+Observation:
+Score: 319
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=815]
+Action: NO-OP (Do nothing)
+
+[USER  t=816]
+Observation:
+Score: 317
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=816]
+Action: NO-OP (Do nothing)
+
+[USER  t=817]
+Observation:
+Score: 315
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=817]
+Action: NO-OP (Do nothing)
+
+[USER  t=818]
+Observation:
+Score: 313
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=818]
+Action: NO-OP (Do nothing)
+
+[USER  t=819]
+Observation:
+Score: 312
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=819]
+Action: NO-OP (Do nothing)
+
+[USER  t=820]
+Observation:
+Score: 310
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=820]
+Action: NO-OP (Do nothing)
+
+[USER  t=821]
+Observation:
+Score: 309
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=821]
+Action: NO-OP (Do nothing)
+
+[USER  t=822]
+Observation:
+Score: 308
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=822]
+Action: NO-OP (Do nothing)
+
+[USER  t=823]
+Observation:
+Score: 307
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=823]
+Action: NO-OP (Do nothing)
+
+[USER  t=824]
+Observation:
+Score: 306
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=824]
+Action: NO-OP (Do nothing)
+
+[USER  t=825]
+Observation:
+Score: 305
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=825]
+Action: NO-OP (Do nothing)
+
+[USER  t=826]
+Observation:
+Score: 305
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=826]
+Action: NO-OP (Do nothing)
+
+[USER  t=827]
+Observation:
+Score: 304
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=827]
+Action: NO-OP (Do nothing)
+
+[USER  t=828]
+Observation:
+Score: 303
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=828]
+Action: NO-OP (Do nothing)
+
+[USER  t=829]
+Observation:
+Score: 303
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=829]
+Action: NO-OP (Do nothing)
+
+[USER  t=830]
+Observation:
+Score: 302
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=830]
+Action: MOVE_FORWARD
+
+[USER  t=831]
+Observation:
+Score: 303
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=831]
+Action: MOVE_FORWARD
+
+[USER  t=832]
+Observation:
+Score: 304
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=832]
+Action: MOVE_FORWARD
+
+[USER  t=833]
+Observation:
+Score: 305
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=833]
+Action: MOVE_FORWARD
+
+[USER  t=834]
+Observation:
+Score: 308
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=834]
+Action: MOVE_FORWARD
+
+[USER  t=835]
+Observation:
+Score: 311
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=835]
+Action: MOVE_FORWARD
+
+[USER  t=836]
+Observation:
+Score: 314
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=836]
+Action: MOVE_FORWARD
+
+[USER  t=837]
+Observation:
+Score: 318
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=837]
+Action: MOVE_FORWARD
+
+[USER  t=838]
+Observation:
+Score: 322
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=838]
+Action: MOVE_FORWARD
+
+[USER  t=839]
+Observation:
+Score: 327
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+
+[ASSISTANT t=839]
+Action: MOVE_FORWARD
+
+[USER  t=840]
+Observation:
+Score: 332
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=840]
+Action: MOVE_FORWARD
+
+[USER  t=841]
+Observation:
+Score: 337
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=841]
+Action: MOVE_FORWARD
+
+[USER  t=842]
+Observation:
+Score: 343
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=842]
+Action: NO-OP (Do nothing)
+
+[USER  t=843]
+Observation:
+Score: 348
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=843]
+Action: NO-OP (Do nothing)
+
+[USER  t=844]
+Observation:
+Score: 353
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=844]
+Action: NO-OP (Do nothing)
+
+[USER  t=845]
+Observation:
+Score: 357
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=845]
+Action: TURN_LEFT
+
+[USER  t=846]
+Observation:
+Score: 361
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=846]
+Action: TURN_LEFT
+
+[USER  t=847]
+Observation:
+Score: 364
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=847]
+Action: TURN_LEFT
+
+[USER  t=848]
+Observation:
+Score: 367
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=848]
+Action: NO-OP (Do nothing)
+
+[USER  t=849]
+Observation:
+Score: 370
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=849]
+Action: NO-OP (Do nothing)
+
+[USER  t=850]
+Observation:
+Score: 373
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=850]
+Action: NO-OP (Do nothing)
+
+[USER  t=851]
+Observation:
+Score: 375
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=851]
+Action: NO-OP (Do nothing)
+
+[USER  t=852]
+Observation:
+Score: 377
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=852]
+Action: NO-OP (Do nothing)
+
+[USER  t=853]
+Observation:
+Score: 379
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=853]
+Action: NO-OP (Do nothing)
+
+[USER  t=854]
+Observation:
+Score: 381
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=854]
+Action: NO-OP (Do nothing)
+
+[USER  t=855]
+Observation:
+Score: 382
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=855]
+Action: TURN_RIGHT
+
+[USER  t=856]
+Observation:
+Score: 384
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=856]
+Action: TURN_RIGHT
+
+[USER  t=857]
+Observation:
+Score: 385
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=857]
+Action: NO-OP (Do nothing)
+
+[USER  t=858]
+Observation:
+Score: 386
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=858]
+Action: NO-OP (Do nothing)
+
+[USER  t=859]
+Observation:
+Score: 387
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=859]
+Action: NO-OP (Do nothing)
+
+[USER  t=860]
+Observation:
+Score: 388
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=860]
+Action: NO-OP (Do nothing)
+
+[USER  t=861]
+Observation:
+Score: 389
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=861]
+Action: NO-OP (Do nothing)
+
+[USER  t=862]
+Observation:
+Score: 390
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=862]
+Action: NO-OP (Do nothing)
+
+[USER  t=863]
+Observation:
+Score: 390
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=863]
+Action: NO-OP (Do nothing)
+
+[USER  t=864]
+Observation:
+Score: 391
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=864]
+Action: NO-OP (Do nothing)
+
+[USER  t=865]
+Observation:
+Score: 392
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=865]
+Action: NO-OP (Do nothing)
+
+[USER  t=866]
+Observation:
+Score: 392
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=866]
+Action: NO-OP (Do nothing)
+
+[USER  t=867]
+Observation:
+Score: 393
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=867]
+Action: NO-OP (Do nothing)
+
+[USER  t=868]
+Observation:
+Score: 393
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=868]
+Action: NO-OP (Do nothing)
+
+[USER  t=869]
+Observation:
+Score: 393
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=869]
+Action: NO-OP (Do nothing)
+
+[USER  t=870]
+Observation:
+Score: 394
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=870]
+Action: NO-OP (Do nothing)
+
+[USER  t=871]
+Observation:
+Score: 394
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=871]
+Action: NO-OP (Do nothing)
+
+[USER  t=872]
+Observation:
+Score: 394
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=872]
+Action: NO-OP (Do nothing)
+
+[USER  t=873]
+Observation:
+Score: 395
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=873]
+Action: NO-OP (Do nothing)
+
+[USER  t=874]
+Observation:
+Score: 395
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=874]
+Action: NO-OP (Do nothing)
+
+[USER  t=875]
+Observation:
+Score: 395
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=875]
+Action: NO-OP (Do nothing)
+
+[USER  t=876]
+Observation:
+Score: 395
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=876]
+Action: NO-OP (Do nothing)
+
+[USER  t=877]
+Observation:
+Score: 396
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=877]
+Action: NO-OP (Do nothing)
+
+[USER  t=878]
+Observation:
+Score: 396
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=878]
+Action: NO-OP (Do nothing)
+
+[USER  t=879]
+Observation:
+Score: 396
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=879]
+Action: MOVE_FORWARD
+
+[USER  t=880]
+Observation:
+Score: 397
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=880]
+Action: MOVE_FORWARD
+
+[USER  t=881]
+Observation:
+Score: 398
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=881]
+Action: MOVE_FORWARD
+
+[USER  t=882]
+Observation:
+Score: 401
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=882]
+Action: MOVE_FORWARD
+
+[USER  t=883]
+Observation:
+Score: 403
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=883]
+Action: MOVE_FORWARD
+
+[USER  t=884]
+Observation:
+Score: 407
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=884]
+Action: MOVE_FORWARD
+
+[USER  t=885]
+Observation:
+Score: 411
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=885]
+Action: MOVE_FORWARD
+
+[USER  t=886]
+Observation:
+Score: 415
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=886]
+Action: MOVE_FORWARD
+
+[USER  t=887]
+Observation:
+Score: 419
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=887]
+Action: MOVE_FORWARD
+
+[USER  t=888]
+Observation:
+Score: 424
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=888]
+Action: MOVE_FORWARD
+
+[USER  t=889]
+Observation:
+Score: 430
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=889]
+Action: MOVE_FORWARD
+
+[USER  t=890]
+Observation:
+Score: 435
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=890]
+Action: MOVE_FORWARD
+
+[USER  t=891]
+Observation:
+Score: 441
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=891]
+Action: MOVE_FORWARD
+
+[USER  t=892]
+Observation:
+Score: 447
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=892]
+Action: MOVE_FORWARD
+
+[USER  t=893]
+Observation:
+Score: 453
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=893]
+Action: MOVE_FORWARD
+
+[USER  t=894]
+Observation:
+Score: 460
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=894]
+Action: MOVE_FORWARD
+
+[USER  t=895]
+Observation:
+Score: 466
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=895]
+Action: MOVE_FORWARD
+
+[USER  t=896]
+Observation:
+Score: 473
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=896]
+Action: MOVE_FORWARD
+
+[USER  t=897]
+Observation:
+Score: 480
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=897]
+Action: MOVE_FORWARD
+
+[USER  t=898]
+Observation:
+Score: 487
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=898]
+Action: MOVE_FORWARD
+
+[USER  t=899]
+Observation:
+Score: 494
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=899]
+Action: MOVE_FORWARD
+
+[USER  t=900]
+Observation:
+Score: 502
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=900]
+Action: MOVE_FORWARD
+
+[USER  t=901]
+Observation:
+Score: 509
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=901]
+Action: MOVE_FORWARD
+
+[USER  t=902]
+Observation:
+Score: 517
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=902]
+Action: MOVE_FORWARD
+
+[USER  t=903]
+Observation:
+Score: 524
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=903]
+Action: MOVE_FORWARD
+
+[USER  t=904]
+Observation:
+Score: 532
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=904]
+Action: MOVE_FORWARD
+
+[USER  t=905]
+Observation:
+Score: 540
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Clip at (606, 52)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=905]
+Action: MOVE_FORWARD
+
+[USER  t=906]
+Observation:
+Score: 547
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=906]
+Action: MOVE_FORWARD
+
+[USER  t=907]
+Observation:
+Score: 555
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=907]
+Action: MOVE_FORWARD
+
+[USER  t=908]
+Observation:
+Score: 563
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- DeadZombieman at (626, 69)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=908]
+Action: MOVE_FORWARD
+
+[USER  t=909]
+Observation:
+Score: 571
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- Chaingun at (605, -54)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=909]
+Action: NO-OP (Do nothing)
+
+[USER  t=910]
+Observation:
+Score: 578
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+- DeadChaingunGuy at (627, -67)
+
+[ASSISTANT t=910]
+Action: NO-OP (Do nothing)
+
+[USER  t=911]
+Observation:
+Score: 585
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=911]
+Action: TURN_LEFT
+
+[USER  t=912]
+Observation:
+Score: 590
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=912]
+Action: TURN_LEFT
+
+[USER  t=913]
+Observation:
+Score: 596
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=913]
+Action: TURN_LEFT
+
+[USER  t=914]
+Observation:
+Score: 601
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=914]
+Action: TURN_LEFT
+
+[USER  t=915]
+Observation:
+Score: 605
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=915]
+Action: TURN_LEFT
+
+[USER  t=916]
+Observation:
+Score: 609
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=916]
+Action: NO-OP (Do nothing)
+
+[USER  t=917]
+Observation:
+Score: 612
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=917]
+Action: NO-OP (Do nothing)
+
+[USER  t=918]
+Observation:
+Score: 616
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=918]
+Action: NO-OP (Do nothing)
+
+[USER  t=919]
+Observation:
+Score: 619
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=919]
+Action: NO-OP (Do nothing)
+
+[USER  t=920]
+Observation:
+Score: 621
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=920]
+Action: NO-OP (Do nothing)
+
+[USER  t=921]
+Observation:
+Score: 624
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=921]
+Action: NO-OP (Do nothing)
+
+[USER  t=922]
+Observation:
+Score: 626
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=922]
+Action: NO-OP (Do nothing)
+
+[USER  t=923]
+Observation:
+Score: 628
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=923]
+Action: NO-OP (Do nothing)
+
+[USER  t=924]
+Observation:
+Score: 630
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=924]
+Action: NO-OP (Do nothing)
+
+[USER  t=925]
+Observation:
+Score: 631
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=925]
+Action: ATTACK
+
+[USER  t=926]
+Observation:
+Score: 633
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=926]
+Action: ATTACK
+
+[USER  t=927]
+Observation:
+Score: 634
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=927]
+Action: NO-OP (Do nothing)
+
+[USER  t=928]
+Observation:
+Score: 635
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=928]
+Action: NO-OP (Do nothing)
+
+[USER  t=929]
+Observation:
+Score: 637
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ChaingunGuy at (1024, 64)
+
+[ASSISTANT t=929]
+Action: NO-OP (Do nothing)
+
+[USER  t=930]
+Observation:
+Score: 638
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1025, 64)
+- Blood at (1003, 44)
+
+[ASSISTANT t=930]
+Action: NO-OP (Do nothing)
+
+[USER  t=931]
+Observation:
+Score: 639
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1027, 64)
+- Blood at (1003, 44)
+
+[ASSISTANT t=931]
+Action: NO-OP (Do nothing)
+
+[USER  t=932]
+Observation:
+Score: 639
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1029, 64)
+- Blood at (1003, 44)
+
+[ASSISTANT t=932]
+Action: NO-OP (Do nothing)
+
+[USER  t=933]
+Observation:
+Score: 640
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1030, 65)
+- Blood at (1003, 44)
+
+[ASSISTANT t=933]
+Action: NO-OP (Do nothing)
+
+[USER  t=934]
+Observation:
+Score: 641
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1031, 65)
+- Blood at (1003, 44)
+
+[ASSISTANT t=934]
+Action: NO-OP (Do nothing)
+
+[USER  t=935]
+Observation:
+Score: 641
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1032, 65)
+- Blood at (1003, 44)
+
+[ASSISTANT t=935]
+Action: NO-OP (Do nothing)
+
+[USER  t=936]
+Observation:
+Score: 642
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1033, 65)
+- Blood at (1003, 44)
+
+[ASSISTANT t=936]
+Action: NO-OP (Do nothing)
+
+[USER  t=937]
+Observation:
+Score: 642
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- Chaingun at (1034, 66)
+- DeadChaingunGuy at (1034, 66)
+- Blood at (1003, 44)
+
+[ASSISTANT t=937]
+Action: NO-OP (Do nothing)
+
+[USER  t=938]
+Observation:
+Score: 643
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1035, 66)
+- Chaingun at (1034, 67)
+- Blood at (1003, 44)
+
+[ASSISTANT t=938]
+Action: NO-OP (Do nothing)
+
+[USER  t=939]
+Observation:
+Score: 643
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1036, 66)
+- Chaingun at (1034, 67)
+- Blood at (1003, 44)
+
+[ASSISTANT t=939]
+Action: NO-OP (Do nothing)
+
+[USER  t=940]
+Observation:
+Score: 644
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1036, 66)
+- Chaingun at (1035, 68)
+- Blood at (1003, 44)
+
+[ASSISTANT t=940]
+Action: NO-OP (Do nothing)
+
+[USER  t=941]
+Observation:
+Score: 644
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1037, 66)
+- Chaingun at (1035, 68)
+- Blood at (1003, 44)
+
+[ASSISTANT t=941]
+Action: NO-OP (Do nothing)
+
+[USER  t=942]
+Observation:
+Score: 644
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1038, 66)
+- Chaingun at (1035, 69)
+- Blood at (1003, 44)
+
+[ASSISTANT t=942]
+Action: NO-OP (Do nothing)
+
+[USER  t=943]
+Observation:
+Score: 645
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1038, 66)
+- Chaingun at (1035, 69)
+- Blood at (1003, 44)
+
+[ASSISTANT t=943]
+Action: NO-OP (Do nothing)
+
+[USER  t=944]
+Observation:
+Score: 645
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1039, 66)
+- Chaingun at (1035, 70)
+- Blood at (1003, 44)
+
+[ASSISTANT t=944]
+Action: NO-OP (Do nothing)
+
+[USER  t=945]
+Observation:
+Score: 645
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1039, 67)
+- Chaingun at (1035, 70)
+- Blood at (1003, 44)
+
+[ASSISTANT t=945]
+Action: NO-OP (Do nothing)
+
+[USER  t=946]
+Observation:
+Score: 645
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1039, 67)
+- Chaingun at (1035, 71)
+- Blood at (1003, 44)
+
+[ASSISTANT t=946]
+Action: NO-OP (Do nothing)
+
+[USER  t=947]
+Observation:
+Score: 645
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1040, 67)
+- Chaingun at (1035, 71)
+- Blood at (1003, 44)
+
+[ASSISTANT t=947]
+Action: NO-OP (Do nothing)
+
+[USER  t=948]
+Observation:
+Score: 646
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1040, 67)
+- Chaingun at (1035, 72)
+- Blood at (1003, 44)
+
+[ASSISTANT t=948]
+Action: NO-OP (Do nothing)
+
+[USER  t=949]
+Observation:
+Score: 646
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1040, 67)
+- Chaingun at (1036, 72)
+- Blood at (1003, 44)
+
+[ASSISTANT t=949]
+Action: TURN_RIGHT
+
+[USER  t=950]
+Observation:
+Score: 646
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1041, 67)
+- Chaingun at (1036, 73)
+- Blood at (1003, 44)
+
+[ASSISTANT t=950]
+Action: TURN_RIGHT
+
+[USER  t=951]
+Observation:
+Score: 646
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1041, 67)
+- Chaingun at (1036, 73)
+- Blood at (1003, 44)
+
+[ASSISTANT t=951]
+Action: TURN_RIGHT
+
+[USER  t=952]
+Observation:
+Score: 646
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1041, 67)
+- Chaingun at (1036, 74)
+
+[ASSISTANT t=952]
+Action: TURN_RIGHT
+
+[USER  t=953]
+Observation:
+Score: 646
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1041, 67)
+- Chaingun at (1036, 74)
+
+[ASSISTANT t=953]
+Action: TURN_RIGHT
+
+[USER  t=954]
+Observation:
+Score: 646
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1041, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=954]
+Action: TURN_RIGHT
+
+[USER  t=955]
+Observation:
+Score: 646
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1042, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=955]
+Action: TURN_RIGHT
+
+[USER  t=956]
+Observation:
+Score: 647
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1042, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=956]
+Action: TURN_RIGHT
+
+[USER  t=957]
+Observation:
+Score: 647
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1042, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=957]
+Action: NO-OP (Do nothing)
+
+[USER  t=958]
+Observation:
+Score: 647
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1042, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=958]
+Action: NO-OP (Do nothing)
+
+[USER  t=959]
+Observation:
+Score: 647
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1042, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=959]
+Action: MOVE_FORWARD
+
+[USER  t=960]
+Observation:
+Score: 647
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1042, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=960]
+Action: MOVE_FORWARD
+
+[USER  t=961]
+Observation:
+Score: 649
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1042, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=961]
+Action: MOVE_FORWARD
+
+[USER  t=962]
+Observation:
+Score: 651
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1042, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=962]
+Action: MOVE_FORWARD
+
+[USER  t=963]
+Observation:
+Score: 654
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1042, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=963]
+Action: MOVE_FORWARD
+
+[USER  t=964]
+Observation:
+Score: 657
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1042, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=964]
+Action: MOVE_FORWARD
+
+[USER  t=965]
+Observation:
+Score: 661
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=965]
+Action: MOVE_FORWARD
+
+[USER  t=966]
+Observation:
+Score: 665
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=966]
+Action: MOVE_FORWARD
+
+[USER  t=967]
+Observation:
+Score: 669
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=967]
+Action: MOVE_FORWARD
+
+[USER  t=968]
+Observation:
+Score: 673
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=968]
+Action: MOVE_FORWARD
+
+[USER  t=969]
+Observation:
+Score: 677
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=969]
+Action: TURN_LEFT
+
+[USER  t=970]
+Observation:
+Score: 680
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=970]
+Action: TURN_LEFT
+
+[USER  t=971]
+Observation:
+Score: 683
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=971]
+Action: TURN_LEFT
+
+[USER  t=972]
+Observation:
+Score: 686
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=972]
+Action: TURN_LEFT
+
+[USER  t=973]
+Observation:
+Score: 688
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=973]
+Action: NO-OP (Do nothing)
+
+[USER  t=974]
+Observation:
+Score: 691
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=974]
+Action: NO-OP (Do nothing)
+
+[USER  t=975]
+Observation:
+Score: 693
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=975]
+Action: MOVE_FORWARD
+
+[USER  t=976]
+Observation:
+Score: 695
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=976]
+Action: MOVE_FORWARD
+
+[USER  t=977]
+Observation:
+Score: 698
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=977]
+Action: MOVE_FORWARD
+
+[USER  t=978]
+Observation:
+Score: 701
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=978]
+Action: MOVE_FORWARD
+
+[USER  t=979]
+Observation:
+Score: 705
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=979]
+Action: MOVE_FORWARD
+
+[USER  t=980]
+Observation:
+Score: 709
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=980]
+Action: MOVE_FORWARD
+
+[USER  t=981]
+Observation:
+Score: 713
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=981]
+Action: MOVE_FORWARD
+
+[USER  t=982]
+Observation:
+Score: 718
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=982]
+Action: MOVE_FORWARD
+
+[USER  t=983]
+Observation:
+Score: 722
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=983]
+Action: MOVE_FORWARD
+
+[USER  t=984]
+Observation:
+Score: 727
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=984]
+Action: MOVE_FORWARD
+
+[USER  t=985]
+Observation:
+Score: 732
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=985]
+Action: MOVE_FORWARD
+
+[USER  t=986]
+Observation:
+Score: 737
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=986]
+Action: MOVE_FORWARD
+
+[USER  t=987]
+Observation:
+Score: 743
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=987]
+Action: MOVE_FORWARD
+
+[USER  t=988]
+Observation:
+Score: 748
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=988]
+Action: MOVE_FORWARD
+
+[USER  t=989]
+Observation:
+Score: 753
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=989]
+Action: MOVE_FORWARD
+
+[USER  t=990]
+Observation:
+Score: 759
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=990]
+Action: MOVE_FORWARD
+
+[USER  t=991]
+Observation:
+Score: 765
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=991]
+Action: MOVE_FORWARD
+
+[USER  t=992]
+Observation:
+Score: 770
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=992]
+Action: MOVE_FORWARD
+
+[USER  t=993]
+Observation:
+Score: 776
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=993]
+Action: MOVE_FORWARD
+
+[USER  t=994]
+Observation:
+Score: 782
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=994]
+Action: MOVE_FORWARD
+
+[USER  t=995]
+Observation:
+Score: 788
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=995]
+Action: MOVE_FORWARD
+
+[USER  t=996]
+Observation:
+Score: 794
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=996]
+Action: MOVE_FORWARD
+
+[USER  t=997]
+Observation:
+Score: 800
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=997]
+Action: MOVE_FORWARD
+
+[USER  t=998]
+Observation:
+Score: 806
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=998]
+Action: MOVE_FORWARD
+
+[USER  t=999]
+Observation:
+Score: 812
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=999]
+Action: MOVE_FORWARD
+
+[USER  t=1000]
+Observation:
+Score: 818
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=1000]
+Action: NO-OP (Do nothing)
+
+[USER  t=1001]
+Observation:
+Score: 823
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=1001]
+Action: TURN_RIGHT
+
+[USER  t=1002]
+Observation:
+Score: 828
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=1002]
+Action: TURN_RIGHT
+
+[USER  t=1003]
+Observation:
+Score: 833
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=1003]
+Action: TURN_RIGHT
+
+[USER  t=1004]
+Observation:
+Score: 837
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=1004]
+Action: NO-OP (Do nothing)
+
+[USER  t=1005]
+Observation:
+Score: 840
+Inventory: [Health: 4]
+Objects:
+- GreenArmor at (1312, 0)
+- ShotgunGuy at (1024, -64)
+- DeadChaingunGuy at (1043, 67)
+- Chaingun at (1036, 75)
+
+[ASSISTANT t=1005]
+Action: NO-OP (Do nothing)
+
+[USER  t=1006]
+Observation:
+Score: 0
+Inventory: [Health: 100]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1006]
+Action: NO-OP (Do nothing)
+
+[USER  t=1007]
+Observation:
+Score: 0
+Inventory: [Health: 100]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1007]
+Action: NO-OP (Do nothing)
+
+[USER  t=1008]
+Observation:
+Score: 0
+Inventory: [Health: 100]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1008]
+Action: NO-OP (Do nothing)
+
+[USER  t=1009]
+Observation:
+Score: 0
+Inventory: [Health: 100]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1009]
+Action: ATTACK
+
+[USER  t=1010]
+Observation:
+Score: 0
+Inventory: [Health: 100]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1010]
+Action: ATTACK
+
+[USER  t=1011]
+Observation:
+Score: 0
+Inventory: [Health: 100]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1011]
+Action: TURN_RIGHT
+
+[USER  t=1012]
+Observation:
+Score: 0
+Inventory: [Health: 100]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1012]
+Action: TURN_RIGHT
+
+[USER  t=1013]
+Observation:
+Score: 0
+Inventory: [Health: 100]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1013]
+Action: TURN_RIGHT
+
+[USER  t=1014]
+Observation:
+Score: 0
+Inventory: [Health: 100]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1014]
+Action: TURN_RIGHT
+
+[USER  t=1015]
+Observation:
+Score: 0
+Inventory: [Health: 100]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1015]
+Action: TURN_RIGHT
+
+[USER  t=1016]
+Observation:
+Score: 0
+Inventory: [Health: 82]
+Objects:
+- Blood at (15, 12)
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1016]
+Action: NO-OP (Do nothing)
+
+[USER  t=1017]
+Observation:
+Score: -2
+Inventory: [Health: 82]
+Objects:
+- Blood at (15, 12)
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1017]
+Action: NO-OP (Do nothing)
+
+[USER  t=1018]
+Observation:
+Score: -3
+Inventory: [Health: 82]
+Objects:
+- Blood at (15, 12)
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1018]
+Action: NO-OP (Do nothing)
+
+[USER  t=1019]
+Observation:
+Score: -5
+Inventory: [Health: 82]
+Objects:
+- Blood at (15, 12)
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1019]
+Action: NO-OP (Do nothing)
+
+[USER  t=1020]
+Observation:
+Score: -7
+Inventory: [Health: 82]
+Objects:
+- Blood at (15, 12)
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1020]
+Action: NO-OP (Do nothing)
+
+[USER  t=1021]
+Observation:
+Score: -8
+Inventory: [Health: 82]
+Objects:
+- Blood at (15, 12)
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1021]
+Action: NO-OP (Do nothing)
+
+[USER  t=1022]
+Observation:
+Score: -9
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1022]
+Action: NO-OP (Do nothing)
+
+[USER  t=1023]
+Observation:
+Score: -11
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1023]
+Action: NO-OP (Do nothing)
+
+[USER  t=1024]
+Observation:
+Score: -12
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1024]
+Action: NO-OP (Do nothing)
+
+[USER  t=1025]
+Observation:
+Score: -13
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1025]
+Action: NO-OP (Do nothing)
+
+[USER  t=1026]
+Observation:
+Score: -13
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1026]
+Action: NO-OP (Do nothing)
+
+[USER  t=1027]
+Observation:
+Score: -14
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1027]
+Action: NO-OP (Do nothing)
+
+[USER  t=1028]
+Observation:
+Score: -15
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1028]
+Action: NO-OP (Do nothing)
+
+[USER  t=1029]
+Observation:
+Score: -15
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1029]
+Action: NO-OP (Do nothing)
+
+[USER  t=1030]
+Observation:
+Score: -15
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1030]
+Action: NO-OP (Do nothing)
+
+[USER  t=1031]
+Observation:
+Score: -15
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1031]
+Action: NO-OP (Do nothing)
+
+[USER  t=1032]
+Observation:
+Score: -15
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1032]
+Action: NO-OP (Do nothing)
+
+[USER  t=1033]
+Observation:
+Score: -15
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1033]
+Action: NO-OP (Do nothing)
+
+[USER  t=1034]
+Observation:
+Score: -15
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1034]
+Action: NO-OP (Do nothing)
+
+[USER  t=1035]
+Observation:
+Score: -15
+Inventory: [Health: 82]
+Objects:
+- GreenArmor at (1312, 0)
+- Zombieman at (160, -64)
+- ShotgunGuy at (160, 64)
+
+[ASSISTANT t=1035]
+Action: NO-OP (Do nothing)
+
