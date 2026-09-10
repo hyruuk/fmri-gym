@@ -35,10 +35,13 @@ class BabaAdapter(EnvAdapter):
         combos = {frozenset([k]): v for k, v in _DEFAULT_KEYMAP.items()}
         return SingleKeySpec(combos=combos, noop=0)
 
+
     def reset(self, seed: int | None) -> tuple[Any, dict]:
         try:
             out = self.env.reset(seed=seed)
         except TypeError:
+            if seed is not None and hasattr(self.env, "seed"):
+                self.env.seed(seed)
             out = self.env.reset()
         obs = out[0] if isinstance(out, tuple) else out
         return obs, {}
