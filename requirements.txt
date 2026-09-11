@@ -20,6 +20,7 @@ overcooked-ai          # `overcooked` backend (co-op cooking, social)
 pystk2-gymnasium       # `supertuxkart` backend (3D racing; NEEDS a real GL display)
 
 # From non-PyPI sources / needing a toolchain (see each config's _note):
+#   stk_gym    -> the chrplr/stk-code fork: build it (cmake) and pip install -e <fork>/python
 #   baba       -> pip install "git+https://github.com/nacloos/baba-is-ai.git"
 #   rushhour   -> pip install "git+https://github.com/chrplr/Rush-Hour.git#subdirectory=python"
 #                 + build the Go engine: go build -o rushhour-env ./cmd/rushhour-env

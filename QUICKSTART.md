@@ -83,6 +83,16 @@ Needs the Go binary from §1. After the build step you should have
 auto-finds that path. If the binary lives somewhere else, set
 `export RUSHHOUR_ENV_BIN=/absolute/path/to/rushhour-env` before running.
 
+### SuperTuxKart (the stk-code fork, in its own window)
+
+```bash
+python fmri_play.py --subject sub-01 --curriculum configs/dbp_games/stk_gym__race.json
+```
+
+Needs the fork built and its package installed (`pip install -e <fork>/python`,
+`STK_ENV_BIN=<fork>/build/bin/supertuxkart`); see README, "Running SuperTuxKart
+from the stk-code fork". The game takes over the screen; fmri-gym logs.
+
 ### Baba is AI
 
 ```bash

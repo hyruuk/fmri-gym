@@ -1,0 +1,28 @@
+{
+  "_game": "SuperTuxKart (sports/racing) -- the current game from chrplr/stk-code, played in its own window",
+  "_note": "Setup: build the fork (git clone https://github.com/chrplr/stk-code -b tuxkart-gym; cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j) and `pip install -e <fork>/python`; set STK_ENV_BIN=<fork>/build/bin/supertuxkart if the binary is not found on its own. Unlike every other backend, the game draws in ITS OWN fullscreen window on top of fmri-gym's and reads the keyboard/gamepad itself (STK's own bindings: arrows steer/accelerate/brake, SPACE fire, N nitro, V skid, BACKSPACE rescue -- or a gamepad); fmri-gym only polls the race state each frame and logs it. fmri-gym's ESC does not reach that window: quit the game from its pause menu (ESC there) to end the block early; data is saved either way.",
+  "_logging_note": "Per frame (fps below): race tick/time, speed, xyz, heading, distance_down_track, distance_to_center, on_road/on_ground/wrong_way, rank, finished_laps, powerup, nitro_energy, and the controls the kart applied (ctrl_steer, ctrl_accel, ctrl_brake, ctrl_nitro, ctrl_skid, ctrl_fire, ctrl_rescue, ctrl_look_back) -- the record of what the participant did -- plus progress_m and stk_time_minus_adapter (the game's race clock minus ours: constant while the race runs (phase 8), and stepping whenever the race clock is stopped -- intro, countdown, pause menu). Booleans are logged as 0/1; a field the game did not report is NaN. No frames are logged; the game runs on its own clock, so keypresses are not individually timestamped. reward = metres of progress since the previous sample.",
+  "curriculum": [
+    {
+      "type": "message",
+      "text": [
+        "SuperTuxKart",
+        "",
+        "Race three laps against three karts.",
+        "The game opens in its own window: drive with the arrow keys",
+        "(UP accelerates, DOWN brakes, LEFT/RIGHT steer),",
+        "SPACE uses an item, N nitro, V skid.",
+        "",
+        "(press SPACE to start)"
+      ]
+    },
+    {"type": "fixation", "duration": 1.0},
+    {
+      "type": "game", "backend": "stk_gym", "game": "supertuxkart",
+      "track": "hacienda", "laps": 3, "num_karts": 4, "difficulty": 1,
+      "fullscreen": true, "race_now": false,
+      "mode": "duration", "duration": 300.0, "fps": 60
+    },
+    {"type": "fixation", "duration": 2.0}
+  ]
+}

@@ -389,6 +389,10 @@ class Session:
                 seed=base_seed + episode_id, episode_id=episode_id,
                 turn_based=turn_based, dt=dt, state_stride=state_stride,
                 block_end=block_end)
+            # A backend that runs as its own program (stk_gym) reports that
+            # program being quit here, so the block is saved -- as after ESC
+            # -- rather than lost to an exception.
+            user_quit = user_quit or bool(getattr(adapter, "quit_requested", False))
             episode_id += 1
             if mode == "episode" and episode_id >= n_episodes:
                 break

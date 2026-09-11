@@ -22,6 +22,7 @@ through small pluggable **adapters**:
 | `baba`        | Baba Is You (rule-manipulation puzzle) | baba-is-ai |
 | `rushhour`    | Rush Hour sliding-block puzzle | rushhour_gym + Go engine |
 | `supertuxkart`| SuperTuxKart 3D racing (needs a real GL display) | pystk2 |
+| `stk_gym`     | SuperTuxKart, the current game in its own window (a hand-over: fmri-gym logs, the game draws and reads keys) | [chrplr/stk-code](https://github.com/chrplr/stk-code) `--gym-human` |
 
 > **All backends run in ONE env and ONE process.** Verified: a single session
 > with ALE + retro + gym + VGDL blocks back-to-back, and each of Crafter /
@@ -118,6 +119,7 @@ the right per-game keymap/settings baked in. Coverage by class:
 | `baba__` | 1 | make_win (rule-manipulation puzzle; other ids) |
 | `rushhour__` | 1 | easy (sliding-block puzzle; needs the Go engine built) |
 | `supertuxkart__` | 1 | race (3D racing; needs a real GL display) |
+| `stk_gym__` | 1 | race (the current SuperTuxKart from the chrplr/stk-code fork, in its own window; see below) |
 | `retro__` | 3 | tobutobugirldx, nomolos, anguna (need ROMs imported) |
 
 Each config carries `_game` / `_note` (per-game setup reminders). Games use
@@ -249,6 +251,40 @@ URL), `games_dir` (override the vendored dir), `headed` (show the window),
 > Note: a browser step (screenshot + `getGameState`) costs ~0.1–0.5 s, so
 > effective fps is lower than the emulator backends — fine for these
 > puzzle/casual games, and the framework paces to whatever it can sustain.
+
+## Running SuperTuxKart from the stk-code fork (`stk_gym`)
+
+The `supertuxkart` backend drives **pystk2** (an older STK, rendered offscreen
+and blitted like every other game). The `stk_gym` backend instead runs the
+**current game** from [chrplr/stk-code](https://github.com/chrplr/stk-code),
+whose `--gym-human` mode is the reverse of a Gymnasium env: the game opens its
+own fullscreen window on top of fmri-gym's, reads the keyboard or gamepad
+itself, and runs on its own clock with native frame pacing and sound; a JSON
+protocol only *reports*. fmri-gym polls the race state each frame and logs it —
+position, speed, progress, rank, and the **controls the kart applied**
+(`ctrl_steer`, `ctrl_accel`, `ctrl_brake`, `ctrl_nitro`, …), which are the
+record of what the participant did.
+
+Setup — build the fork and install its Python package:
+
+```bash
+git clone -b tuxkart-gym https://github.com/chrplr/stk-code.git ../stk-code
+(cd ../stk-code && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j)
+pip install -e ../stk-code/python
+export STK_ENV_BIN=$PWD/../stk-code/build/bin/supertuxkart   # if not found on its own
+python fmri_play.py --subject sub-01 --dummy-trigger --curriculum configs/dbp_games/stk_gym__race.json
+```
+
+Phase fields: `track`, `laps`, `num_karts`, `difficulty`, `fullscreen`
+(default true), `screensize`, `race_now` (skip the countdown), `extra_args`,
+`binary`. Controls are STK's own defaults (arrows, SPACE fire, N nitro, V
+skid, BACKSPACE rescue) or a gamepad.
+
+What this trades away, stated in the config: no frames are logged (the fork's
+`--history` recording is the tool for tick-exact replay), keypresses are not
+individually timestamped (the trajectory is sampled at the block's `fps`), and
+fmri-gym's ESC does not reach the game's window — quit from the game's pause
+menu to end the block early; data is saved either way.
 
 ## Design: the experiment loop never knows the engine
 
