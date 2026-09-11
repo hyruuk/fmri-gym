@@ -35,13 +35,38 @@ class BabaAdapter(EnvAdapter):
         combos = {frozenset([k]): v for k, v in _DEFAULT_KEYMAP.items()}
         return SingleKeySpec(combos=combos, noop=0)
 
+    """"
     def reset(self, seed: int | None) -> tuple[Any, dict]:
         try:
             out = self.env.reset(seed=seed)
         except TypeError:
+            if seed is not None and hasattr(self.env, "seed"):
+                self.env.seed(seed)
             out = self.env.reset()
         obs = out[0] if isinstance(out, tuple) else out
         return obs, {}
+        """
+
+
+    def reset(self, seed: int | None) -> tuple[Any, dict]:
+            # baba's own rand_int() (agent/object placement, initial facing -- baba/grid.py)
+            # reads NumPy's global, unseeded RNG; env.reset(seed=) never reaches it.
+            # Swap in a seeded generator for the duration of this reset, for replay purposes.
+            import baba.grid as _baba_grid
+            original_rand_int = _baba_grid.rand_int
+            if seed is not None:
+                rng = np.random.default_rng(seed)
+                _baba_grid.rand_int = lambda low, high: int(rng.integers(low, high))
+            try:
+                try:
+                    out = self.env.reset(seed=seed)
+                except TypeError:
+                    out = self.env.reset()
+            finally:
+                _baba_grid.rand_int = original_rand_int
+            obs = out[0] if isinstance(out, tuple) else out
+            return obs, {}
+
 
     def step(self, action: Any) -> tuple[Any, float, bool, bool, dict]:
         obs, reward, done, info = self.env.step(int(action))
@@ -54,3 +79,4 @@ class BabaAdapter(EnvAdapter):
         self, obs: Any, info: dict, want_blob: bool = True
     ) -> FrameState:
         return FrameState(blob=None, variables={})
+
