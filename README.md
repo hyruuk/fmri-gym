@@ -255,36 +255,24 @@ URL), `games_dir` (override the vendored dir), `headed` (show the window),
 ## Running SuperTuxKart from the stk-code fork (`stk_gym`)
 
 The `supertuxkart` backend drives **pystk2** (an older STK, rendered offscreen
-and blitted like every other game). The `stk_gym` backend instead runs the
-**current game** from [chrplr/stk-code](https://github.com/chrplr/stk-code),
-whose `--gym-human` mode is the reverse of a Gymnasium env: the game opens its
-own fullscreen window on top of fmri-gym's, reads the keyboard or gamepad
-itself, and runs on its own clock with native frame pacing and sound; a JSON
-protocol only *reports*. fmri-gym polls the race state each frame and logs it —
-position, speed, progress, rank, and the **controls the kart applied**
-(`ctrl_steer`, `ctrl_accel`, `ctrl_brake`, `ctrl_nitro`, …), which are the
-record of what the participant did.
-
-Setup — build the fork and install its Python package:
+and blitted like every other game). The `stk_gym` backend runs the **current
+game** from [chrplr/stk-code](https://github.com/chrplr/stk-code): its
+`--gym-human` mode opens the game's own fullscreen window on top of fmri-gym's,
+reads the keyboard or gamepad itself, and runs on its own clock; fmri-gym only
+polls the race state each frame and logs it (position, speed, progress, rank,
+and the controls the kart applied). Setup needs the fork built and its package
+installed:
 
 ```bash
-git clone -b tuxkart-gym https://github.com/chrplr/stk-code.git ../stk-code
+git clone -b gym-human https://github.com/chrplr/stk-code.git ../stk-code
 (cd ../stk-code && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j)
 pip install -e ../stk-code/python
 export STK_ENV_BIN=$PWD/../stk-code/build/bin/supertuxkart   # if not found on its own
 python fmri_play.py --subject sub-01 --dummy-trigger --curriculum configs/dbp_games/stk_gym__race.json
 ```
 
-Phase fields: `track`, `laps`, `num_karts`, `difficulty`, `fullscreen`
-(default true), `screensize`, `race_now` (skip the countdown), `extra_args`,
-`binary`. Controls are STK's own defaults (arrows, SPACE fire, N nitro, V
-skid, BACKSPACE rescue) or a gamepad.
-
-What this trades away, stated in the config: no frames are logged (the fork's
-`--history` recording is the tool for tick-exact replay), keypresses are not
-individually timestamped (the trajectory is sampled at the block's `fps`), and
-fmri-gym's ESC does not reach the game's window — quit from the game's pause
-menu to end the block early; data is saved either way.
+Phase fields, what is logged and what is not (frames, keypress times, replay
+from `actions`) are in the config's `_note`s and the adapter's docstring.
 
 ## Design: the experiment loop never knows the engine
 
