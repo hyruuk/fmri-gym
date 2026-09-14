@@ -51,7 +51,9 @@ class Field:
 
 
 SESSION_FIELDS = [
-    Field("subject", "subject", tip="Subject id; names the output folder (data/<subject>_<stamp>)."),
+    Field("subject", "subject", tip="Subject id; names the output folder (data/<subject>_<stamp>). "
+                                    "Not written by Save: a config file describes the rig and "
+                                    "the task, not one participant."),
     Field("outdir", "outdir", tip="Output directory. Blank = data/<subject>_<timestamp>."),
     Field("size", "size", "combo", ("1024x768", "1280x720", "1920x1080"),
           tip="Window size as <w>x<h>. Ignored in fullscreen, where the desktop resolution is used."),
@@ -235,6 +237,20 @@ def split_phase(phase: dict, fields: Sequence[Field]) -> tuple[dict, dict]:
     form = {k: v for k, v in phase.items() if k in known}
     extra = {k: v for k, v in phase.items() if k not in known}
     return form, extra
+
+
+def subject_free(config: dict) -> dict:
+    """A copy of ``config`` without ``session.subject`` (what Save writes).
+
+    A config file describes a rig and a task; the participant comes from the
+    editor or ``--subject`` at run time.
+    """
+    out = dict(config)
+    session = {k: v for k, v in (config.get("session") or {}).items() if k != "subject"}
+    out.pop("session", None)
+    if session:
+        out["session"] = session
+    return out
 
 
 def triggers_section(sync: dict, markers: dict, codes: dict) -> dict | None:
@@ -936,11 +952,11 @@ class _Editor:
             self._save_as()
             return
         try:
-            cfg.save_config(self.collect(), self.path)
+            cfg.save_config(subject_free(self.collect()), self.path)
         except (OSError, ValueError) as exc:
             self._error(str(exc))
             return
-        self._set_status(f"saved {self.path}")
+        self._set_status(f"saved {self.path} (subject is not written to the file)")
 
     def _save_as(self) -> None:
         from tkinter import filedialog

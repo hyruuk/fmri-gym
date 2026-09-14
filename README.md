@@ -337,7 +337,8 @@ class EnvAdapter:
 An ordered JSON list of **phases** (bare list or `{"curriculum": [...]}`). The
 dict form can also carry `"triggers"` (below) and `"session"`, the CLI flags as
 a section (`subject`, `outdir`, `size`, `fullscreen`, `vsync`, `dummy_trigger`);
-a flag given on the command line still wins.
+a flag given on the command line still wins. The editor's Save leaves
+`subject` out, so a config file describes the rig and the task, not a participant.
 
 ```jsonc
 {"type": "fixation", "duration": 2.0}                 // "+" for N seconds
