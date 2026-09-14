@@ -57,6 +57,7 @@ python fmri_play.py --subject sub-01 --curriculum configs/dbp_games/<game>.json
 | Flag / key | What it does |
 |---|---|
 | `--subject sub-01` | Subject id used in the output folder name |
+| `--gui` | Open the config editor first (curriculum, keys, triggers, load/save); Run starts the session |
 | **SPACE** | Advance past the experimenter screen |
 | **`=`** | Scanner trigger (anchors the session clock) |
 | **ESC** | Quit early; data is still saved |

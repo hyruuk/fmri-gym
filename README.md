@@ -78,6 +78,14 @@ VGDL_REPO=../language_and_experience PYTHONPATH=../language_and_experience \
 python fmri_play.py --subject sub-01 --dummy-trigger --curriculum configs/dbp_games/atari__pong.json
 ```
 
+Prefer forms to JSON? `--gui` opens a config editor first (session flags,
+curriculum, key remaps, triggers with fMRI/MEG presets, load/save); **Run**
+starts the session with what it shows:
+
+```bash
+python fmri_play.py --gui --curriculum configs/demo_meg.json
+```
+
 Drop `--dummy-trigger` for a real session (then press SPACE, then wait for the
 `=` scanner trigger). For VGDL setup see [Running VGDL games](#running-vgdl-games).
 
@@ -326,7 +334,10 @@ class EnvAdapter:
 
 ## Curriculum format
 
-An ordered JSON list of **phases** (bare list or `{"curriculum": [...]}`):
+An ordered JSON list of **phases** (bare list or `{"curriculum": [...]}`). The
+dict form can also carry `"triggers"` (below) and `"session"`, the CLI flags as
+a section (`subject`, `outdir`, `size`, `fullscreen`, `vsync`, `dummy_trigger`);
+a flag given on the command line still wins.
 
 ```jsonc
 {"type": "fixation", "duration": 2.0}                 // "+" for N seconds
