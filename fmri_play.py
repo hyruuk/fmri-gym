@@ -9,6 +9,7 @@ Usage:
     python fmri_play.py --subject sub-01 --curriculum my.json
     python fmri_play.py --subject sub-01 --dummy-trigger        # testing
     python fmri_play.py --gui [--curriculum my.json]            # config editor, then run
+    python fmri_play.py --curriculum session.json --run 2       # one run of a multi-run config
 
 See configs/demo_mixed.json for a curriculum that mixes all three backends,
 and README.md for the curriculum schema.
@@ -21,7 +22,8 @@ import os
 import sys
 
 from fmri_gym import Display, Session
-from fmri_gym.config import default_outdir, load_config, parse_size, resolve_session
+from fmri_gym.config import (default_outdir, load_config, parse_size, resolve_session, run_dir,
+                             runs_of, select_runs)
 from fmri_gym.triggers import TriggerError
 
 
@@ -85,6 +87,7 @@ def main() -> None:
     p.add_argument("--curriculum", help="config JSON (a curriculum list, or a dict with sections)")
     p.add_argument("--gui", action="store_true",
                    help="open the config editor first; Run there starts the session")
+    p.add_argument("--run", help="multi-run config: play only this run (1-based index or name)")
     p.add_argument("--outdir", help="default: data/<subject>_<timestamp>")
     p.add_argument("--size", help="window size <w>x<h> (default: 1024x768)")
     p.add_argument("--fullscreen", action="store_true", default=None)
@@ -104,27 +107,41 @@ def main() -> None:
     config["session"] = resolve_session(config, _cli_session(args))
     if args.gui:
         from fmri_gym.gui import edit_config
-        config = edit_config(config, args.curriculum)
-        if config is None:
+        picked = edit_config(config, args.curriculum)
+        if picked is None:
             return
-    session = resolve_session(config)
-    curriculum = config["curriculum"]
-    _fold_cli_options(curriculum, args)
-    outdir = session["outdir"] or default_outdir(session["subject"])
+        config, args.run = picked
+    try:
+        runs = select_runs(runs_of(config), args.run)
+    except ValueError as exc:
+        sys.exit(f"error: {exc}")
+    _play(config, runs, args)
 
+
+def _play(config: dict, runs: list[tuple[int, dict]], args: argparse.Namespace) -> None:
+    """Play ``runs`` in order on one display; ESC in a run ends the session."""
+    session = resolve_session(config)
+    outdir = session["outdir"] or default_outdir(session["subject"])
+    multi = "runs" in config
     display = Display(size=parse_size(session["size"]), fullscreen=session["fullscreen"],
                       vsync=session["vsync"])
     try:
-        run = Session(session["subject"], curriculum, display, outdir,
-                      dummy_trigger=session["dummy_trigger"],
-                      triggers=config.get("triggers"))
-    except (TriggerError, ValueError) as exc:
-        # A bad triggers section or an unopenable marker port: stop here, at
-        # the desk, with the reason -- not mid-session with a participant.
-        display.close()
-        sys.exit(f"error: {exc}")
-    try:
-        run.run()
+        for index, run in runs:
+            _fold_cli_options(run["curriculum"], args)
+            target = run_dir(outdir, index, run["name"]) if multi else outdir
+            try:
+                one = Session(session["subject"], run["curriculum"], display, target,
+                              dummy_trigger=session["dummy_trigger"],
+                              triggers=config.get("triggers"))
+            except (TriggerError, ValueError) as exc:
+                # A bad triggers section or an unopenable marker port: stop
+                # here, at the desk, with the reason -- not with a participant.
+                sys.exit(f"error: {exc}")
+            if multi:
+                one.logger.set_extra("run", {"index": index, "name": run["name"],
+                                             "of": len(runs_of(config))})
+            if not one.run():
+                break
     finally:
         display.close()
 

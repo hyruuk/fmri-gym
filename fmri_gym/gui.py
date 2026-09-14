@@ -1,7 +1,8 @@
 """``fmri_play.py --gui``: a config editor so a rig can be set up without JSON.
 
 Five tabs over one config dict (:mod:`fmri_gym.config`): Session (the CLI
-flags), Curriculum (the phase list, one form per phase type), Controls (the
+flags), Runs (the session's runs, each a phase list with one form per phase
+type), Controls (the
 ``keys`` remap of a game phase, with the backend's defaults on request),
 Triggers (sync + markers with fMRI/MEG/EEG presets, a code check and a
 live marker test) and JSON (the whole file, editable). File > New / Open /
@@ -301,12 +302,13 @@ def describe_triggers(section: dict | None) -> str:
 # ---------------------------------------------------------------------------
 
 
-def edit_config(config: dict, path: str | None = None) -> dict | None:
-    """Open the editor on ``config``; return the config to run, or ``None``.
+def edit_config(config: dict, path: str | None = None) -> tuple[dict, str | None] | None:
+    """Open the editor on ``config``; return what to run, or ``None``.
 
     :param config: full config dict (with a resolved ``session`` section).
     :param path: file it came from, for the title and Save.
-    :return: the edited config when Run is pressed, ``None`` when closed.
+    :return: ``(config, only)`` when Run is pressed -- ``only`` is a 1-based
+        run index as text, or ``None`` for every run; ``None`` when closed.
     """
     import tkinter as tk
 
@@ -466,7 +468,10 @@ class _Editor:
 
         self.tk, self.ttk, self.root = tk, ttk, root
         self.path, self.result = path, None
-        self.phases: list[dict] = []
+        self.runs: list[dict] = []      # [{"name", "curriculum"}, ...]
+        self.run_index = 0
+        self.multi = False              # write "runs" (else a single "curriculum")
+        self.phases: list[dict] = []    # alias of self.runs[self.run_index]["curriculum"]
         self.notes: dict = {}  # top-level keys the editor does not own (e.g. "_note")
         self.edit_index: int | None = None
         self.ctl_index: int | None = None
@@ -479,7 +484,7 @@ class _Editor:
         self.nb = ttk.Notebook(root)
         self.nb.pack(fill="both", expand=True, padx=8, pady=(8, 4))
         self._tab_session()
-        self._tab_curriculum()
+        self._tab_runs()
         self._tab_controls()
         self._tab_triggers()
         self._tab_json()
@@ -512,6 +517,8 @@ class _Editor:
             self.ttk.Button(bar, text=text, command=cmd).pack(side="left", padx=(0, 4))
         self.ttk.Button(bar, text="Run", command=self._run, style="Accent.TButton").pack(
             side="right")
+        self.run_pick = self.ttk.Combobox(bar, state="readonly", width=22)
+        self.run_pick.pack(side="right", padx=4)
         self.ttk.Button(bar, text="Check", command=self._check).pack(side="right", padx=4)
         self.status = self.ttk.Label(self.root, text="", padding=(8, 2), anchor="w",
                                      style="Status.TLabel")
@@ -528,8 +535,28 @@ class _Editor:
         self.ttk.Button(page, text="...", width=3, command=self._pick_outdir).grid(
             row=1, column=3, padx=2)
 
-    def _tab_curriculum(self) -> None:
-        page = self._page("Curriculum")
+    def _run_bar(self, parent: Any, with_buttons: bool) -> Any:
+        """A row with the run picker (and, on the Runs tab, name + run buttons)."""
+        bar = self.ttk.Frame(parent)
+        bar.pack(side="top", fill="x", pady=(0, 8))
+        self.ttk.Label(bar, text="run").pack(side="left")
+        pick = self.ttk.Combobox(bar, state="readonly", width=26)
+        pick.pack(side="left", padx=6)
+        pick.bind("<<ComboboxSelected>>", lambda e: self._select_run(pick.current()))
+        if not with_buttons:
+            return pick
+        self.ttk.Label(bar, text="name").pack(side="left", padx=(12, 0))
+        self.run_name = self.tk.StringVar()
+        self.ttk.Entry(bar, textvariable=self.run_name, width=16).pack(side="left", padx=6)
+        for text, cmd in (("Add run", self._add_run), ("Duplicate", self._duplicate_run),
+                          ("Remove", self._remove_run), ("Up", lambda: self._move_run(-1)),
+                          ("Down", lambda: self._move_run(1))):
+            self.ttk.Button(bar, text=text, command=cmd).pack(side="left", padx=1)
+        return pick
+
+    def _tab_runs(self) -> None:
+        page = self._page("Runs")
+        self.run_pick_a = self._run_bar(page, with_buttons=True)
         self.phase_list = self.tk.Listbox(page, width=26, height=22, exportselection=False,
                                           font="TkFixedFont", relief="flat", highlightthickness=1,
                                           highlightbackground="#c0c0c0", activestyle="none",
@@ -553,6 +580,7 @@ class _Editor:
 
     def _tab_controls(self) -> None:
         page = self._page("Controls")
+        self.run_pick_b = self._run_bar(page, with_buttons=False)
         top = self.ttk.Frame(page)
         top.pack(fill="x")
         self.ttk.Label(top, text="game phase").pack(side="left")
@@ -625,11 +653,12 @@ class _Editor:
     def populate(self, config: dict) -> None:
         """Load a whole config into every tab."""
         self.notes = {k: v for k, v in config.items()
-                      if k not in ("session", "triggers", "curriculum")}
+                      if k not in ("session", "triggers", "curriculum", "runs")}
         self.session_form.set(cfg.resolve_session(config))
-        self.phases = copy.deepcopy(config.get("curriculum") or [])
+        self.runs = copy.deepcopy(cfg.runs_of(config)) or [{"name": "", "curriculum": []}]
+        self.multi = "runs" in config
         self.edit_index = self.ctl_index = None
-        self._refresh_phase_list(0 if self.phases else None)
+        self._show_run(0)
         section = config.get("triggers") or {}
         markers = dict(section.get("markers") or {})
         codes = markers.pop("codes", {})
@@ -653,7 +682,10 @@ class _Editor:
                                    self.code_form.get())
         if section:
             config["triggers"] = section
-        config["curriculum"] = copy.deepcopy(self.phases)
+        if self.multi or len(self.runs) > 1:
+            config["runs"] = copy.deepcopy(self.runs)
+        else:
+            config["curriculum"] = copy.deepcopy(self.phases)
         return config
 
     def _set_status(self, text: str = "") -> None:
@@ -667,16 +699,76 @@ class _Editor:
         except ValueError as exc:
             self._error(str(exc))
             return False
+        self.runs[self.run_index]["name"] = self.run_name.get().strip()
         return True
 
     def _on_tab_change(self, _event: Any) -> None:
         if not self._commit_all():
             return
+        self._refresh_run_pickers()
         self._refresh_ctl_phases()
         self._refresh_triggers()
         self._refresh_json()
 
-    # -- curriculum tab ----------------------------------------------------
+    # -- runs ----------------------------------------------------------------
+
+    def _run_labels(self) -> list[str]:
+        return [f"{i + 1}  {r['name'] or 'run'}  ({len(r['curriculum'])} phases)"
+                for i, r in enumerate(self.runs)]
+
+    def _refresh_run_pickers(self) -> None:
+        labels = self._run_labels()
+        for pick in (self.run_pick_a, self.run_pick_b):
+            pick["values"] = labels
+            pick.current(self.run_index)
+        self.run_pick["values"] = ["all runs"] + labels
+        if self.run_pick.get() not in self.run_pick["values"]:
+            self.run_pick.current(0)
+
+    def _show_run(self, index: int) -> None:
+        """Point the phase editors at run ``index`` (no commit; see _select_run)."""
+        self.run_index = index
+        self.phases = self.runs[index]["curriculum"]
+        self.run_name.set(self.runs[index]["name"])
+        self.edit_index = self.ctl_index = None
+        self._refresh_phase_list(0 if self.phases else None)
+        self._refresh_run_pickers()
+        self._refresh_ctl_phases()
+
+    def _select_run(self, index: int) -> None:
+        if index == self.run_index or not self._commit_all():
+            self._refresh_run_pickers()
+            return
+        self._show_run(index)
+
+    def _add_run(self) -> None:
+        self._insert_run({"name": "", "curriculum": [{"type": "fixation", "duration": 2.0}]})
+
+    def _duplicate_run(self) -> None:
+        if self._commit_all():
+            self._insert_run(copy.deepcopy(self.runs[self.run_index]))
+
+    def _insert_run(self, run: dict) -> None:
+        if not self._commit_all():
+            return
+        self.multi = True
+        self.runs.insert(self.run_index + 1, run)
+        self._show_run(self.run_index + 1)
+
+    def _remove_run(self) -> None:
+        if len(self.runs) < 2 or not self._commit_all():
+            return
+        del self.runs[self.run_index]
+        self._show_run(min(self.run_index, len(self.runs) - 1))
+
+    def _move_run(self, step: int) -> None:
+        i = self.run_index
+        if not 0 <= i + step < len(self.runs) or not self._commit_all():
+            return
+        self.runs[i], self.runs[i + step] = self.runs[i + step], self.runs[i]
+        self._show_run(i + step)
+
+    # -- curriculum (phases of the current run) ------------------------------
 
     def _refresh_phase_list(self, select: int | None) -> None:
         self.phase_list.delete(0, "end")
@@ -986,7 +1078,8 @@ class _Editor:
         if self._check():
             self.nb.select(0)
             return
-        self.result = self.collect()
+        only = self.run_pick.current()
+        self.result = (self.collect(), str(only) if only > 0 else None)
         self.root.destroy()
 
     # -- small helpers -------------------------------------------------------

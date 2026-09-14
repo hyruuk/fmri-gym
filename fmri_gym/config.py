@@ -1,12 +1,14 @@
 """The config file as a whole: load/save, the ``session`` section, presets.
 
-A config is a JSON dict with ``curriculum`` (the phase list; see README), an
-optional ``triggers`` section (:mod:`fmri_gym.triggers`) and an optional
-``session`` section that mirrors the CLI flags (subject, outdir, size,
-fullscreen, vsync, dummy_trigger). A bare list is still accepted as a
-curriculum. Precedence for session settings is CLI flag > ``session`` section
-> :data:`SESSION_DEFAULTS`, so a config can carry the rig setup while a flag
-still wins for one run.
+A config is a JSON dict with either ``curriculum`` (one phase list; see
+README) or ``runs`` (a whole scanning session: an ordered list of
+``{"name", "curriculum"}`` played one after the other, each with its own
+experimenter screen, trigger and output folder), plus an optional
+``triggers`` section (:mod:`fmri_gym.triggers`) and an optional ``session``
+section that mirrors the CLI flags (subject, outdir, size, fullscreen, vsync,
+dummy_trigger). A bare list is still accepted as a curriculum. Precedence for
+session settings is CLI flag > ``session`` section > :data:`SESSION_DEFAULTS`,
+so a config can carry the rig setup while a flag still wins for one launch.
 
 Everything here is pure (no pygame, no tkinter) so the GUI's data model can be
 tested headless and ``fmri_play.py`` can use the same helpers without one.
@@ -91,6 +93,50 @@ def new_config() -> dict:
     }
 
 
+def runs_of(config: dict) -> list[dict]:
+    """The runs a config describes, as ``[{"name", "curriculum"}, ...]``.
+
+    A ``curriculum`` config is one unnamed run; a ``runs`` config lists them
+    (a missing name becomes ``run-NN``). Other per-run keys are kept.
+
+    :param config: full config dict.
+    :return: a list of run dicts (copies), possibly with empty curricula.
+    """
+    if "runs" not in config:
+        return [{"name": "", "curriculum": config.get("curriculum") or []}]
+    runs = config.get("runs") or []
+    if not isinstance(runs, list):
+        return []
+    return [{**r, "name": r.get("name") or f"run-{i + 1:02d}",
+             "curriculum": r.get("curriculum") or []}
+            for i, r in enumerate(runs) if isinstance(r, dict)]
+
+
+def select_runs(runs: list[dict], only: str | None) -> list[tuple[int, dict]]:
+    """Pick the runs to play: all, or the one named / numbered (1-based) ``only``.
+
+    :param runs: from :func:`runs_of`.
+    :param only: ``None`` for all, else a run name or 1-based index as text.
+    :return: ``[(index, run), ...]`` with 1-based indices.
+    :raises ValueError: if ``only`` matches no run.
+    """
+    numbered = list(enumerate(runs, start=1))
+    if only is None:
+        return numbered
+    picked = [(i, r) for i, r in numbered if r["name"] == only or str(i) == only]
+    if not picked:
+        names = ", ".join(f"{i} ({r['name']})" for i, r in numbered)
+        raise ValueError(f"no run {only!r}; runs are: {names}")
+    return picked
+
+
+def run_dir(outdir: str, index: int, name: str) -> str:
+    """Output folder of one run of a multi-run session: ``<outdir>/run-NN_<name>``."""
+    stem = f"run-{index:02d}"
+    safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in name)
+    return os.path.join(outdir, f"{stem}_{safe}" if safe and safe != stem else stem)
+
+
 def resolve_session(config: dict, overrides: dict | None = None) -> dict:
     """Merge session settings: ``overrides`` (CLI) > ``config["session"]`` > defaults.
 
@@ -155,12 +201,15 @@ def validate_config(config: dict) -> list[str]:
     :return: human-readable problems, empty when the config looks runnable.
     """
     problems: list[str] = []
-    curriculum = config.get("curriculum")
-    if not isinstance(curriculum, list) or not curriculum:
-        problems.append("curriculum: needs at least one phase")
-        curriculum = []
-    for i, phase in enumerate(curriculum):
-        problems.extend(f"phase {i}: {p}" for p in _phase_problems(phase))
+    runs = runs_of(config)
+    if not runs:
+        problems.append("runs: needs at least one run")
+    for index, run in enumerate(runs, start=1):
+        where = f"run {index}: " if "runs" in config else ""
+        if not run["curriculum"]:
+            problems.append(f"{where}curriculum: needs at least one phase")
+        for i, phase in enumerate(run["curriculum"]):
+            problems.extend(f"{where}phase {i}: {p}" for p in _phase_problems(phase))
     session = resolve_session(config)
     try:
         parse_size(str(session["size"]))

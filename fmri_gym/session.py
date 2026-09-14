@@ -493,14 +493,19 @@ class Session:
         if user_quit:
             raise KeyboardInterrupt
 
-    def run(self) -> None:
+    def run(self) -> bool:
         """Run the full curriculum: trigger wait, then each phase in order.
 
         Always writes the session manifest in ``finally``, including after an
         interrupt (partial data).
+
+        :return: ``True`` if the curriculum completed, ``False`` if the user
+            quit (ESC / window close), so a caller playing several runs in a
+            row can stop there.
         """
         handlers = {"fixation": self._fixation, "message": self._message,
                     "game": self._game, "survey": self._survey}
+        completed = False
         try:
             self._trigger()
 
@@ -512,6 +517,7 @@ class Session:
 
             self.display.draw_text("Done. Thank you!")
             time.sleep(2.0)
+            completed = True
         except KeyboardInterrupt:
             print("Interrupted -- saving partial data.", file=sys.stderr)
         finally:
@@ -523,3 +529,4 @@ class Session:
             manifest_path = self.logger.save_manifest()
             print(f"Saved session to: {self.outdir}")
             print(f"Manifest: {manifest_path}")
+        return completed

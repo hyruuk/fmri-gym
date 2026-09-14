@@ -340,6 +340,12 @@ a section (`subject`, `outdir`, `size`, `fullscreen`, `vsync`, `dummy_trigger`);
 a flag given on the command line still wins. The editor's Save leaves
 `subject` out, so a config file describes the rig and the task, not a participant.
 
+A whole scanning session is `"runs"` instead of `"curriculum"`: an ordered list
+of `{"name": "pong", "curriculum": [...]}`. Runs play one after the other, each
+with its own experimenter screen, trigger wait, clock and output folder
+(`<outdir>/run-01_pong/`, `run-02_.../`); ESC ends the session. `--run 2` or
+`--run pong` plays one run, e.g. to resume after a stop.
+
 ```jsonc
 {"type": "fixation", "duration": 2.0}                 // "+" for N seconds
 {"type": "message", "text": "Get ready", "duration": 2.0}  // text: string or list of lines; omit duration to wait for a key
