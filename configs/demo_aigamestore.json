@@ -1,5 +1,5 @@
 {
-  "_demo": "The 10 public AI GameStore games (https://aigamestore.org), 15s each. p5.js/browser games driven via a headless-browser backend (needs `pip install playwright` + system Chrome). game1=Water Sort, game2=Angry-Birds-like, others vary; all keyboard-controlled (arrows + SPACE/Z/ENTER).",
+  "_demo": "The 10 public AI GameStore games (https://aigamestore.org), 15s each, through the vendored aigamestore-gym env (`uv sync --extra aigamestore`; needs a Chromium browser). Lock-stepped: each step advances the game 6 frames, so fps 10 is real speed. game1=Water Sort, game2=Angry-Birds-like, others vary; all keyboard-controlled (arrows + SPACE/Z/LSHIFT).",
   "curriculum": [
     {"type": "message", "text": "AI GameStore 1 (Water Sort)", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},

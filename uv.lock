@@ -20,6 +20,27 @@ wheels = [
 ]
 
 [[package]]
+name = "aigamestore-gym"
+version = "0.1.0"
+source = { editable = "vendor/aigamestore" }
+dependencies = [
+    { name = "gymnasium" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "pillow" },
+    { name = "playwright" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "gymnasium" },
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "playwright" },
+]
+
+[[package]]
 name = "ale-py"
 version = "0.12.1"
 source = { registry = "https://pypi.org/simple" }
@@ -531,13 +552,13 @@ dependencies = [
 
 [package.optional-dependencies]
 aigamestore = [
-    { name = "pillow" },
-    { name = "playwright" },
+    { name = "aigamestore-gym" },
 ]
 ale = [
     { name = "ale-py" },
 ]
 all = [
+    { name = "aigamestore-gym" },
     { name = "ale-py" },
     { name = "baba" },
     { name = "crafter" },
@@ -545,8 +566,6 @@ all = [
     { name = "minihack" },
     { name = "nle" },
     { name = "overcooked-ai" },
-    { name = "pillow" },
-    { name = "playwright" },
     { name = "pylsl" },
     { name = "pyparallel" },
     { name = "pyserial" },
@@ -571,13 +590,12 @@ crafter = [
     { name = "crafter" },
 ]
 dbp = [
+    { name = "aigamestore-gym" },
     { name = "baba" },
     { name = "crafter" },
     { name = "minihack" },
     { name = "nle" },
     { name = "overcooked-ai" },
-    { name = "pillow" },
-    { name = "playwright" },
     { name = "rushhour-gym" },
     { name = "supertuxkart-gym" },
     { name = "vizdoom" },
@@ -624,6 +642,7 @@ vizdoom = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aigamestore-gym", marker = "extra == 'aigamestore'", editable = "vendor/aigamestore" },
     { name = "ale-py", marker = "extra == 'ale'" },
     { name = "baba", marker = "extra == 'baba'", git = "https://github.com/nacloos/baba-is-ai.git" },
     { name = "crafter", marker = "extra == 'crafter'" },
@@ -637,8 +656,6 @@ requires-dist = [
     { name = "nle", marker = "extra == 'nethack'", specifier = ">=1.3" },
     { name = "numpy" },
     { name = "overcooked-ai", marker = "extra == 'overcooked'" },
-    { name = "pillow", marker = "extra == 'aigamestore'" },
-    { name = "playwright", marker = "extra == 'aigamestore'" },
     { name = "pygame-ce" },
     { name = "pylsl", marker = "extra == 'triggers'" },
     { name = "pyparallel", marker = "extra == 'triggers'" },

@@ -31,7 +31,8 @@ crafter = ["crafter"]
 # resolver may prefer gymnasium 1.3 and fall back to nle 0.9.1 (source build).
 minihack = ["minihack", "nle>=1.3"]
 nethack = ["nle>=1.3"]
-aigamestore = ["playwright", "pillow"]
+# The ten browser games as a gym env, from vendor/aigamestore (see tool.uv.sources).
+aigamestore = ["aigamestore-gym"]
 vizdoom = ["vizdoom"]
 coom = ["vizdoom"]  # coom backend drives vizdoom.DoomGame directly; needs a COOM_REPO checkout too
 overcooked = ["overcooked-ai"]
@@ -82,6 +83,9 @@ py-modules = ["fmri_play"]
 # A never-true marker on classic `pygame`, so it is never installed and
 # pygame-ce (an API-compatible superset) owns the `pygame` module alone.
 override-dependencies = ["pygame; sys_platform == 'pygame-ce-only'"]
+
+[tool.uv.sources]
+aigamestore-gym = { path = "vendor/aigamestore", editable = true }
 
 [tool.ruff]
 line-length = 100

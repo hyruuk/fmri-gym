@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aigamestore-gym"
+version = "0.1.0"
+description = "The AI GameStore browser games as lock-stepped Gymnasium environments."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["gymnasium", "numpy", "pillow", "playwright"]
+
+# The games (game1/ .. game10/) sit beside the package and are served from
+# there, so install this editable from a checkout: `pip install -e .`.
+[tool.setuptools]
+packages = ["aigamestore_gym"]
+
+[tool.setuptools.package-data]
+aigamestore_gym = ["lockstep.js"]

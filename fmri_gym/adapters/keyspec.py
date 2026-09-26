@@ -106,13 +106,14 @@ class MultiKeySpec(KeySpec):
     The right choice for a ``MultiBinary`` action space, where held keys should
     combine (drive forward while turning, run while shooting, ...).
 
-    :ivar button_map: optional ``action -> per-button 0/1 row`` table. When set,
-        combo values (and ``noop``) are indices into it, so a curriculum keymap
-        can stay written in the env's ``Discrete`` action indices; when ``None``
-        the combo values are already 0/1 button vectors.
+    :ivar button_map: optional ``action -> per-button 0/1 row`` table, a list
+        indexed by the env's ``Discrete`` action or a dict keyed by the env's
+        own action labels. When set, combo values (and ``noop``) are keys into
+        it, so a curriculum keymap can stay written in the env's terms; when
+        ``None`` the combo values are already 0/1 button vectors.
     """
 
-    button_map: list[list[int]] | None = None
+    button_map: list[list[int]] | dict[Any, list[int]] | None = None
 
     def resolve(self, held: frozenset[str]) -> list[int]:
         """Return the OR of the button vectors of all matching combos.
@@ -130,12 +131,12 @@ class MultiKeySpec(KeySpec):
     def expand(self, action: Any) -> list[int]:
         """Return ``action`` as a per-button 0/1 vector.
 
-        :param action: a :attr:`button_map` index, or a 0/1 vector already.
+        :param action: a :attr:`button_map` key, or a 0/1 vector already.
         :return: the button vector for ``action``.
         """
         if self.button_map is None:
             return [int(v) for v in action]
-        return list(self.button_map[int(action)])
+        return list(self.button_map[action])
 
 
 @dataclass

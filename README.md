@@ -16,7 +16,7 @@ through small pluggable **adapters**:
 | `crafter`     | Crafter (open-world survival) | crafter |
 | `minihack`    | MiniHack tasks (pixel obs) | minihack / NLE |
 | `nethack`     | NetHack (`NetHack*-v0`; TTY rendered to pixels) | nle |
-| `aigamestore` | AI GameStore p5.js/browser games (`game1`…`game10`) | p5.js via headless browser |
+| `aigamestore` | AI GameStore browser games (`game1`…`game10`), lock-stepped | aigamestore-gym (`vendor/aigamestore/`) |
 | `vizdoom`     | Doom action-shooter scenarios (COOM's engine) | ViZDoom |
 | `coom`        | COOM's own continual-RL scenarios (`pitfall`, `chainsaw`, …), read as ViZDoom scenario assets from a `COOM_REPO` checkout (COOM package itself not installed -- conflicting `gymnasium` pin) | ViZDoom |
 | `overcooked`  | Overcooked co-op cooking (social) | overcooked_ai |
@@ -295,43 +295,55 @@ No native audio yet, unlike the `vizdoom` backend's `sound()`.
 
 ## Running AI GameStore games
 
-[AI GameStore](https://aigamestore.org) is a benchmark of LLM-generated
-**browser games** (plain HTML + JavaScript + p5.js). There's no standard
-p5.js↔Gymnasium bridge, so the `aigamestore` backend builds one with a headless
-(or headed) browser via **Playwright**:
+[AI GameStore](https://aigamestore.org) is a benchmark of ten LLM-generated
+**browser games** (plain HTML + JavaScript; p5.js, and three.js for `game3`).
+The paper's own model harness drives the page in real time and pauses the game
+while the model thinks, which is neither steppable nor replayable. So the
+games ship here with a small Gymnasium env, **`aigamestore-gym`**
+(`vendor/aigamestore/aigamestore_gym/`), that the `aigamestore` backend wraps
+like any other env:
 
-- a tiny local HTTP server serves the vendored games (`vendor/aigamestore/`; ES
-  modules need `http://`, not `file://`);
-- currently-held keyboard keys are pressed/released in the page each step;
-- the game's `<canvas>` is screenshotted → the RGB frame for display;
-- each game exposes `window.getGameState()` with a `score` and a `gamePhase`
-  (START / PLAYING / GAMEOVER …), mapped to reward (score delta) and done, and
-  logged (scalar fields as `state_*` analysis variables).
+- the page is still the game -- Playwright opens it in Chrome (headless by
+  default) from a tiny local server (ES modules need `http://`);
+- an init script, `lockstep.js`, takes over the page's clock
+  (`requestAnimationFrame`, `setTimeout`, `performance.now`, `Date`) and seeds
+  `Math.random`, so one `step()` holds a set of keys and advances the game by
+  exactly `frame_skip` of its 60 Hz frames, then returns the canvas pixels and
+  the game's own `getGameState()`. Nothing happens between steps: a model that
+  deliberates for a minute and a subject at 10 Hz meet the same game, and
+  `reset(seed)` + the actions replay an episode (the game state exactly; the
+  pixels up to GPU rasterisation of gradients);
+- action = `MultiBinary` over the game's keys (`env.keys`), reward = score
+  delta, `info["state"]` = the scalar game state, logged as `state_*`.
 
-Setup — the `aigamestore` extra (Playwright + Pillow) and a browser (uses the
-**system Chrome** by default):
-
-```bash
-uv sync --extra aigamestore        # or: pip install -e ".[aigamestore]"
-# then either rely on system Chrome (default), or install the bundled one:
-# playwright install chromium   # and set "browser_channel": null in the phase
+```python
+import gymnasium as gym, aigamestore_gym
+env = gym.make("AIGameStore/game4-v0")      # or AIGameStoreEnv("game4", frame_skip=6)
+obs, info = env.reset(seed=1)                # obs: the 600x400 canvas, RGB
+obs, r, term, trunc, info = env.step([1, 0]) # hold SPACE (env.keys == ["SPACE", "UP"])
 ```
 
-Run the 10 vendored public games (each keyboard-controlled — arrows + SPACE/Z/
-ENTER; `game1` = Water Sort, `game2` ≈ Angry Birds, …):
+Setup — the `aigamestore` extra (an editable install of `vendor/aigamestore`)
+and a Chromium browser (the **system Chrome** by default):
+
+```bash
+uv sync --extra aigamestore        # or: pip install -e vendor/aigamestore
+# or the bundled browser: playwright install chromium, then "browser_channel": null
+```
+
+Run the 10 vendored public games (`game1` = Water Sort, `game2` ≈ Angry Birds, …):
 
 ```bash
 uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/demo_aigamestore.json --ses 1 --run 1
 ```
 
 Phase fields: `game` (`"game1"`…`"game10"`, or an `http(s)://…/index.html`
-URL), `games_dir` (override the vendored dir), `headed` (show the window),
-`browser_channel` (`"chrome"` default, or `null` for bundled Chromium),
-`start_key` (default `Enter`, pressed once to leave the START screen).
-
-> Note: a browser step (screenshot + `getGameState`) costs ~0.1–0.5 s, so
-> effective fps is lower than the emulator backends — fine for these
-> puzzle/casual games, and the framework paces to whatever it can sustain.
+URL -- then `game_keys` lists the keys that game listens for), `frame_skip`
+(default 6; `fps` must equal `60 / frame_skip`, and the block refuses to start
+otherwise), `headed` (show the browser window), `browser_channel` (`"chrome"`
+default, or `null` for the bundled Chromium), `games_dir` (override the
+vendored dir). `keys` values are the game's key names, so `{"B1": "SPACE"}`
+binds a button; the env relabels the on-canvas hints to match.
 
 ## Running Rush-Hour
 
@@ -428,12 +440,12 @@ fmri_gym/
     crafter.py      # old-gym-API wrapper; obs is the frame; achievements
     minihack.py     # pixel obs + compass keymap; blstats/glyphs/message
     nethack.py      # base NLE: TTY grid -> RGB; vi-key movement; blstats
-    aigamestore.py  # p5.js browser games via Playwright: canvas->RGB, getGameState
+    aigamestore.py  # AI GameStore via aigamestore-gym: held keys as the env's action, state_* from getGameState
     rushhour.py     # Go engine via rushhour-gym; select+slide UI, rushui look, Rush-Hour's log columns; one puzzle per block
     stk_gym.py      # SuperTuxKart via stk_gym: frames from the game's hidden window, held keys as the env's action
 fmri_play.py        # CLI entry point
 configs/            # example curricula
-vendor/aigamestore/ # the 10 public AI GameStore games (p5.js/HTML/JS)
+vendor/aigamestore/ # the 10 public AI GameStore games (HTML/JS) + aigamestore_gym, their lock-stepped gym env
 ```
 
 The loop (`run.py`) only ever calls the adapter — never `env.unwrapped`, an
@@ -578,8 +590,8 @@ which differ only in how they combine the matching combos:
 | Flavor | Action sent | Used by |
 | --- | --- | --- |
 | `SingleKeySpec` | the most specific held combo | ale, gym, vgdl, crafter, nethack, … |
-| `MultiKeySpec` | OR of every held combo's buttons | retro, vizdoom, stk_gym (MultiBinary) |
-| `PassthroughKeySpec` | the held key names, `"+"`-joined | aigamestore |
+| `MultiKeySpec` | OR of every held combo's buttons | retro, vizdoom, stk_gym, aigamestore (MultiBinary) |
+| `PassthroughKeySpec` | the held key names, `"+"`-joined | (none at the moment) |
 
 ### Remapping keys (the `keys` field)
 
