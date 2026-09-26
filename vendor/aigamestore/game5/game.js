@@ -113,23 +113,11 @@ let gameInstance = new p5(p => {
 
 // Expose game instance globally
 window.gameInstance = gameInstance;
-// Expose level loading for dev mode
+// Start level `levelNum` as a fresh game (score 0, 3 lives), for a host that plays one level per episode
 window.loadLevel = function(levelNum) {
-  const state = window.getGameState ? window.getGameState() : (window.gameState || (window.gameInstance && window.gameInstance.gameState));
-  if (state) {
-    state.currentLevel = levelNum;
-    if (window.gameInstance) {
-      // Try to import and call loadLevel if available
-      if (typeof loadLevel === 'function') {
-        loadLevel(window.gameInstance, levelNum);
-      } else if (typeof initializeLevel === 'function') {
-        initializeLevel(window.gameInstance, levelNum);
-      }
-      if (state.gamePhase !== undefined) {
-        state.gamePhase = "PLAYING";
-      }
-    }
-  }
+  resetToStart(gameInstance);
+  startGame(gameInstance);
+  gameState.level = levelNum;         // draw() loads it: there is no player yet
 };
 
 // Control mode switching

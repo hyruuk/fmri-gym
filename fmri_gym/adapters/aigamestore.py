@@ -9,6 +9,12 @@ button box therefore meet the same game, and a block replays from
 ``episode_seeds`` + ``actions``. The action is ``MultiBinary`` over the game's
 keys (``env.keys``), so held keys combine, as on a keyboard.
 
+An episode is one level, named in the phase: ``"game": "game6/level3"`` plays
+level 3 of game6 afresh every episode, and the episode ends on a win, a loss
+or a level clear (the env's rule; see its docstring). A curriculum therefore
+lists one game phase per level it wants played. ``"game": "game6"`` is level 1;
+game4 has no levels and takes no ``/level``.
+
 Keys: combo VALUES are the game's key names (``"LEFT"``, ``"SPACE"``, ...) and
 combo keys are what the subject presses, so ``"keys": {"B1": "LEFT"}`` binds a
 button box. The games paint control hints on the canvas; the env relabels them
@@ -18,8 +24,9 @@ Timing: lock-stepped, one ``step`` per fmri-gym frame, so ``fps`` must equal
 ``60 / frame_skip`` (10 by default); ``_make`` refuses a config where they
 disagree. Not supported: sound (the games have none) and savestates.
 
-Phase fields: ``game`` ("game1".."game10", or an http(s):// URL to an
-index.html -- then ``game_keys`` lists the keys that game listens for),
+Phase fields: ``game`` ("game1".."game10", with an optional "/level<N>", or an
+http(s):// URL to an index.html -- then ``game_keys`` lists the keys that game
+listens for),
 ``frame_skip`` (default 6), ``headed``, ``browser_channel`` ("chrome" by
 default; ``null`` for Playwright's bundled Chromium), ``games_dir``.
 """
@@ -39,8 +46,11 @@ class AIGameStoreAdapter(EnvAdapter):
         from aigamestore_gym import AIGameStoreEnv
 
         keys = spec.get("keys", {})
+        # "game6/level3" -> game6, level 3; an episode is one level.
+        game, _, level = spec["game"].partition("/level")
         env = AIGameStoreEnv(
-            spec["game"],
+            game,
+            level=int(level) if level else None,
             keys=spec.get("game_keys"),
             frame_skip=int(spec.get("frame_skip", 6)),
             headless=not spec.get("headed", False),

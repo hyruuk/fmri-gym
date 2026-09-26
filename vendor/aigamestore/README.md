@@ -27,9 +27,9 @@ pip install -e .            # from this directory; needs a Chromium browser (sys
 
 ```python
 import gymnasium as gym, aigamestore_gym
-env = gym.make("AIGameStore/game4-v0")       # or aigamestore_gym.AIGameStoreEnv("game4", frame_skip=6)
+env = gym.make("AIGameStore/game6-level3-v0")   # or aigamestore_gym.AIGameStoreEnv("game6", level=3)
 obs, info = env.reset(seed=1)
-obs, reward, terminated, truncated, info = env.step([1, 0])   # hold env.keys[0] == "SPACE"
+obs, reward, terminated, truncated, info = env.step([1, 0, 0, 0, 0])   # hold env.keys[0] == "LEFT"
 ```
 
 One `step()` holds the keys the action marks and advances the game by exactly
@@ -37,15 +37,21 @@ One `step()` holds the keys the action marks and advances the game by exactly
 the same however long the agent takes to decide, and `reset(seed=...)` plus the
 action sequence replays an episode. The observation is the canvas (RGB), the
 reward is the change in the game's `score`, and `info["state"]` is the scalar
-part of `getGameState()` (`gamePhase`, `score`, `currentLevel`, ...). An episode
-ends when the game returns to its START screen; game overs and level clears move
-on by themselves after 3 s of game time. See the docstring of `env.py`.
+part of `getGameState()` (`gamePhase`, `score`, `currentLevel`, ...).
+
+An episode is one level: `reset()` starts the env's `level` afresh through the
+game's `window.loadLevel(n)`, and the episode ends as soon as the game leaves
+PLAYING (a win, a loss, a level-complete screen) or its level counter moves.
+`GAME_LEVELS` says how many levels each game has -- game4 has none (an endless
+runner, the episode ends when it is lost), game6 is one long level, game7's are
+procedural without an upper bound. See the docstring of `env.py`.
 
 ## Changes to the games
 
-The games differ from the ones on the platform in two ways, both so they can be
+The games differ from the ones on the platform in three ways, all so they can be
 played without a keyboard in front of them: level clears and game overs advance
-by themselves after 3 s (no "press ENTER" / "press R" prompts), and the on-canvas
+by themselves after 3 s (no "press ENTER" / "press R" prompts); the on-canvas
 control hints take their key names from `?label_<KEY>=` query parameters, so a
 host that remaps keys (a button box, say) can show the key the player really
-presses.
+presses; and each game's `window.loadLevel(n)` (a dev-mode hook on the platform)
+starts level `n` as a fresh game -- score 0, full lives, PLAYING.

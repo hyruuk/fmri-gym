@@ -133,13 +133,16 @@ function render() {
     gameState.renderer.render(gameState.scene, gameState.camera);
 }
 
-function restartGame() {
+function restartGame(level = 1) {
     gameState.score = 0;
-    gameState.currentLevel = 1;
+    gameState.currentLevel = level;
     gameState.gamePhase = "PLAYING";
-    loadLevel(1);
-    logGameEvent('RESTART', {});
+    loadLevel(level);
+    logGameEvent('RESTART', { level });
 }
+
+// Start level `levelNum` as a fresh game (score 0), for a host that plays one level per episode
+window.loadLevel = restartGame;
 
 // Global hook for controls
 window.setControlMode = (mode) => {

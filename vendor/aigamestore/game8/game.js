@@ -268,20 +268,10 @@ let gameInstance = new p5(p => {
 
 // Expose game instance globally
 window.gameInstance = gameInstance;
-// Expose level loading for dev mode
+// Start level `levelNum` as a fresh game (score 0), for a host that plays one level per episode
 window.loadLevel = function(levelNum) {
-  const state = window.getGameState ? window.getGameState() : (window.gameState || (window.gameInstance && window.gameInstance.gameState));
-  if (state) {
-    state.currentLevel = levelNum;
-    // Try common reset/start patterns
-    if (typeof restartGame === 'function') { // Use the exported restartGame
-      restartGame(window.gameInstance, 'PLAYING'); // Load level should start playing immediately
-    } else if (typeof startGame === 'function') {
-      startGame(window.gameInstance);
-    } else if (state.gamePhase !== undefined) {
-      state.gamePhase = "PLAYING";
-    }
-  }
+  restartGame(gameInstance, 'PLAYING');
+  gameState.currentLevel = levelNum;  // draw() initializes it: the grid is empty
 };
 
 // Control mode setter

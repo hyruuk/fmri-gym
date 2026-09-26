@@ -314,13 +314,18 @@ like any other env:
   `reset(seed)` + the actions replay an episode (the game state exactly; the
   pixels up to GPU rasterisation of gradients);
 - action = `MultiBinary` over the game's keys (`env.keys`), reward = score
-  delta, `info["state"]` = the scalar game state, logged as `state_*`.
+  delta, `info["state"]` = the scalar game state, logged as `state_*`;
+- **an episode is one level**: `reset()` starts the env's level afresh (score
+  0, full lives) and the episode ends on a win, a loss or a level clear, the
+  same way in every game. game4 is an endless runner without levels; game6 is
+  one long level; game7's levels are procedural and unbounded
+  (`aigamestore_gym.GAME_LEVELS` has the counts).
 
 ```python
 import gymnasium as gym, aigamestore_gym
-env = gym.make("AIGameStore/game4-v0")      # or AIGameStoreEnv("game4", frame_skip=6)
-obs, info = env.reset(seed=1)                # obs: the 600x400 canvas, RGB
-obs, r, term, trunc, info = env.step([1, 0]) # hold SPACE (env.keys == ["SPACE", "UP"])
+env = gym.make("AIGameStore/game6-level3-v0")  # or AIGameStoreEnv("game6", level=3, frame_skip=6)
+obs, info = env.reset(seed=1)                   # obs: the 600x400 canvas, RGB, level 3 just started
+obs, r, term, trunc, info = env.step([1, 0, 0, 0, 0])  # hold LEFT (env.keys[0])
 ```
 
 Setup — the `aigamestore` extra (an editable install of `vendor/aigamestore`)
@@ -337,12 +342,16 @@ Run the 10 vendored public games (`game1` = Water Sort, `game2` ≈ Angry Birds,
 uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/demo_aigamestore.json --ses 1 --run 1
 ```
 
-Phase fields: `game` (`"game1"`…`"game10"`, or an `http(s)://…/index.html`
-URL -- then `game_keys` lists the keys that game listens for), `frame_skip`
+Phase fields: `game` (`"game1"`…`"game10"`, plus `/level<N>` to name the
+level -- `"game6/level3"`; bare `"game6"` is level 1 -- or an
+`http(s)://…/index.html` URL, then `game_keys` lists the keys that game
+listens for), `frame_skip`
 (default 6; `fps` must equal `60 / frame_skip`, and the block refuses to start
 otherwise), `headed` (show the browser window), `browser_channel` (`"chrome"`
 default, or `null` for the bundled Chromium), `games_dir` (override the
-vendored dir). `keys` values are the game's key names, so `{"B1": "SPACE"}`
+vendored dir). A curriculum lists one game phase per level it wants played
+(`configs/dbp_games/aigamestore__game1.json` has all nine of Water Sort's).
+`keys` values are the game's key names, so `{"B1": "SPACE"}`
 binds a button; the env relabels the on-canvas hints to match.
 
 ## Running Rush-Hour

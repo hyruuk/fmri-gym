@@ -34,17 +34,23 @@ let gameInstance = new p5(p => {
     });
   };
 
-  function startFromStartScreen(p) {
+  function startFromStartScreen(p, level = 1) {
     gameState.gamePhase = GAME_PHASES.PLAYING;
-    gameState.level = 1;
+    gameState.level = level;
     gameState.score = 0;
-    loadLevel(1);
+    loadLevel(level);
     p.logs.game_info.push({
       data: { phase: gameState.gamePhase, level: gameState.level },
       framecount: p.frameCount,
       timestamp: Date.now()
     });
   }
+
+  // Start level `levelNum` as a fresh game (score 0), for a host that plays one level per episode
+  window.loadLevel = function(levelNum) {
+    restartToStartScreen(p);
+    startFromStartScreen(p, levelNum);
+  };
 
   function restartToStartScreen(p) {
     gameState.gamePhase = GAME_PHASES.START;
@@ -384,21 +390,6 @@ window.addMessage = addMessage;
 
 // Expose game instance globally
 window.gameInstance = gameInstance;
-// Expose level loading for dev mode
-window.loadLevel = function(levelNum) {
-  const state = window.getGameState ? window.getGameState() : (window.gameState || (window.gameInstance && window.gameInstance.gameState));
-  if (state) {
-    state.currentLevel = levelNum;
-    if (typeof loadLevel === 'function') {
-      loadLevel(levelNum);
-    } else if (typeof initializeLevel === 'function') {
-      initializeLevel(levelNum);
-    }
-    if (state.gamePhase !== undefined) {
-      state.gamePhase = "PLAYING";
-    }
-  }
-};
 
 // Control mode switching
 window.setControlMode = function(mode) {

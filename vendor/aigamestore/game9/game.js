@@ -112,18 +112,10 @@ window.onload = function() {
 
   // Expose game instance globally
   window.gameInstance = gameInstance;
-  // Expose level loading for dev mode
+  // Start level `levelNum` as a fresh game (score 0, 5 lives), for a host that plays one level per episode
   window.loadLevel = function(levelNum) {
-    // Use the gameInstance's p (sketch instance) to call the actual loadLevel and resetGame
-    const p = window.gameInstance; 
-    if (p) {
-      // Ensure state is reset before loading new level for dev mode
-      resetGame(p); // Call the imported resetGame
-      p.getGameState().currentLevel = levelNum;
-      loadLevel(p, levelNum); // Call the imported loadLevel
-    } else {
-      console.warn("p5 instance (gameInstance) not available for dev loadLevel.");
-    }
+    resetGame(gameInstance, true);    // a new game at level 1
+    loadLevel(gameInstance, levelNum);
   };
 }; // End of window.onload
 

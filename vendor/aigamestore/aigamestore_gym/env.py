@@ -19,10 +19,17 @@ and ``reset(seed=...)`` plus the action sequence replays an episode exactly.
 Observation: the game canvas as an RGB ``Box`` (each game has its own size,
 e.g. 600x400). Action: ``MultiBinary(len(keys))`` -- which of the game's keys are
 held this step; see :data:`GAME_KEYS`. Reward: the change in the game's
-``score``. An episode ends when the game returns to its START screen (or
-reports ``ENDED``); level clears and game overs do not end it, they move on by
-themselves after 3 s. ``info["state"]`` is the scalar part of the game state
+``score``. ``info["state"]`` is the scalar part of the game state
 (``gamePhase``, ``score``, ``currentLevel``, ...).
+
+An episode is one level: ``reset`` starts ``level`` afresh (score 0, full
+lives) through the game's ``window.loadLevel(n)`` hook, and the episode ends
+as soon as the game leaves PLAYING (a win, a loss or a level-complete screen)
+or its level counter moves -- the games differ in which of these they do when a
+level is cleared, and this rule covers all of them. The terminal observation is
+therefore the win / lose / level-complete screen, or the first frame of the next
+level for the games that go straight on (game3, game9, game10). A game without
+levels (game4, an endless runner) has episodes that end when it is lost.
 
 Not supported: sound (the games have none) and savestates (replay from seed).
 Needs a Chromium-based browser (the system Chrome by default; pass
@@ -68,6 +75,16 @@ GAME_KEYS: dict[str, list[str]] = {
     "game10": ["LEFT", "RIGHT", "UP", "DOWN", "LSHIFT", "SPACE", "Z"],
 }
 
+#: How many levels each vendored game has that can be played on their own:
+#: ``0`` for no levels at all (episodes end when the game is lost), ``None``
+#: for procedurally generated ones without an upper bound. game6 is one long
+#: level with checkpoints; game9's 8th level is a gauntlet of the bosses beaten
+#: so far, which is empty (an instant win) when started fresh, so it is left out.
+GAME_LEVELS: dict[str, int | None] = {
+    "game1": 9, "game2": 9, "game3": 7, "game4": 0, "game5": 6,
+    "game6": 1, "game7": None, "game8": 9, "game9": 7, "game10": 6,
+}
+
 # Headless Chrome falls back to SwiftShader (software GL) unless told to use
 # the GPU; the three.js game then takes ~130 ms a frame instead of ~2 ms.
 _BROWSER_ARGS = ["--use-gl=angle", "--use-angle=gl", "--ignore-gpu-blocklist"]
@@ -79,6 +96,9 @@ class AIGameStoreEnv(gym.Env):
 
     :param game: ``"game1"`` .. ``"game10"`` (served from ``games_dir``), or the
         ``http(s)://`` URL of a game's ``index.html``.
+    :param level: the level each episode plays, from 1; see :data:`GAME_LEVELS`.
+        Defaults to 1 for a game with levels, and must be ``None`` for one
+        without (game4 starts from its START screen instead).
     :param keys: the game's keys, in action-vector order. Defaults to
         :data:`GAME_KEYS`; required for a game given by URL.
     :param frame_skip: game frames (at 60 Hz) per :meth:`step`.
@@ -97,6 +117,7 @@ class AIGameStoreEnv(gym.Env):
     def __init__(
         self,
         game: str = "game1",
+        level: int | None = None,
         *,
         keys: list[str] | None = None,
         frame_skip: int = 6,
@@ -112,6 +133,7 @@ class AIGameStoreEnv(gym.Env):
         if keys is None and game not in GAME_KEYS:
             raise ValueError(f"{game!r} is not one of {sorted(GAME_KEYS)}; pass keys=[...] for it")
         self.game = game
+        self.level = _check_level(game, level)
         self.keys = list(GAME_KEYS[game] if keys is None else keys)
         self.frame_skip = int(frame_skip)
         self.start_key = start_key
@@ -134,7 +156,6 @@ class AIGameStoreEnv(gym.Env):
 
         self._frame: np.ndarray | None = None
         self._score = 0.0
-        self._phase = ""
         self._load(seed=0)
         unknown = set(self.keys) - set(self._page.evaluate("() => window.__aigs.keys"))
         if unknown:
@@ -147,33 +168,39 @@ class AIGameStoreEnv(gym.Env):
     # ------------------------------------------------------------------ gym
     def reset(self, *, seed: int | None = None, options: dict | None = None
               ) -> tuple[np.ndarray, dict]:
-        """Reload the game with ``seed`` and leave its START screen.
+        """Reload the game with ``seed`` and start :attr:`level` afresh.
 
         :param seed: seeds the page's ``Math.random``; ``None`` draws one.
         :param options: unused.
         :return: ``(frame, {"state": ...})`` -- the first PLAYING frame.
+        :raises RuntimeError: if the game did not come up PLAYING the level.
         """
         super().reset(seed=seed)
         self._load(seed=int(self.np_random.integers(1, 2**31)) if seed is None else seed)
-        frame, state = self._step([self.start_key], 1)
+        if self.level is None:
+            frame, state = self._step([self.start_key], 1)
+        else:
+            self._page.evaluate("n => window.loadLevel(n)", self.level)
+            frame, state = self._step([], 1)
+        if self._over(state):
+            self.close()
+            raise RuntimeError(f"{self.game}: asked for level {self.level} but the game is in "
+                               f"{state.get('gamePhase')!r} at level {_level(state)!r}")
         self._score = float(state.get("score", 0.0))
-        self._phase = str(state.get("gamePhase", ""))
         return frame, {"state": state}
 
     def step(self, action: Any) -> tuple[np.ndarray, float, bool, bool, dict]:
         """Hold the keys ``action`` marks and advance ``frame_skip`` frames.
 
         :param action: 0/1 per entry of :attr:`keys`.
-        :return: ``(frame, score delta, terminated, False, {"state": ...})``.
+        :return: ``(frame, score delta, terminated, False, {"state": ...})``;
+            terminated once the game leaves PLAYING or changes level.
         """
         names = [k for k, on in zip(self.keys, action) if on]
         frame, state = self._step(names, self.frame_skip)
         score = float(state.get("score", self._score))
-        phase = str(state.get("gamePhase", self._phase))
         reward, self._score = score - self._score, score
-        terminated = (phase == "START" and self._phase != "START") or phase == "ENDED"
-        self._phase = phase
-        return frame, reward, terminated, False, {"state": state}
+        return frame, reward, self._over(state), False, {"state": state}
 
     def render(self) -> np.ndarray:
         """Return the canvas as it stood after the last step, RGB ``(H, W, 3)``."""
@@ -193,6 +220,14 @@ class AIGameStoreEnv(gym.Env):
                 shutdown()
 
     # -------------------------------------------------------------- helpers
+    def _over(self, state: dict) -> bool:
+        """Whether ``state`` is outside the episode: not PLAYING, or on another level.
+
+        A game that keeps no level counter (game6) is judged on its phase alone.
+        """
+        level = _level(state)
+        return state.get("gamePhase") != "PLAYING" or (level is not None and level != self.level)
+
     def _load(self, seed: int) -> None:
         """Navigate to the game with ``seed`` and tick it up to its START screen."""
         self._page.goto(f"{self._url}&seed={seed}")
@@ -203,6 +238,30 @@ class AIGameStoreEnv(gym.Env):
         out = self._page.evaluate("([n, f]) => window.__aigs.step(n, f)", [names, frames])
         self._frame = _decode_png(out["png"])
         return self._frame, out["state"]
+
+
+def _check_level(game: str, level: int | None) -> int | None:
+    """Return the level to play, or raise if ``level`` does not fit ``game``.
+
+    A game given by URL is not in :data:`GAME_LEVELS`; any level goes.
+    """
+    if game not in GAME_LEVELS:
+        return level
+    n = GAME_LEVELS[game]
+    if n == 0:
+        if level is not None:
+            raise ValueError(f"{game} has no levels; leave level=None")
+        return None
+    level = 1 if level is None else int(level)
+    if level < 1 or (n is not None and level > n):
+        raise ValueError(f"{game} has levels 1..{n if n else 'inf'}, not {level}")
+    return level
+
+
+def _level(state: dict) -> int | None:
+    """The level counter of a game state (``currentLevel`` or, in some games, ``level``)."""
+    level = state.get("currentLevel", state.get("level"))
+    return None if level is None else int(level)
 
 
 def _decode_png(data_url: str) -> np.ndarray:

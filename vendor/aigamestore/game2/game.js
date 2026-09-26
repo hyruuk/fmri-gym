@@ -334,12 +334,11 @@ window.onload = function() {
 
     // Expose game instance and state globally
     window.gameInstance = gameInstance;
-    // Expose level loading for dev mode
+    // Start level `levelNum` as a fresh game (score 0), for a host that plays one level per episode
     window.loadLevel = function(levelNum) {
-      const state = window.getGameState ? window.getGameState() : (window.gameState || (window.gameInstance && window.gameInstance.gameState));
-      if (state) {
-        state.currentLevel = levelNum;
-        // Use the centralized loadNextLevel
+      restartGame(p, false);          // a new game at level 1
+      if (levelNum > 1) {
+        gameState.currentLevel = levelNum - 1;
         loadNextLevel(p);
       }
     };

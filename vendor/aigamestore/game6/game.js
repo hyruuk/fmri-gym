@@ -135,21 +135,11 @@ let gameInstance = new p5(p => {
 
 // Expose game instance globally
 window.gameInstance = gameInstance;
-// Expose level loading for dev mode
+// Start a fresh game (score 0), for a host that plays one level per episode. The
+// game has a single level (with checkpoints), so `levelNum` can only be 1.
 window.loadLevel = function(levelNum) {
-  const state = window.getGameState ? window.getGameState() : (window.gameState || (window.gameInstance && window.gameInstance.gameState));
-  if (state) {
-    state.currentLevel = levelNum;
-    // Try common reset/start patterns
-    if (typeof resetGame === 'function') {
-      resetGame();
-    }
-    if (typeof startGame === 'function') {
-      startGame();
-    } else if (state.gamePhase !== undefined) {
-      state.gamePhase = "PLAYING";
-    }
-  }
+  restartGame(gameInstance);
+  startGame(gameInstance);
 };
 
 // Control mode switching

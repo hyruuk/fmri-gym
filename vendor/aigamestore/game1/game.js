@@ -3,6 +3,7 @@
 import { gameState, GAME_PHASES, CANVAS_WIDTH, CANVAS_HEIGHT, getGameState } from "./globals.js";
 import { handleKeyPressed, resetGameToStartScreen, leaveLevelComplete, startFromStartScreen } from './input.js'; // Import resetGameToStartScreen
 import { updateAnimation } from './gameLogic.js';
+import { loadLevel } from './levelManager.js';
 import { 
   renderStartScreen, 
   renderPlayingScreen, 
@@ -108,19 +109,11 @@ let gameInstance = new p5(p => {
 window.gameInstance = gameInstance;
 window.getGameState = getGameState;
 window.gameState = gameState;
-// Expose level loading for dev mode
+// Start level `levelNum` as a fresh game (score 0), for a host that plays one level per episode
 window.loadLevel = function(levelNum) {
-  const state = window.getGameState ? window.getGameState() : (window.gameState || (window.gameInstance && window.gameInstance.gameState));
-  if (state) {
-    state.currentLevel = levelNum;
-    // For dev mode, directly set to PLAYING phase and clear any pending auto-restart
-    state.gamePhase = GAME_PHASES.PLAYING;
-    if (state.autoRestartTimeoutId) {
-      clearTimeout(state.autoRestartTimeoutId);
-      state.autoRestartTimeoutId = null;
-    }
-    state.autoRestartScheduled = false;
-  }
+  resetGameToStartScreen(gameInstance);
+  loadLevel(levelNum, gameInstance);
+  gameState.gamePhase = GAME_PHASES.PLAYING;
 };
 
 // Control mode switching

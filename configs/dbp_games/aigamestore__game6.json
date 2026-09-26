@@ -1,6 +1,7 @@
 {
   "_game": "AI GameStore game6 (shadow platformer)",
   "_note": "uv sync --extra aigamestore: the vendored aigamestore-gym env (vendor/aigamestore), which needs a Chromium browser (system Chrome by default). Lock-stepped: fps must equal 60 / frame_skip (10 with the default frame_skip 6).",
+  "_levels_note": "One long level with checkpoints: each episode is one attempt at it, and ends on a win or a loss.",
   "_keys_note": "MultiKeySpec over the game's keys: curriculum 'keys' map a physical key (the JSON key -- a scanner button, say) to the key the GAME listens for (the value, e.g. 'SPACE'); held keys combine, and the logged action is the env's 0/1 vector over its keys. Side-scrolling journey through shadows; reach checkpoints. The on-canvas hints are relabelled to the pressed key by the env; keep the message Controls text in sync with 'keys' by hand.",
   "_keys_reference": "https://github.com/tomov/fmri-gym/blob/main/vendor/aigamestore/game6/input.js",
   "curriculum": [
@@ -23,9 +24,9 @@
     },
     {"type": "fixation", "duration": 1.0},
     {
-      "type": "game", "backend": "aigamestore", "game": "game6",
+      "type": "game", "backend": "aigamestore", "game": "game6/level1",
       "keys": {"LEFT": "LEFT", "RIGHT": "RIGHT", "UP": "UP", "SPACE": "SPACE", "Z": "Z"},
-      "mode": "duration", "duration": 300.0, "fps": 10
+      "mode": "duration", "duration": 300, "fps": 10
     },
     {"type": "fixation", "duration": 2.0}
   ]

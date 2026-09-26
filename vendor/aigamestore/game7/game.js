@@ -569,18 +569,15 @@ let gameInstance = new p5(p => {
 
 window.gameInstance = gameInstance;
 
-// Expose level loading functions for dev mode
+// Start level `levelNum` as a fresh game (score 0), for a host that plays one level per episode
 window.loadLevel = function(levelNum) {
-  const state = getGameState();
-  if (state) {
-    state.currentLevel = levelNum;
-    resetGame();
-    if (window.gameInstance) {
-      generateLevel(window.gameInstance);
-      state.player = new Player(state.level.width / 2, state.level.height / 2);
-      state.gamePhase = "PLAYING";
-    }
-  }
+  gameState.currentLevel = levelNum;
+  gameState.score = 0;
+  resetGame();                        // reads currentLevel for the kill quota
+  generateLevel(gameInstance);
+  gameState.player = new Player(gameState.level.width / 2, gameState.level.height / 2);
+  gameState.gamePhase = "PLAYING";
+  gameState.autoRestartTimer = null;
 };
 
 // Expose replay UI initialization (will be imported and called directly)
