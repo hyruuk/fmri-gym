@@ -1,5 +1,5 @@
 {
-  "_game": "Baba Is You: baba_is_you, the first level, on the baba-is-auto engine (language / rule-manipulation puzzle)",
+  "_game": "Baba Is You: Novice Locksmith (novice_locksmith), on the baba-is-auto engine (language / rule-manipulation puzzle)",
   "_note": "git clone https://github.com/utilForever/baba-is-auto.git ../baba-is-auto; export BABA_IS_AUTO_REPO=../baba-is-auto (or --baba-is-auto-repo, or this phase's 'repo'); uv sync --extra baba_auto (baba-auto-gym, vendor/baba_auto/, compiles the C++ engine from that checkout: needs a C++17 compiler and python3-dev). 'game' is a map name under the checkout's Resources/Maps (baba_is_you, out_of_reach, volcano, off_limits, grass_yard, pillar_yard, brick_wall, icy_waters, novice_locksmith, lock, affection, turns) or a map file path. Push word blocks to rewrite the rules.",
   "_keys_note": "baba_auto_gym Discrete(5): 0=wait, 1=up, 2=down, 3=left, 4=right. Keep the message Controls text in sync with 'keys' by hand.",
   "_keys_reference": "vendor/baba_auto/baba_auto_gym/env.py",
@@ -9,10 +9,10 @@
       "type": "message",
       "align": "left",
       "text": [
-        "Baba Is You",
+        "Baba Is You: Novice Locksmith",
         "",
         "You are Baba. Push word blocks to rewrite the rules.",
-        "Whatever IS WIN, touch it to win.",
+        "Doors are shut; keys open them. Rules decide which is which.",
         "",
         "Controls:",
         "   ARROWS   move",
@@ -29,7 +29,7 @@
     {
       "type": "game",
       "backend": "baba_auto",
-      "game": "baba_is_you",
+      "game": "novice_locksmith",
       "keys": {
         "SPACE": 0,
         "UP": 1,

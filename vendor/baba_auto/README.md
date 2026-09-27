@@ -28,7 +28,7 @@ frame = env.render()                              # (24 * H, 24 * W, 3) uint8
 ```
 
 `game` is a map name under the checkout's `Resources/Maps` (`baba_is_you`,
-`out_of_reach`, `off_limits`, `grass_yard`, `pillar_yard`, `brick_wall`,
+`out_of_reach`, `volcano`, `off_limits`, `grass_yard`, `pillar_yard`, `brick_wall`,
 `icy_waters`, `novice_locksmith`, `lock`, `affection`, `turns`, ... -- many of the
 others are rule-engine fixtures rather than puzzles) or the path of a map file
 of your own; `repo=` overrides `BABA_IS_AUTO_REPO`. Actions are `Discrete(5)`:

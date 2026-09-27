@@ -152,7 +152,7 @@ the right per-game keymap/settings baked in. Coverage by class:
 | `vizdoom__` | 10 | basic, deadly_corridor, defend_center, defend_line, health_gathering_supreme, my_way_home, predict_position, take_cover, deathmatch (Doom; COOM's engine; other `Vizdoom*-v1` scenarios work too), plus `take_cover_defend_line` running two of them back to back in one session |
 | `coom__` | 9 | pitfall, chainsaw, hide_and_seek, health_gathering, arms_dealer, parkour, raise_the_roof, run_and_gun, floor_is_lava (needs the COOM repo checkout) |
 | `baba__` | 1 | make_win (rule-manipulation puzzle; other ids) |
-| `baba_auto__` | 1 | baba_is_you (the game's first level on the baba-is-auto engine; `game` takes any map under its `Resources/Maps`) |
+| `baba_auto__` | 12 | baba_is_you, out_of_reach, volcano, off_limits, grass_yard, pillar_yard, brick_wall, icy_waters, novice_locksmith, lock, affection, turns (the levels the baba-is-auto checkout ships; its other maps are rule-engine fixtures; `game` takes any map file) |
 | `rushhour__` | 1 | easy (sliding-block puzzle). `rushhour__complete.json` is the full self-paced session of Rush-Hour's own program, then the rest of the library: all 49 puzzles, the first 12 easiest-first and the other 37 in a fixed shuffled order, one game phase each, with ready screens and solved feedback as message phases |
 | `stk_gym__` | 1 | race (SuperTuxKart via its gym server; needs a real GL display) |
 | `retro__` | 3 | tobutobugirldx, nomolos, anguna (need ROMs imported) |
@@ -389,7 +389,7 @@ Baba Is You simulator with the game's real ruleset and the original levels'
 maps (`baba_is_you`, `out_of_reach`, `off_limits`, ...), where the `baba` backend
 plays baba-is-ai's small generated puzzles. Its Python module exposes only the
 `Game`, so the Gymnasium env is **`baba-auto-gym`** (`vendor/baba_auto/`, the
-`baba_auto` extra). Installing the extra compiles the engine from a checkout of
+`baba_auto` extra), one `baba_auto__<level>.json` per level the checkout ships. Installing the extra compiles the engine from a checkout of
 your own (a C++17 compiler and `python3-dev` are needed; about 30 s), and the
 env reads the maps and the GUI's sprites from the same checkout:
 
