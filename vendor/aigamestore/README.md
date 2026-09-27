@@ -40,8 +40,10 @@ reward is the change in the game's `score`, and `info["state"]` is the scalar
 part of `getGameState()` (`gamePhase`, `score`, `currentLevel`, ...).
 
 An episode is one level: `reset()` starts the env's `level` afresh through the
-game's `window.loadLevel(n)`, and the episode ends as soon as the game leaves
-PLAYING (a win, a loss, a level-complete screen) or its level counter moves.
+game's `window.loadLevel(n)`, and the episode is over as soon as the game leaves
+PLAYING (a win, a loss, a level-complete screen) or its level counter moves. The
+end screen then stays up for `end_steps` more steps (20, i.e. 2 s at the default
+rate) with no key passed on, and `terminated` comes on the last of them.
 `GAME_LEVELS` says how many levels each game has -- game4 has none (an endless
 runner, the episode ends when it is lost), game6 is one long level, game7's are
 procedural without an upper bound. See the docstring of `env.py`.

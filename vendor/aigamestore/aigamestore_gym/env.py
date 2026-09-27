@@ -23,13 +23,14 @@ held this step; see :data:`GAME_KEYS`. Reward: the change in the game's
 (``gamePhase``, ``score``, ``currentLevel``, ...).
 
 An episode is one level: ``reset`` starts ``level`` afresh (score 0, full
-lives) through the game's ``window.loadLevel(n)`` hook, and the episode ends
+lives) through the game's ``window.loadLevel(n)`` hook, and the episode is over
 as soon as the game leaves PLAYING (a win, a loss or a level-complete screen)
 or its level counter moves -- the games differ in which of these they do when a
-level is cleared, and this rule covers all of them. The terminal observation is
-therefore the win / lose / level-complete screen, or the first frame of the next
-level for the games that go straight on (game3, game9, game10). A game without
-levels (game4, an endless runner) has episodes that end when it is lost.
+level is cleared, and this rule covers all of them. The game is then stepped
+``end_steps`` more times with no key held, so the win / lose / level-complete
+screen stays up long enough to be read (2 s at the default rate) instead of
+flashing for one frame; ``terminated`` is reported on the last of them. A game
+without levels (game4, an endless runner) has episodes that end when it is lost.
 
 Not supported: sound (the games have none) and savestates (replay from seed).
 Needs a Chromium-based browser (the system Chrome by default; pass
@@ -102,6 +103,8 @@ class AIGameStoreEnv(gym.Env):
     :param keys: the game's keys, in action-vector order. Defaults to
         :data:`GAME_KEYS`; required for a game given by URL.
     :param frame_skip: game frames (at 60 Hz) per :meth:`step`.
+    :param end_steps: steps the end-of-level screen stays up before the episode
+        is reported ``terminated`` (20 = 2 s at the default 10 steps/s).
     :param headless: run the browser without a window.
     :param browser_channel: Playwright browser channel (``"chrome"``), or
         ``None`` for the bundled Chromium.
@@ -121,6 +124,7 @@ class AIGameStoreEnv(gym.Env):
         *,
         keys: list[str] | None = None,
         frame_skip: int = 6,
+        end_steps: int = 20,
         headless: bool = True,
         browser_channel: str | None = "chrome",
         key_labels: dict[str, str] | None = None,
@@ -136,6 +140,7 @@ class AIGameStoreEnv(gym.Env):
         self.level = _check_level(game, level)
         self.keys = list(GAME_KEYS[game] if keys is None else keys)
         self.frame_skip = int(frame_skip)
+        self.end_steps = int(end_steps)
         self.start_key = start_key
         self.render_mode = render_mode
         self.metadata = {**self.metadata, "render_fps": 60 / self.frame_skip}
@@ -156,6 +161,7 @@ class AIGameStoreEnv(gym.Env):
 
         self._frame: np.ndarray | None = None
         self._score = 0.0
+        self._ended = 0                # steps taken since the game left the level
         self._load(seed=0)
         unknown = set(self.keys) - set(self._page.evaluate("() => window.__aigs.keys"))
         if unknown:
@@ -187,20 +193,26 @@ class AIGameStoreEnv(gym.Env):
             raise RuntimeError(f"{self.game}: asked for level {self.level} but the game is in "
                                f"{state.get('gamePhase')!r} at level {_level(state)!r}")
         self._score = float(state.get("score", 0.0))
+        self._ended = 0
         return frame, {"state": state}
 
     def step(self, action: Any) -> tuple[np.ndarray, float, bool, bool, dict]:
         """Hold the keys ``action`` marks and advance ``frame_skip`` frames.
 
+        Once the game has left PLAYING or changed level the keys are no longer
+        passed on (a press could skip the end screen or start the next level),
+        and ``terminated`` comes ``end_steps`` steps later.
+
         :param action: 0/1 per entry of :attr:`keys`.
-        :return: ``(frame, score delta, terminated, False, {"state": ...})``;
-            terminated once the game leaves PLAYING or changes level.
+        :return: ``(frame, score delta, terminated, False, {"state": ...})``.
         """
-        names = [k for k, on in zip(self.keys, action) if on]
+        names = [] if self._ended else [k for k, on in zip(self.keys, action) if on]
         frame, state = self._step(names, self.frame_skip)
         score = float(state.get("score", self._score))
         reward, self._score = score - self._score, score
-        return frame, reward, self._over(state), False, {"state": state}
+        if self._ended or self._over(state):
+            self._ended += 1
+        return frame, reward, self._ended > self.end_steps, False, {"state": state}
 
     def render(self) -> np.ndarray:
         """Return the canvas as it stood after the last step, RGB ``(H, W, 3)``."""
