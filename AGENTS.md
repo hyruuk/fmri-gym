@@ -27,12 +27,17 @@ We evaluate AI models against the same gym environments that humans play in the 
 If an adapter adds rules, affordances, scoring, or its own renderer, humans and models are
 no longer playing the same game and the comparison is void.
 
-An adapter is lightweight glue that takes a gym env and makes it fMRI-friendly. Ideally, it should do only these things:
+An adapter is lightweight glue that takes a `gymnasium.Env` and makes it fMRI-friendly. That
+env is the whole point: it is what the agents are trained and evaluated on, so a game that
+is not a `gymnasium.Env` yet is not ready for an adapter -- wrap it first. Ideally, an
+adapter should do only these things:
 
-- build the env (`_make`): a `gymnasium.Env`, always. If the game's own env speaks
+- build the env (`_make`): a `gymnasium.Env`, always. Prefer a ready-made pip package
+  (`ale-py`, `stable-retro`, `minihack`, `rushhour-gym`, ...). If the game's own env speaks
   another API (old `gym`, a bare engine, a `with_img=` of its own), a thin Gymnasium env
   under `vendor/` puts the contract in front of it (`vendor/baba/`, `vendor/crafter/`,
-  `vendor/vgdl/`, `vendor/coom/`); the adapter never normalizes `reset`/`step` itself
+  `vendor/vgdl/`, `vendor/coom/`), and that is where any new one goes; the adapter never
+  normalizes `reset`/`step` itself
 - say in the module docstring what the env's action indices mean, so a config can
   write its `keys` (there is no default keyboard map: the config states all of it)
 - produce an RGB frame for the screen (`render`)
@@ -110,6 +115,9 @@ something else: the participant's hour is gone and nobody knew. So:
 
 ## Adding a new backend: the checklist
 
+0. Check that no existing backend already plays your game, possibly out of the box: `ale`
+   takes any Atari ROM, `retro` any libretro core, `gym` any registered Gymnasium env,
+   `vizdoom` any Doom scenario. If one does, all you need is a config.
 1. `fmri_gym/adapters/<BACKEND>.py` — module docstring (what the engine is, why it was
    chosen, what its observation/action spaces look like, what is not supported), then a
    subclass of `EnvAdapter` overriding only the hooks you actually need. Everything else is
