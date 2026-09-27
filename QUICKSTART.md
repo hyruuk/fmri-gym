@@ -161,6 +161,18 @@ The engine binary is fetched on first run (see §1); nothing to build.
 uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/baba__make_win.json --ses 1 --run 1
 ```
 
+### Baba Is You on the baba-is-auto engine (the original levels' maps)
+
+The engine is C++ and is compiled from a checkout of its repo when the extra
+installs (a C++17 compiler and `python3-dev` are needed; about 30 s):
+
+```bash
+git clone https://github.com/utilForever/baba-is-auto.git ../baba-is-auto
+export BABA_IS_AUTO_REPO=../baba-is-auto   # in every new shell, or pass --baba-is-auto-repo ../baba-is-auto per run
+uv sync --extra dbp --extra baba_auto
+uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/baba_auto__baba_is_you.json --ses 1 --run 1
+```
+
 
 
 ### AI GameStore (p5.js browser games)

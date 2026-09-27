@@ -31,6 +31,9 @@ retro = ["stable-retro"]
 # the extra installs, and which pulls the game itself in.
 crafter = ["crafter-gym"]
 baba = ["baba-gym"]
+# Baba Is You on the baba-is-auto C++ engine, compiled at install time from a
+# BABA_IS_AUTO_REPO checkout (needs a C++17 compiler and python3-dev).
+baba_auto = ["baba-auto-gym"]
 vgdl = ["vgdl-gym"]  # the games come from a language_and_experience checkout (VGDL_REPO)
 # nle>=1.3 is what ships wheels for current Pythons; without the floor a
 # resolver may prefer gymnasium 1.3 and fall back to nle 0.9.1 (source build).
@@ -68,7 +71,7 @@ dbp = [
     "fmri-gym[vizdoom,coom,aigamestore,crafter,rushhour,baba,minihack,stk_gym]",
 ]
 all = [
-    "fmri-gym[dbp,ale,retro,nethack,vgdl,box2d,mujoco,shimmy,tilematch,triggers,gui]",
+    "fmri-gym[dbp,ale,retro,nethack,vgdl,baba_auto,box2d,mujoco,shimmy,tilematch,triggers,gui]",
 ]
 
 [project.scripts]
@@ -93,6 +96,7 @@ override-dependencies = ["pygame; sys_platform == 'pygame-ce-only'"]
 aigamestore-gym = { path = "vendor/aigamestore", editable = true }
 coom-gym = { path = "vendor/coom", editable = true }
 baba-gym = { path = "vendor/baba", editable = true }
+baba-auto-gym = { path = "vendor/baba_auto", editable = true }
 crafter-gym = { path = "vendor/crafter", editable = true }
 vgdl-gym = { path = "vendor/vgdl", editable = true }
 

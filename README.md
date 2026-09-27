@@ -20,6 +20,7 @@ through small pluggable **adapters**:
 | `vizdoom`     | Doom action-shooter scenarios (COOM's engine) | ViZDoom |
 | `coom`        | COOM's own continual-RL scenarios (`pitfall`, `chainsaw`, …), from a `COOM_REPO` checkout (COOM package itself not installed -- conflicting `gymnasium` pin) | coom-gym (`vendor/coom/`) |
 | `baba`        | Baba Is You (rule-manipulation puzzle) | baba-gym (`vendor/baba/`) over baba-is-ai |
+| `baba_auto`   | Baba Is You on the original levels' maps (`baba_is_you`, `out_of_reach`, …), the full ruleset; a C++ engine compiled from a `BABA_IS_AUTO_REPO` checkout | baba-auto-gym (`vendor/baba_auto/`) over utilForever/baba-is-auto |
 | `rushhour`    | Rush Hour sliding-block puzzle | `rushhour-gym` (PyPI; fetches its Go engine) |
 | `stk_gym`     | SuperTuxKart 3D racing: frames from the game's gym server, keys to its player controller (needs a real GL display) | [chrplr/stk-code](https://github.com/chrplr/stk-code) fork |
 
@@ -151,6 +152,7 @@ the right per-game keymap/settings baked in. Coverage by class:
 | `vizdoom__` | 10 | basic, deadly_corridor, defend_center, defend_line, health_gathering_supreme, my_way_home, predict_position, take_cover, deathmatch (Doom; COOM's engine; other `Vizdoom*-v1` scenarios work too), plus `take_cover_defend_line` running two of them back to back in one session |
 | `coom__` | 9 | pitfall, chainsaw, hide_and_seek, health_gathering, arms_dealer, parkour, raise_the_roof, run_and_gun, floor_is_lava (needs the COOM repo checkout) |
 | `baba__` | 1 | make_win (rule-manipulation puzzle; other ids) |
+| `baba_auto__` | 1 | baba_is_you (the game's first level on the baba-is-auto engine; `game` takes any map under its `Resources/Maps`) |
 | `rushhour__` | 1 | easy (sliding-block puzzle). `rushhour__complete.json` is the full self-paced session of Rush-Hour's own program, then the rest of the library: all 49 puzzles, the first 12 easiest-first and the other 37 in a fixed shuffled order, one game phase each, with ready screens and solved feedback as message phases |
 | `stk_gym__` | 1 | race (SuperTuxKart via its gym server; needs a real GL display) |
 | `retro__` | 3 | tobutobugirldx, nomolos, anguna (need ROMs imported) |
@@ -380,6 +382,29 @@ uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/dbp_games
 Controls, phase fields and the logged columns are documented in the configs'
 `_note`s and in the package's README ("A person at the board").
 
+## Running Baba Is You on the baba-is-auto engine (`baba_auto`)
+
+[utilForever/baba-is-auto](https://github.com/utilForever/baba-is-auto) is a C++
+Baba Is You simulator with the game's real ruleset and the original levels'
+maps (`baba_is_you`, `out_of_reach`, `off_limits`, ...), where the `baba` backend
+plays baba-is-ai's small generated puzzles. Its Python module exposes only the
+`Game`, so the Gymnasium env is **`baba-auto-gym`** (`vendor/baba_auto/`, the
+`baba_auto` extra). Installing the extra compiles the engine from a checkout of
+your own (a C++17 compiler and `python3-dev` are needed; about 30 s), and the
+env reads the maps and the GUI's sprites from the same checkout:
+
+```bash
+git clone https://github.com/utilForever/baba-is-auto.git ../baba-is-auto
+export BABA_IS_AUTO_REPO=../baba-is-auto   # or --baba-is-auto-repo ../baba-is-auto, or a phase's "repo" field
+uv sync --extra dbp --extra baba_auto
+uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/baba_auto__baba_is_you.json --ses 1 --run 1
+```
+
+A phase's `game` is a map name under the checkout's `Resources/Maps` or a map
+file's path; `keys` index `Discrete(5)`: 0 = wait, 1 = up, 2 = down, 3 = left,
+4 = right (turn-based). Each turn logs `play_state` (0 playing, 1 won, 2 lost)
+and the engine's `(16, H, W)` state tensor. No savestate: seed + action replay.
+
 ## Running SuperTuxKart from the stk-code fork (`stk_gym`)
 
 The [chrplr/stk-code](https://github.com/chrplr/stk-code) fork is the current
@@ -455,6 +480,7 @@ fmri_gym/
     nethack.py      # base NLE: TTY grid -> RGB; vi-key movement; blstats
     aigamestore.py  # AI GameStore via aigamestore-gym: held keys as the env's action, state_* from getGameState
     coom.py         # COOM via coom-gym: Discrete(12) actions, game variables and PCM logged
+    baba_auto.py    # Baba Is You on baba-is-auto via baba-auto-gym: Discrete(5) turns, play_state + state tensor logged
     rushhour.py     # Go engine via rushhour-gym; select+slide UI, rushui look, Rush-Hour's log columns; one puzzle per block
     stk_gym.py      # SuperTuxKart via stk_gym: frames from the game's hidden window, held keys as the env's action
 fmri_play.py        # CLI entry point
@@ -462,6 +488,7 @@ configs/            # example curricula
 vendor/aigamestore/ # the 10 public AI GameStore games (HTML/JS) + aigamestore_gym, their lock-stepped gym env
 vendor/coom/        # coom_gym: COOM scenarios as a Gymnasium env, on a COOM checkout's WADs
 vendor/baba/        # baba_gym: the Gymnasium contract in front of baba-is-ai's old-gym env
+vendor/baba_auto/   # baba_auto_gym: a Gymnasium env over baba-is-auto's pyBaba (C++, built from a BABA_IS_AUTO_REPO checkout)
 vendor/crafter/     # crafter_gym: the same for crafter.Env, with reset(seed=)
 vendor/vgdl/        # vgdl_gym: a standard env over the language_and_experience fork's VGDLEnv
 ```

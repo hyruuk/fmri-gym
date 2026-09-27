@@ -72,6 +72,8 @@ def _parser() -> argparse.ArgumentParser:
                    help="path to the language_and_experience checkout (vgdl backend)")
     p.add_argument("--coom-repo", default=os.environ.get("COOM_REPO"),
                    help="path to the TTomilin/COOM checkout (coom backend)")
+    p.add_argument("--baba-is-auto-repo", default=os.environ.get("BABA_IS_AUTO_REPO"),
+                   help="path to the utilForever/baba-is-auto checkout (baba_auto backend)")
     return p
 
 

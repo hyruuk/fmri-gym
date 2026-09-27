@@ -36,8 +36,14 @@ adapter should do only these things:
   (`ale-py`, `stable-retro`, `minihack`, `rushhour-gym`, ...). If the game's own env speaks
   another API (old `gym`, a bare engine, a `with_img=` of its own), a thin Gymnasium env
   under `vendor/` puts the contract in front of it (`vendor/baba/`, `vendor/crafter/`,
-  `vendor/vgdl/`, `vendor/coom/`), and that is where any new one goes; the adapter never
-  normalizes `reset`/`step` itself
+  `vendor/vgdl/`, `vendor/coom/`, `vendor/baba_auto/`), and that is where any new one goes; the adapter never
+  normalizes `reset`/`step` itself. Two rules for that env:
+  - **Only the wrapper lives here.** The game's own code is a pip package or a checkout the
+    user clones (`COOM_REPO`, `VGDL_REPO`, `BABA_IS_AUTO_REPO`; the README gives the
+    `git clone`), never copied or submoduled into this repo.
+  - **It is a plain RL env.** It follows the Gymnasium API and knows nothing about fMRI,
+    scanners, phases, blocks, subjects or how it will be used; someone training an agent on it
+    should find nothing odd. That vocabulary belongs to the adapter and the core.
 - say in the module docstring what the env's action indices mean, so a config can
   write its `keys` (there is no default keyboard map: the config states all of it)
 - produce an RGB frame for the screen (`render`)
@@ -131,6 +137,7 @@ something else: the participant's hour is gone and nobody knew. So:
    A game without a Gymnasium env gets one first, as its own small package under
    `vendor/<GAME>/` (`pyproject.toml`, `README.md`, `<game>_gym/{__init__,env}.py`, a
    `gym.register` id), listed in `[tool.uv.sources]`; the extra installs that package.
+   It wraps the game, it does not contain it (see Rule 1).
 5. `README.md` — only if the backend needs setup beyond `pip install` (a repo checkout, a
    binary, an env var).
 

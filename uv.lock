@@ -91,6 +91,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "baba-auto-gym"
+version = "0.1.0"
+source = { editable = "vendor/baba_auto" }
+dependencies = [
+    { name = "gymnasium" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "pygame-ce" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "gymnasium" },
+    { name = "numpy" },
+    { name = "pygame-ce" },
+]
+
+[[package]]
 name = "baba-gym"
 version = "0.1.0"
 source = { editable = "vendor/baba" }
@@ -560,6 +579,7 @@ ale = [
 all = [
     { name = "aigamestore-gym" },
     { name = "ale-py" },
+    { name = "baba-auto-gym" },
     { name = "baba-gym" },
     { name = "coom-gym" },
     { name = "crafter-gym" },
@@ -580,6 +600,9 @@ all = [
 ]
 baba = [
     { name = "baba-gym" },
+]
+baba-auto = [
+    { name = "baba-auto-gym" },
 ]
 box2d = [
     { name = "gymnasium", extra = ["box2d"] },
@@ -645,10 +668,11 @@ vizdoom = [
 requires-dist = [
     { name = "aigamestore-gym", marker = "extra == 'aigamestore'", editable = "vendor/aigamestore" },
     { name = "ale-py", marker = "extra == 'ale'" },
+    { name = "baba-auto-gym", marker = "extra == 'baba-auto'", editable = "vendor/baba_auto" },
     { name = "baba-gym", marker = "extra == 'baba'", editable = "vendor/baba" },
     { name = "coom-gym", marker = "extra == 'coom'", editable = "vendor/coom" },
     { name = "crafter-gym", marker = "extra == 'crafter'", editable = "vendor/crafter" },
-    { name = "fmri-gym", extras = ["dbp", "ale", "retro", "nethack", "vgdl", "box2d", "mujoco", "shimmy", "tilematch", "triggers", "gui"], marker = "extra == 'all'" },
+    { name = "fmri-gym", extras = ["dbp", "ale", "retro", "nethack", "vgdl", "baba-auto", "box2d", "mujoco", "shimmy", "tilematch", "triggers", "gui"], marker = "extra == 'all'" },
     { name = "fmri-gym", extras = ["vizdoom", "coom", "aigamestore", "crafter", "rushhour", "baba", "minihack", "stk-gym"], marker = "extra == 'dbp'" },
     { name = "gymnasium" },
     { name = "gymnasium", extras = ["box2d"], marker = "extra == 'box2d'" },
@@ -672,7 +696,7 @@ requires-dist = [
     { name = "vgdl-gym", marker = "extra == 'vgdl'", editable = "vendor/vgdl" },
     { name = "vizdoom", marker = "extra == 'vizdoom'" },
 ]
-provides-extras = ["ale", "retro", "crafter", "baba", "vgdl", "minihack", "nethack", "aigamestore", "vizdoom", "coom", "rushhour", "stk-gym", "box2d", "mujoco", "shimmy", "tilematch", "triggers", "gui", "dbp", "all"]
+provides-extras = ["ale", "retro", "crafter", "baba", "baba-auto", "vgdl", "minihack", "nethack", "aigamestore", "vizdoom", "coom", "rushhour", "stk-gym", "box2d", "mujoco", "shimmy", "tilematch", "triggers", "gui", "dbp", "all"]
 
 [[package]]
 name = "fonttools"

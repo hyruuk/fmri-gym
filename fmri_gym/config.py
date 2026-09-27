@@ -124,6 +124,8 @@ def fold_cli_options(curriculum: list[dict], args: Any) -> None:
             phase.setdefault("repo", args.vgdl_repo)
         if phase.get("backend") == "coom" and args.coom_repo:
             phase.setdefault("repo", args.coom_repo)
+        if phase.get("backend") == "baba_auto" and args.baba_is_auto_repo:
+            phase.setdefault("repo", args.baba_is_auto_repo)
 
 
 def validate_config(config: dict) -> list[str]:

@@ -1,0 +1,17 @@
+# Builds pyBaba (baba-is-auto's pybind11 module) from the checkout at
+# BABA_IS_AUTO_REPO, then ships baba_auto_gym on top of it. setup.py drives the
+# cmake build; the requires below are everything it needs beyond a C++17 compiler.
+[build-system]
+requires = ["setuptools>=64", "cmake>=3.31.6", "ninja", "pybind11>=2.12"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "baba-auto-gym"
+version = "0.1.0"
+description = "Baba Is You (utilForever/baba-is-auto, C++) as a Gymnasium env."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["gymnasium", "numpy", "pygame-ce"]
+
+[tool.setuptools]
+packages = ["baba_auto_gym"]
