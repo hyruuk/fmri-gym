@@ -32,6 +32,7 @@ from .config import fold_cli_options
 from .display import Display, check_monitor
 from .keys import held_key_names, key_name
 from .logging import Logger
+from .menu import Menu
 from .triggers import Triggers
 
 if TYPE_CHECKING:
@@ -99,6 +100,7 @@ def _poll_keys_until(
     key_log: list,
     clock: Clock,
     key_to_action: dict | None = None,
+    menu: Menu | None = None,
 ) -> tuple[object | None, bool]:
     """Poll the keyboard until ``deadline``, logging every press/release.
 
@@ -106,17 +108,22 @@ def _poll_keys_until(
     -- to about a millisecond, or to one refresh when the display is
     vsync-locked and :meth:`Display.idle` re-presents the frame instead of
     sleeping. In turn-based play (``key_to_action`` given) the wait ends at
-    the first mapped keydown so the step happens then, not at the tick.
+    the first mapped keydown so the step happens then, not at the tick. It
+    also ends the moment the block's menu is armed (its key held long enough),
+    which the caller reads off ``menu.pending``.
 
     :param display: the display, idled between polls.
     :param deadline: ``perf_counter`` at which to stop waiting.
     :param key_log: list receiving ``(run_time, key_name, is_down)``.
     :param clock: the run's clock for the timestamps.
     :param key_to_action: turn-based: map of single key NAMES to env actions.
+    :param menu: the block's :class:`~.menu.Menu`, if the phase has one.
     :return: ``(action_or_None, user_quit)``; ``action`` is set only in
         turn-based play, ``user_quit`` on window close / ESC.
     """
     while True:
+        if menu is not None and menu.armed():
+            return None, False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return None, True
@@ -400,7 +407,8 @@ class Run:
         state_stride: int,
         block_end: float,
         play_sound: bool,
-    ) -> bool:
+        menu: Menu | None,
+    ) -> str:
         """Run one episode, appending frame data to ``frames``.
 
         :param adapter: wrapped env for reset/step/render/sound/capture.
@@ -413,7 +421,10 @@ class Run:
         :param block_end: ``perf_counter`` deadline for the game block.
         :param play_sound: pass the adapter's sound to the speakers (the
             phase's ``audio``); muting never changes what is logged.
-        :return: ``True`` if the user quit (ESC/window close), else ``False``.
+        :param menu: the block's :class:`~.menu.Menu`, or ``None``.
+        :return: why the episode ended: ``""`` for the env's own end or the
+            block's, ``"quit"`` for ESC / window close, ``"reset"`` or
+            ``"forfeit"`` for the subject's choice in the menu.
         """
         frames["episode_seeds"].append(seed)
         terminated = truncated = False
@@ -437,9 +448,17 @@ class Run:
             # TODO(#43): anchor the wait to the last step (t_step + dt), not to the flip.
             deadline = block_end if turn_based else next_t
             action, user_quit = _poll_keys_until(
-                self.display, deadline, key_log, self.clock, key_to_action)
+                self.display, deadline, key_log, self.clock, key_to_action, menu)
             if user_quit:
-                return True
+                return "quit"
+            if menu is not None and menu.pending:
+                choice = menu.run(self.display, key_log, self.clock.run_time)
+                if choice != "resume":
+                    if ep_frame:            # the episode was cut short
+                        frames["truncated"][-1] = True
+                    return choice
+                next_t = self._show(adapter, play_sound=False) + dt
+                continue
             next_t += dt
             if turn_based and action is None:
                 continue                        # block ended without a press
@@ -482,7 +501,7 @@ class Run:
                 frames["trigger"].append(self.triggers.last_frame)
             for k, v in fs.variables.items():
                 frames["variables"][k].append(v)
-        return False
+        return ""
 
     def _show(self, adapter: EnvAdapter, play_sound: bool) -> float:
         """Flip the adapter's frame, then queue its sound against that flip.
@@ -553,24 +572,32 @@ class Run:
         flip_period = 1 / self.display.refresh_rate if locked else None
         self.audio.start(frame_period=None if turn_based else dt, flip_period=flip_period)
         onset = self.clock.run_time()
-        block_end = time.perf_counter() + cap
-        episode_id = 0
-        user_quit = False
+        block_start = time.perf_counter()
+        block_end = block_start + cap
+        # The hold-a-key pause menu (reset / forfeit / resume), if the phase has one.
+        menu = Menu(phase["menu"], block_start) if "menu" in phase else None
+        episode_id = completed = 0
+        outcome = ""
 
         ## Loop over episodes within game block
-        while not user_quit and time.perf_counter() < block_end:
+        while outcome not in ("quit", "forfeit") and time.perf_counter() < block_end:
             ## Run one episode
-            user_quit = self._episode(
+            # Seeded by episodes played, so a restart from the menu replays
+            # the very instance the subject gave up on (a start-over).
+            outcome = self._episode(
                 adapter, frames,
-                seed=base_seed + episode_id, episode_id=episode_id,
+                seed=base_seed + completed, episode_id=episode_id,
                 turn_based=turn_based, dt=dt, state_stride=state_stride,
-                block_end=block_end, play_sound=play_sound)
+                block_end=block_end, play_sound=play_sound, menu=menu)
             # An episode's last sounds are still queued when it ends; drop them
             # so they do not play over the next episode or the next fixation.
             self.audio.stop()
             episode_id += 1
-            if mode == "episode" and episode_id >= n_episodes:
+            # An episode the subject restarted from the menu was not played.
+            completed += outcome != "reset"
+            if mode == "episode" and completed >= n_episodes:
                 break
+        user_quit = outcome == "quit"
 
         self.triggers.block_end()
         extra = getattr(adapter, "block_extra", lambda: None)()
@@ -592,6 +619,7 @@ class Run:
             "n_pacing_resets": len(frames["pacing_reset"]),
             "total_reward": sum(float(r) for r in frames["reward"]),
             "data_file": path.split("/")[-1], **speed,
+            **({"menu": menu.describe()} if menu else {}),
         })
         if user_quit:
             raise KeyboardInterrupt

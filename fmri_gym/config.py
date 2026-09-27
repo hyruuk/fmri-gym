@@ -19,6 +19,7 @@ import copy
 import json
 from typing import Any
 
+from .menu import menu_problems
 from .triggers import TriggerError, TriggerSettings
 
 PHASE_TYPES = ("fixation", "message", "game", "survey")
@@ -174,6 +175,8 @@ def _phase_problems(phase: dict) -> list[str]:
     if phase.get("mode", "duration") not in ("duration", "episode"):
         out.append(f"mode: expected 'duration' or 'episode', got {phase.get('mode')!r}")
     out.extend(_fps_problems(phase))
+    if "menu" in phase:
+        out.extend(menu_problems(phase["menu"]))
     return out
 
 

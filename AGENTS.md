@@ -10,6 +10,7 @@ fmri_gym/run.py                  CORE  one run's experiment loop: trigger, phase
 fmri_gym/display.py              CORE  one pygame window: frames, text, fixation
 fmri_gym/keys.py                 CORE  pygame keycode to key NAME ("LEFT", "SPACE")
 fmri_gym/logging.py              CORE  manifest.json + one .npz per game block
+fmri_gym/menu.py                 CORE  hold-a-key pause menu: reset / forfeit / resume (opt-in per phase)
 fmri_gym/adapters/base.py        CORE  EnvAdapter + FrameState: the seam
 fmri_gym/adapters/keyspec.py     CORE  keyboard to action mapping
 fmri_gym/adapters/<BACKEND>.py   YOU   one small wrapper per game engine

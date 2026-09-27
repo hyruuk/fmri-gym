@@ -438,6 +438,7 @@ fmri_gym/
   run.py        # trigger, clock, curriculum loop, phases  — 100% engine-agnostic
   display.py        # pygame: fixed window, aspect-fit frame, fixation, text; vsync-locked flip + call_on_flip
   logging.py        # manifest.json + one compressed .npz per game block
+  menu.py           # the hold-a-key pause menu (reset / forfeit / resume), opt-in per game phase
   triggers.py       # run-start sync (wait/send/none) + MEG/EEG trigger codes over lsl/serial/parallel
   photodiode.py     # `python -m fmri_gym.photodiode`: flash a patch to measure the flip-to-photon offset
   adapters/
@@ -630,6 +631,31 @@ gym.make("ALE/Pong-v5").unwrapped.get_action_meanings()
 
 `configs/dbp_games/atari__pong.json` and `configs/demo_mixed.json` both use this mapping.
 CartPole similarly uses `{"LEFT": 0, "RIGHT": 1}`.
+
+### The pause menu (the `menu` field)
+
+A subject can get stuck (a Baba Is You puzzle with its rules pushed into a
+corner) or want out of a level. A game phase can opt into a pause menu:
+
+```jsonc
+"menu": {"key": "X", "hold": 5.0, "after": 15.0,
+         "options": ["reset", "forfeit", "resume"],
+         "move": ["UP", "DOWN"], "confirm": "SPACE"}
+```
+
+Holding `key` for `hold` seconds -- even if that key does something in the
+game -- pauses the game and shows the options; `move` steps through them and
+`confirm` picks one. `reset` starts the episode over -- a new `reset()` of the
+env with the same seed, so the very same level instance -- `forfeit` ends
+the block and moves on to the next phase, `resume` continues. The menu is
+unavailable for the first `after` seconds of the block (0 = always), and a
+hold plus a two-key choice is hard to do by accident -- the point is that
+this is possible but never done lightly. Only `key` is required; the rest
+default to the values shown, and `options` may list any subset, in the order
+to show them. The manifest's phase entry records the settings and every
+pop-up (`menu.events`: when, and what was chosen); a reset episode's last
+frame is marked `truncated`, and it does not count towards `n_episodes`.
+`configs/dbp_games/baba__make_win.json` uses it.
 
 ## Triggers: fMRI vs MEG/EEG
 
