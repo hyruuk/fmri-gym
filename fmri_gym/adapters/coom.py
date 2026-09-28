@@ -73,7 +73,6 @@ class COOMAdapter(EnvAdapter):
         return Sound(state.audio_buffer, self._game.get_audio_sampling_rate())
 
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
-        """Copy per-step variables/PCM; terminal placeholders keep arrays aligned."""
         state = self._game.get_state()
         variables = {"game_variables": state.game_variables.copy() if state is not None
                      else np.full(len(self._game.get_available_game_variables()), np.nan)}
@@ -106,21 +105,18 @@ _LINE_FIELDS = ("x1", "y1", "x2", "y2", "is_blocking")
 
 
 def _objects(state: Any) -> list[dict]:
-    """Every object in the level this frame (``state.objects``), as plain dicts."""
     if state is None or state.objects is None:
         return []
     return [{f: getattr(o, f) for f in _OBJECT_FIELDS} for o in state.objects]
 
 
 def _labels(state: Any) -> list[dict]:
-    """The visible subset of objects this frame (``state.labels``), as plain dicts."""
     if state is None or state.labels is None:
         return []
     return [{f: getattr(lb, f) for f in _LABEL_FIELDS} for lb in state.labels]
 
 
 def _sectors(state: Any) -> list[dict]:
-    """The level's own sector geometry (``state.sectors``), as plain dicts."""
     if state is None or state.sectors is None:
         return []
     return [{"id": s.id, "floor_height": s.floor_height, "ceiling_height": s.ceiling_height,
