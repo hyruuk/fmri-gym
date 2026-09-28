@@ -1,9 +1,6 @@
 # DBP final game list — integration status
 
-The games settled on for the DBP study, and how each runs in **fmri-gym**.
-All 8 (excluding the `*` no-gymnasium ones) are verified working end-to-end —
-each renders a real frame and runs through the framework. (Zork and Stepmania
-have no Gymnasium interface; Overcooked's env is not a Gymnasium env.)
+The games settled on for the DBP study, and how each runs in **fmri-gym**. All 8 (excluding the `*` no-gymnasium ones) are verified working end-to-end — each renders a real frame and runs through the framework. (Zork and Stepmania have no Gymnasium interface; Overcooked's env is not a Gymnasium env.)
 
 ## Results
 
@@ -21,49 +18,22 @@ have no Gymnasium interface; Overcooked's env is not a Gymnasium env.)
 | Social | Overcooked* | — (`overcooked_ai` is not a Gymnasium env) | — | ⏭️ skipped |
 | Motor/music | Stepmania* | — (no Gymnasium) | — | ⏭️ skipped |
 
-Each was verified to render a real frame (PNG spot-checks for the SuperTuxKart
-3D view, the Rush Hour board, and Craftium) and to run end-to-end.
+Each was verified to render a real frame (PNG spot-checks for the SuperTuxKart 3D view, the Rush Hour board, and Craftium) and to run end-to-end.
 
 ## The hard calls / honest notes
 
-1. **COOM → ViZDoom.** Real COOM pins `gymnasium==0.28`, which breaks
-   MiniHack/NetHack/retro (need 1.2). ViZDoom is the *identical Doom engine*
-   COOM is built on, works with our gymnasium, and provides the action-shooter
-   scenarios — so we use it for the DBP slot above. COOM's own continual-learning
-   scenarios (pitfall, chainsaw, hide_and_seek, ...) are now also reachable
-   without a separate env: the `coom` backend drives `vizdoom.DoomGame` directly
-   against COOM's `conf.cfg`/`.wad` files from the pinned `external/coom` checkout, never
-   importing the COOM package itself (see `dbp_games/coom__pitfall.json`, etc.).
+1. **COOM → ViZDoom.** Real COOM pins `gymnasium==0.28`, which breaks MiniHack/NetHack/retro (need 1.2). ViZDoom is the *identical Doom engine* COOM is built on, works with our gymnasium, and provides the action-shooter scenarios — so we use it for the DBP slot above. COOM's own continual-learning scenarios (pitfall, chainsaw, hide_and_seek, ...) are now also reachable without a separate env: the `coom` backend drives `vizdoom.DoomGame` directly against COOM's `conf.cfg`/`.wad` files from the pinned `external/coom` checkout, never importing the COOM package itself (see `dbp_games/coom__pitfall.json`, etc.).
 
-2. **SuperTuxKart needs a real GL display.** The frame *is* the game's own
-   rendering, and Irrlicht needs a real GL context (works on `DISPLAY=:1`,
-   **not** under headless `SDL_VIDEODRIVER=dummy`). Fine for the fMRI
-   presentation machine. This slot was first filled by pystk2-gymnasium, which
-   is state-only (no pixels) and needed its own control mapping; the `stk_gym`
-   backend replaced it with the fork's gym server, whose env serves the pixels
-   and takes held keys directly (see README).
+2. **SuperTuxKart needs a real GL display.** The frame *is* the game's own rendering, and Irrlicht needs a real GL context (works on `DISPLAY=:1`, **not** under headless `SDL_VIDEODRIVER=dummy`). Fine for the fMRI presentation machine. This slot was first filled by pystk2-gymnasium, which is state-only (no pixels) and needed its own control mapping; the `stk_gym` backend replaced it with the fork's gym server, whose env serves the pixels and takes held keys directly (see README).
 
-3. **Rush Hour brings its own Go engine.** `rushhour-gym` (PyPI, the `rushhour`
-   extra) downloads the matching `rushhour-env` binary into
-   `~/.cache/rushhour-gym/` on first use; `RUSHHOUR_ENV_BIN` points at a build
-   of your own (see README "Running Rush-Hour").
+3. **Rush Hour brings its own Go engine.** `rushhour-gym` (PyPI, the `rushhour` extra) downloads the matching `rushhour-env` binary into `~/.cache/rushhour-gym/` on first use; `RUSHHOUR_ENV_BIN` points at a build of your own (see README "Running Rush-Hour").
 
-4. **Craftium** pins `gymnasium 0.29` but runs fine on 1.2, so it stays in the
-   one shared env via the `gym` backend + `import_module=craftium` (no new
-   adapter). Installed from the prebuilt wheel on the mikelma/craftium releases.
+4. **Craftium** pins `gymnasium 0.29` but runs fine on 1.2, so it stays in the one shared env via the `gym` backend + `import_module=craftium` (no new adapter). Installed from the prebuilt wheel on the mikelma/craftium releases.
 
-5. **`vizdoom` swapped `pygame` → `pygame-ce`** (a drop-in replacement) —
-   verified the display and all other backends still work.
+5. **`vizdoom` swapped `pygame` → `pygame-ce`** (a drop-in replacement) — verified the display and all other backends still work.
 
-6. **Slow-start backends.** aigamestore (browser launch) and SuperTuxKart
-   (engine init) take several seconds to start; short `timeout`-killed test runs
-   can miss the block save even though they work.
+6. **Slow-start backends.** aigamestore (browser launch) and SuperTuxKart (engine init) take several seconds to start; short `timeout`-killed test runs can miss the block save even though they work.
 
 ## Dependency reality
 
-Everything above coexists in **one** `fmri-gym` env (gymnasium 1.2,
-numpy 1.26, setuptools<81; `vizdoom` brings pygame-ce). The only true conflicts
-were COOM (gymnasium 0.28) and, nominally, craftium (0.29 pin — but runs on
-1.2). Non-PyPI installs: `baba` (GitHub, pulled by the `baba` extra) and
-`craftium` (release wheel). See the extras in `pyproject.toml` for the full
-list and the per-config `_note` fields for game-specific setup.
+Everything above coexists in **one** `fmri-gym` env (gymnasium 1.2, numpy 1.26, setuptools<81; `vizdoom` brings pygame-ce). The only true conflicts were COOM (gymnasium 0.28) and, nominally, craftium (0.29 pin — but runs on 1.2). Non-PyPI installs: `baba` (GitHub, pulled by the `baba` extra) and `craftium` (release wheel). See the extras in `pyproject.toml` for the full list and the per-config `_note` fields for game-specific setup.
