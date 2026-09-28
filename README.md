@@ -479,6 +479,18 @@ the keys, the phase fields and the logged columns, and the fork's
 
 ## Design: the experiment loop never knows the engine
 
+A game reaches the scanner through up to three layers, each its own directory:
+
+| | holds | needed when |
+|---|---|---|
+| `external/<backend>` | the game's own repo, at a pinned commit (gitignored) | its files or sources are read from a checkout (VGDL, COOM, Baba Is Auto) |
+| `gym/<game>` | a small package with a `gymnasium.Env` for the game | the game ships no Gymnasium env, or a rough one |
+| `fmri_gym/adapters/<backend>.py` | the fMRI adapter: build the env, map keys, log frames | always, one per engine |
+
+Most games need only the last: a pip package already provides the env. Nothing
+about fMRI leaks below the adapter, so the env an agent is trained on is the
+one the subject plays.
+
 ```
 fmri_gym/
   run.py        # trigger, clock, curriculum loop, phases  — 100% engine-agnostic

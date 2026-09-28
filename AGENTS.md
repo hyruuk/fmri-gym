@@ -23,6 +23,12 @@ The core is engine-agnostic: `run.py` never imports a game engine, never touches
 `env.unwrapped`, and never mentions a game by name. Everything engine-specific goes
 through an `EnvAdapter`.
 
+Three layers, three directories, each optional until needed: `external/` is a game's
+own repo when its files must be read from a checkout; `gym/` is a `gymnasium.Env` for a
+game that ships none (or a rough one); `fmri_gym/adapters/` is the fMRI adapter over
+whatever env results. Code goes in the lowest layer that owns the concern -- game rules
+in the game or its `gym/` env, never in the adapter.
+
 ## Rule 1: the game logic lives in the gym env, not the adapter
 
 We evaluate AI models against the same gym environments that humans play in the scanner.
