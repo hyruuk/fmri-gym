@@ -3,10 +3,9 @@
 ``coom_gym`` (``gym/coom/``) is the Gymnasium env. COOM's own package pins
 gymnasium 0.28, so the env never imports it: it drives ``vizdoom.DoomGame``
 against a checkout's scenario assets (``conf.cfg`` + ``<task>.wad`` under
-``<repo>/COOM/env/scenarios/<scenario>/``; the checkout is ``external/coom``,
-README "External checkouts", or the phase's ``repo`` field). This adapter
-builds one env per block and logs its sound and
-game variables.
+``<repo>/COOM/env/scenarios/<scenario>/``, from the phase ``repo`` field or
+``COOM_REPO``).  This adapter builds one env per block and logs its sound,
+game variables, and every object/label/sector ``coom_gym`` turns on.
 
 A phase's ``keys`` are the env's Discrete(12) indices (turn x move x execute;
 see ``coom_gym``): 0 = noop, 1 = execute, 2 = forward, 3 = forward + execute,
@@ -78,6 +77,12 @@ class COOMAdapter(EnvAdapter):
         state = self._game.get_state()
         variables = {"game_variables": state.game_variables.copy() if state is not None
                      else np.full(len(self._game.get_available_game_variables()), np.nan)}
+        # ViZDoom's own frame counters, alongside the game variables above.
+        variables["tic"] = state.tic if state is not None else -1
+        variables["number"] = state.number if state is not None else -1
+        variables["objects"] = _objects(state)
+        variables["labels"] = _labels(state)
+        variables["sectors"] = _sectors(state)
         if self._game.is_audio_buffer_enabled():
             variables["audio_valid"] = state is not None
             variables["audio"] = (state.audio_buffer.copy() if state is not None else
@@ -92,3 +97,33 @@ class COOMAdapter(EnvAdapter):
         return {"audio_sampling_rate": self._game.get_audio_sampling_rate(),
                 "audio_buffer_tics": 1,
                 "audio_efx": self.spec.get("env_kwargs", {}).get("audio_efx", False)}
+
+
+_OBJECT_FIELDS = ("id", "name", "category", "position_x", "position_y", "position_z",
+                   "angle", "pitch", "roll", "velocity_x", "velocity_y", "velocity_z", "sector_id")
+_LABEL_FIELDS = ("object_id", "object_name", "object_category", "x", "y", "width", "height",
+                  "value", "object_position_x", "object_position_y", "object_position_z")
+_LINE_FIELDS = ("x1", "y1", "x2", "y2", "is_blocking")
+
+
+def _objects(state: Any) -> list[dict]:
+    """Every object in the level this frame (``state.objects``), as plain dicts."""
+    if state is None or state.objects is None:
+        return []
+    return [{f: getattr(o, f) for f in _OBJECT_FIELDS} for o in state.objects]
+
+
+def _labels(state: Any) -> list[dict]:
+    """The visible subset of objects this frame (``state.labels``), as plain dicts."""
+    if state is None or state.labels is None:
+        return []
+    return [{f: getattr(lb, f) for f in _LABEL_FIELDS} for lb in state.labels]
+
+
+def _sectors(state: Any) -> list[dict]:
+    """The level's own sector geometry (``state.sectors``), as plain dicts."""
+    if state is None or state.sectors is None:
+        return []
+    return [{"id": s.id, "floor_height": s.floor_height, "ceiling_height": s.ceiling_height,
+             "lines": [{f: getattr(ln, f) for f in _LINE_FIELDS} for ln in s.lines]}
+            for s in state.sectors]

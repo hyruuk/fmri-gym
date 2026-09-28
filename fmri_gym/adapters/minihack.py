@@ -61,9 +61,10 @@ class MiniHackAdapter(EnvAdapter):
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         self._last = obs
         variables = {}
-        # Compact symbolic fields make good analysis regressors; skip the big
-        # pixel array (it's reconstructable via seed + action replay).
-        for k in ("blstats", "glyphs", "message"):
-            if isinstance(obs, dict) and k in obs:
-                variables[k] = np.asarray(obs[k]).copy()
+        if isinstance(obs, dict):
+            for k, v in obs.items():
+                if k in ("pixel", "pixel_crop"):
+                    continue
+                variables[k] = np.asarray(v).copy()
+        variables.update(info or {})
         return FrameState(blob=None, variables=variables)

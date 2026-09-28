@@ -34,8 +34,4 @@ class CrafterAdapter(EnvAdapter):
         return CrafterEnv(**spec.get("env_kwargs", {}))
 
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
-        # The achievements dict is crafter's semantic progress signal.
-        variables = {}
-        if "achievements" in info:
-            variables["achievements"] = list(info["achievements"].values())
-        return FrameState(blob=None, variables=variables)
+        return FrameState(blob=None, variables=dict(info))

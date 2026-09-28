@@ -19,8 +19,9 @@ and ``reset(seed=...)`` plus the action sequence replays an episode exactly.
 Observation: the game canvas as an RGB ``Box`` (each game has its own size,
 e.g. 600x400). Action: ``MultiBinary(len(keys))`` -- which of the game's keys are
 held this step; see :data:`GAME_KEYS`. Reward: the change in the game's
-``score``. ``info["state"]`` is the scalar part of the game state
-(``gamePhase``, ``score``, ``currentLevel``, ...).
+``score``. ``info["state"]`` is the game's full state, exactly as
+``getGameState()`` returns it (``gamePhase``, ``score``, ``currentLevel``, and
+every other field the game exposes, however nested).
 
 An episode is one level: ``reset`` starts ``level`` afresh (score 0, full
 lives) through the game's ``window.loadLevel(n)`` hook, and the episode is over

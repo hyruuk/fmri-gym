@@ -13,9 +13,12 @@ variants). No savestate -> seed + action replay.
 
 from __future__ import annotations
 
-import gymnasium as gym
+from typing import Any
 
-from .base import EnvAdapter
+import gymnasium as gym
+import numpy as np
+
+from .base import EnvAdapter, FrameState
 
 
 class BabaAdapter(EnvAdapter):
@@ -25,3 +28,15 @@ class BabaAdapter(EnvAdapter):
         from baba_gym import BabaEnv
 
         return BabaEnv(spec.get("game", "env/make_win"))
+
+    def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
+        g = self.env.game
+        variables = {
+            "grid": np.asarray(obs),
+            "ruleset": dict(g.get_ruleset().ruleset_dict),
+            "is_win": bool(getattr(g, "is_win", False)),
+            "is_lose": bool(getattr(g, "is_lose", False)),
+            "agent_pos": tuple(g.agent_pos),
+            "step_count": int(g.step_count),
+        }
+        return FrameState(blob=None, variables=variables)

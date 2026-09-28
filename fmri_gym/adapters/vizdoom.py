@@ -115,15 +115,15 @@ class VizDoomAdapter(EnvAdapter):
         return Sound(state.audio_buffer,
                      self.env.unwrapped.game.get_audio_sampling_rate())
 
+
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         variables = {}
-        if isinstance(obs, dict) and "gamevariables" in obs:
-            variables["gamevariables"] = np.asarray(obs["gamevariables"]).copy()
-        if isinstance(obs, dict) and "audio" in obs:
-            # What the subject heard this frame. Taken from obs, not sound(),
-            # because obs has a (zeroed) audio buffer on the terminal frame too,
-            # keeping this series the same length as actions and rewards.
-            variables["audio"] = np.asarray(obs["audio"]).copy()
+        if isinstance(obs, dict):
+            for k, v in obs.items():
+                if k == "screen":
+                    continue
+                variables[k] = np.asarray(v).copy()
+        variables.update(info or {})
         return FrameState(blob=None, variables=variables)
 
     def block_extra(self) -> dict | None:

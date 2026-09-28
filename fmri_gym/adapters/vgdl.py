@@ -37,12 +37,23 @@ class VGDLAdapter(EnvAdapter):
         return VGDLEnv(spec["game"], level=spec.get("level", 0), repo=spec.get("repo"),
                        block_size=spec.get("block_size", 25))
 
+    # def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
+    #     variables = {}
+    #     if "state" in info:
+    #         variables["symbolic_state"] = info["state"]
+    #     if "events_triggered" in info:
+    #         variables["events"] = info["events_triggered"]
+    #     blob = pickle.dumps(self.env.get_state()) if want_blob else None
+    #     return FrameState(blob=blob, variables=variables)
+
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
-        variables = {}
-        if "state" in info:
-            variables["symbolic_state"] = info["state"]
-        if "events_triggered" in info:
-            variables["events"] = info["events_triggered"]
+        # info also carries won/lose, dropped before; keep the two renamed
+        # keys the rest of the pipeline already expects, on top of everything.
+        variables = dict(info)
+        if "state" in variables:
+            variables["symbolic_state"] = variables.pop("state")
+        if "events_triggered" in variables:
+            variables["events"] = variables.pop("events_triggered")
         blob = pickle.dumps(self.env.get_state()) if want_blob else None
         return FrameState(blob=blob, variables=variables)
 

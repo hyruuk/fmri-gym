@@ -47,7 +47,8 @@ class ALEAdapter(EnvAdapter):
 
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         ale = self.env.unwrapped.ale
-        variables = {"ram": ale.getRAM().copy()}
+        # get all obs
+        variables = {"ram": ale.getRAM().copy(), **(info or {})}
         if self.save_pixels:
             idx = ale.getScreen()  # (210,160) uint8 palette indices
             new = np.unique(idx)

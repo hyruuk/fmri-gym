@@ -41,9 +41,7 @@ class DefaultAdapter(EnvAdapter):
     def capture(
         self, obs: Any, info: dict, want_blob: bool = True
     ) -> FrameState:
-        # No universal savestate: blob=None -> reconstruction is via seed+replay.
-        # The observation is the analysis state for most gym envs.
-        variables = {"obs": np.asarray(obs)}
+        variables = {"obs": np.asarray(obs), **(info or {})}
         return FrameState(blob=None, variables=variables)
 
 
