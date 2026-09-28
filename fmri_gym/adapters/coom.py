@@ -77,7 +77,6 @@ class COOMAdapter(EnvAdapter):
         state = self._game.get_state()
         variables = {"game_variables": state.game_variables.copy() if state is not None
                      else np.full(len(self._game.get_available_game_variables()), np.nan)}
-        # ViZDoom's own frame counters, alongside the game variables above.
         variables["tic"] = state.tic if state is not None else -1
         variables["number"] = state.number if state is not None else -1
         variables["objects"] = _objects(state)
