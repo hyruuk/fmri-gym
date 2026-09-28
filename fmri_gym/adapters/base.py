@@ -91,7 +91,7 @@ class EnvAdapter:
 
         A ``gymnasium.Env`` whose ``render()`` gives an RGB frame
         (``render_mode="rgb_array"``). A game whose own env speaks another API
-        (old ``gym``, a bare engine) gets a thin Gymnasium env under ``vendor/``
+        (old ``gym``, a bare engine) gets a thin Gymnasium env under ``gym/``
         first; the adapter never papers over that itself. May also initialise
         per-block state on ``self``.
 

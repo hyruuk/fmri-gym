@@ -27,7 +27,7 @@ dependencies = [
 ale = ["ale-py"]
 retro = ["stable-retro"]
 # crafter, baba and the VGDL fork speak the old `gym` API (or their own); each
-# gets a thin Gymnasium env under vendor/ (see tool.uv.sources), which is what
+# gets a thin Gymnasium env under gym/ (see tool.uv.sources), which is what
 # the extra installs, and which pulls the game itself in.
 crafter = ["crafter-gym"]
 baba = ["baba-gym"]
@@ -40,10 +40,10 @@ vgdl = ["vgdl-gym"]  # the games come from the external/vgdl checkout (language_
 # resolver may prefer gymnasium 1.3 and fall back to nle 0.9.1 (source build).
 minihack = ["minihack", "nle>=1.3"]
 nethack = ["nle>=1.3"]
-# The ten browser games as a gym env, from vendor/aigamestore (see tool.uv.sources).
+# The ten browser games as a gym env, from gym/aigamestore (see tool.uv.sources).
 aigamestore = ["aigamestore-gym"]
 vizdoom = ["vizdoom"]
-# COOM scenarios as a gym env, from vendor/coom (see tool.uv.sources). Needs the
+# COOM scenarios as a gym env, from gym/coom (see tool.uv.sources). Needs the
 # external/coom checkout too; the COOM package itself is not installed.
 coom = ["coom-gym"]
 rushhour = ["rushhour-gym>=0.6.0"]
@@ -94,12 +94,12 @@ py-modules = ["fmri_play"]
 override-dependencies = ["pygame; sys_platform == 'pygame-ce-only'"]
 
 [tool.uv.sources]
-aigamestore-gym = { path = "vendor/aigamestore", editable = true }
-coom-gym = { path = "vendor/coom", editable = true }
-baba-gym = { path = "vendor/baba", editable = true }
-baba-auto-gym = { path = "vendor/baba_auto", editable = true }
-crafter-gym = { path = "vendor/crafter", editable = true }
-vgdl-gym = { path = "vendor/vgdl", editable = true }
+aigamestore-gym = { path = "gym/aigamestore", editable = true }
+coom-gym = { path = "gym/coom", editable = true }
+baba-gym = { path = "gym/baba", editable = true }
+baba-auto-gym = { path = "gym/baba_auto", editable = true }
+crafter-gym = { path = "gym/crafter", editable = true }
+vgdl-gym = { path = "gym/vgdl", editable = true }
 
 [tool.ruff]
 line-length = 100

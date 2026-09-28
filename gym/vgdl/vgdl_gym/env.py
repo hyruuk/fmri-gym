@@ -29,7 +29,7 @@ from typing import Any, ClassVar
 import gymnasium as gym
 import numpy as np
 
-#: fmri-gym's ``external/vgdl``; this file is ``vendor/vgdl/vgdl_gym/env.py``.
+#: fmri-gym's ``external/vgdl``; this file is ``gym/vgdl/vgdl_gym/env.py``.
 _DEFAULT_REPO = Path(__file__).resolve().parents[3] / "external" / "vgdl"
 _CLONE = ("git clone -b dbp https://github.com/tomov/language_and_experience.git external/vgdl "
           "&& git -C external/vgdl checkout <commit>  (the README pins the commit)")

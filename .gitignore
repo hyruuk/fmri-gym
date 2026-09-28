@@ -16,7 +16,7 @@ __pycache__/
 _vizdoom.ini
 
 # Rush Hour: build-from-source Go engine (clone+build locally; see rushhour config _note)
-vendor/rush-hour-src/
+gym/rush-hour-src/
 
 # The vgdl / coom / baba_auto game repos, cloned at the commits the README pins ("External checkouts")
 /external/
@@ -27,6 +27,6 @@ vendor/rush-hour-src/
 # The rig check's description of this machine (its form fills it in; one per machine)
 /rig.json
 
-# Compiled extension modules and setuptools build dirs (vendor/baba_auto builds pyBaba into its package)
+# Compiled extension modules and setuptools build dirs (gym/baba_auto builds pyBaba into its package)
 *.so
 build/

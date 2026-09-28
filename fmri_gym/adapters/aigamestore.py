@@ -1,6 +1,6 @@
 """AI GameStore adapter (aigamestore_gym) -- the ten browser games, lock-stepped.
 
-``aigamestore_gym`` (``vendor/aigamestore/``) wraps each AI GameStore game -- an
+``aigamestore_gym`` (``gym/aigamestore/``) wraps each AI GameStore game -- an
 LLM-generated p5.js / three.js page -- in a Gymnasium env by taking over the
 page's clock: one ``step`` holds a set of keys and advances the game exactly
 ``frame_skip`` of its 60 Hz frames, then returns the canvas and the game's own

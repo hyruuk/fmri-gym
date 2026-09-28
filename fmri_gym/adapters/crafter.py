@@ -1,6 +1,6 @@
 """Crafter adapter (danijar/crafter), via ``crafter-gym``.
 
-``crafter_gym`` (``vendor/crafter/``) is the Gymnasium env: ``crafter.Env``
+``crafter_gym`` (``gym/crafter/``) is the Gymnasium env: ``crafter.Env``
 speaks the old ``gym`` API and is seeded at construction only, and that
 package puts the Gymnasium contract in front of it (``reset(seed=)`` rebuilds
 the world). The observation IS the RGB frame (64x64 by default; sharper with

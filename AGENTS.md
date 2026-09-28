@@ -15,6 +15,7 @@ fmri_gym/adapters/base.py        CORE  EnvAdapter + FrameState: the seam
 fmri_gym/adapters/keymap.py      CORE  the phase's keys, one Keymap per action space
 fmri_gym/adapters/<BACKEND>.py   YOU   one small wrapper per game engine
 configs/dbp_games/<GAME>.json    YOU   one curriculum per game
+gym/<GAME>/                      YOU   a Gymnasium env for a game that ships none, or a rough one
 external/<BACKEND>/              (gitignored) a game's own repo, cloned at the commit the README pins
 ```
 
@@ -36,8 +37,8 @@ adapter should do only these things:
 - build the env (`_make`): a `gymnasium.Env`, always. Prefer a ready-made pip package
   (`ale-py`, `stable-retro`, `minihack`, `rushhour-gym`, ...). If the game's own env speaks
   another API (old `gym`, a bare engine, a `with_img=` of its own), a thin Gymnasium env
-  under `vendor/` puts the contract in front of it (`vendor/baba/`, `vendor/crafter/`,
-  `vendor/vgdl/`, `vendor/coom/`, `vendor/baba_auto/`), and that is where any new one goes; the adapter never
+  under `gym/` puts the contract in front of it (`gym/baba/`, `gym/crafter/`,
+  `gym/vgdl/`, `gym/coom/`, `gym/baba_auto/`), and that is where any new one goes; the adapter never
   normalizes `reset`/`step` itself. Two rules for that env:
   - **Only the wrapper lives here.** The game's own code is a pip package, or a checkout in
     `external/<backend>` at the commit the README pins ("External checkouts"). The env
@@ -145,7 +146,7 @@ something else: the participant's hour is gone and nobody knew. So:
 4. `pyproject.toml` — one extra under `[project.optional-dependencies]` (and a
    mention in `dbp` / `all` if it belongs there), then `uv lock` to refresh `uv.lock`.
    A game without a Gymnasium env gets one first, as its own small package under
-   `vendor/<GAME>/` (`pyproject.toml`, `README.md`, `<game>_gym/{__init__,env}.py`, a
+   `gym/<GAME>/` (`pyproject.toml`, `README.md`, `<game>_gym/{__init__,env}.py`, a
    `gym.register` id), listed in `[tool.uv.sources]`; the extra installs that package.
    It wraps the game, it does not contain it (see Rule 1).
 5. `README.md` — only if the backend needs setup beyond `pip install` (a repo checkout, a

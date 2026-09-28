@@ -4,7 +4,7 @@ utilForever/baba-is-auto simulates the real game's ruleset -- pushes, word
 tiles parsed into rules each turn, SINK / HOT-MELT / DEFEAT / OPEN-SHUT,
 transformations, MOVE -- on the original levels' text maps, where ``baba``
 (nacloos/baba-is-ai, the other Baba backend) generates small synthetic
-puzzles. ``baba_auto_gym`` (``vendor/baba_auto/``) is the Gymnasium env over
+puzzles. ``baba_auto_gym`` (``gym/baba_auto/``) is the Gymnasium env over
 its ``pyBaba`` module, drawing with the engine's own GUI sprites (24 px tiles;
 the display scales the frame up). The engine is built from, and the maps and
 sprites read from, the baba-is-auto checkout at ``external/baba_auto`` (README

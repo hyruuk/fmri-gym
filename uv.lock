@@ -22,7 +22,7 @@ wheels = [
 [[package]]
 name = "aigamestore-gym"
 version = "0.1.0"
-source = { editable = "vendor/aigamestore" }
+source = { editable = "gym/aigamestore" }
 dependencies = [
     { name = "gymnasium" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -93,7 +93,7 @@ dependencies = [
 [[package]]
 name = "baba-auto-gym"
 version = "0.1.0"
-source = { editable = "vendor/baba_auto" }
+source = { editable = "gym/baba_auto" }
 dependencies = [
     { name = "gymnasium" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -112,7 +112,7 @@ requires-dist = [
 [[package]]
 name = "baba-gym"
 version = "0.1.0"
-source = { editable = "vendor/baba" }
+source = { editable = "gym/baba" }
 dependencies = [
     { name = "baba" },
     { name = "gymnasium" },
@@ -447,7 +447,7 @@ wheels = [
 [[package]]
 name = "coom-gym"
 version = "0.1.0"
-source = { editable = "vendor/coom" }
+source = { editable = "gym/coom" }
 dependencies = [
     { name = "gymnasium" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -481,7 +481,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/32/50/dad93d72f9cb97320
 [[package]]
 name = "crafter-gym"
 version = "0.1.0"
-source = { editable = "vendor/crafter" }
+source = { editable = "gym/crafter" }
 dependencies = [
     { name = "crafter" },
     { name = "gymnasium" },
@@ -666,12 +666,12 @@ vizdoom = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aigamestore-gym", marker = "extra == 'aigamestore'", editable = "vendor/aigamestore" },
+    { name = "aigamestore-gym", marker = "extra == 'aigamestore'", editable = "gym/aigamestore" },
     { name = "ale-py", marker = "extra == 'ale'" },
-    { name = "baba-auto-gym", marker = "extra == 'baba-auto'", editable = "vendor/baba_auto" },
-    { name = "baba-gym", marker = "extra == 'baba'", editable = "vendor/baba" },
-    { name = "coom-gym", marker = "extra == 'coom'", editable = "vendor/coom" },
-    { name = "crafter-gym", marker = "extra == 'crafter'", editable = "vendor/crafter" },
+    { name = "baba-auto-gym", marker = "extra == 'baba-auto'", editable = "gym/baba_auto" },
+    { name = "baba-gym", marker = "extra == 'baba'", editable = "gym/baba" },
+    { name = "coom-gym", marker = "extra == 'coom'", editable = "gym/coom" },
+    { name = "crafter-gym", marker = "extra == 'crafter'", editable = "gym/crafter" },
     { name = "fmri-gym", extras = ["dbp", "ale", "retro", "nethack", "vgdl", "baba-auto", "box2d", "mujoco", "shimmy", "tilematch", "triggers", "gui"], marker = "extra == 'all'" },
     { name = "fmri-gym", extras = ["vizdoom", "coom", "aigamestore", "crafter", "rushhour", "baba", "minihack", "stk-gym"], marker = "extra == 'dbp'" },
     { name = "gymnasium" },
@@ -693,7 +693,7 @@ requires-dist = [
     { name = "stable-retro", marker = "extra == 'retro'" },
     { name = "supertuxkart-gym", marker = "extra == 'stk-gym'", specifier = ">=0.1.1" },
     { name = "tile-match-gym", marker = "extra == 'tilematch'" },
-    { name = "vgdl-gym", marker = "extra == 'vgdl'", editable = "vendor/vgdl" },
+    { name = "vgdl-gym", marker = "extra == 'vgdl'", editable = "gym/vgdl" },
     { name = "vizdoom", marker = "extra == 'vizdoom'" },
 ]
 provides-extras = ["ale", "retro", "crafter", "baba", "baba-auto", "vgdl", "minihack", "nethack", "aigamestore", "vizdoom", "coom", "rushhour", "stk-gym", "box2d", "mujoco", "shimmy", "tilematch", "triggers", "gui", "dbp", "all"]
@@ -1939,7 +1939,7 @@ wheels = [
 [[package]]
 name = "vgdl-gym"
 version = "0.1.0"
-source = { editable = "vendor/vgdl" }
+source = { editable = "gym/vgdl" }
 dependencies = [
     { name = "gymnasium" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },

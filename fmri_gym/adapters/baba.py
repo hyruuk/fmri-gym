@@ -1,7 +1,7 @@
 """Baba Is AI adapter -- the DBP "language" pick (Baba Is You-style puzzles), via ``baba-gym``.
 
 A Baba-Is-You-style puzzle where you push word blocks to rewrite the rules.
-``baba_gym`` (``vendor/baba/``) is the Gymnasium env: nacloos/baba-is-ai speaks
+``baba_gym`` (``gym/baba/``) is the Gymnasium env: nacloos/baba-is-ai speaks
 the old ``gym`` API, and that package puts the Gymnasium contract in front of
 it. The env's ``render()`` is a 256x256 frame of the grid.
 

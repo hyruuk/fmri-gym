@@ -12,15 +12,15 @@ through small pluggable **adapters**:
 | `ale`         | Atari 2600 (`ALE/Pong-v5`, …) | ALE / Stella |
 | `retro`       | NES / SNES / Genesis / GB / … (`Airstriker-Genesis-v0`, …) | stable-retro / libretro |
 | `gym`         | **any** Gymnasium env (`CartPole-v1`, MuJoCo, Box2D, toy_text, …); old-`gym` envs via shimmy | various |
-| `vgdl`        | VGDL games (`aliens`, `beesAndBirds`, …), from a pinned checkout in `external/vgdl` | vgdl-gym (`vendor/vgdl/`) over the language_and_experience fork |
-| `crafter`     | Crafter (open-world survival) | crafter-gym (`vendor/crafter/`) over crafter |
+| `vgdl`        | VGDL games (`aliens`, `beesAndBirds`, …), from a pinned checkout in `external/vgdl` | vgdl-gym (`gym/vgdl/`) over the language_and_experience fork |
+| `crafter`     | Crafter (open-world survival) | crafter-gym (`gym/crafter/`) over crafter |
 | `minihack`    | MiniHack tasks (pixel obs) | minihack / NLE |
 | `nethack`     | NetHack (`NetHack*-v0`; TTY rendered to pixels) | nle |
-| `aigamestore` | AI GameStore browser games (`game1`…`game10`), lock-stepped | aigamestore-gym (`vendor/aigamestore/`) |
+| `aigamestore` | AI GameStore browser games (`game1`…`game10`), lock-stepped | aigamestore-gym (`gym/aigamestore/`) |
 | `vizdoom`     | Doom action-shooter scenarios (COOM's engine) | ViZDoom |
-| `coom`        | COOM's own continual-RL scenarios (`pitfall`, `chainsaw`, …), from a pinned checkout in `external/coom` (COOM package itself not installed -- conflicting `gymnasium` pin) | coom-gym (`vendor/coom/`) |
-| `baba`        | Baba Is AI: small generated rule-manipulation puzzles in the style of Baba Is You | baba-gym (`vendor/baba/`) over baba-is-ai |
-| `baba_auto`   | Baba Is Auto: Baba Is You's original levels (`baba_is_you`, `out_of_reach`, …) under the full ruleset; a C++ engine compiled from a pinned checkout in `external/baba_auto` | baba-auto-gym (`vendor/baba_auto/`) over utilForever/baba-is-auto |
+| `coom`        | COOM's own continual-RL scenarios (`pitfall`, `chainsaw`, …), from a pinned checkout in `external/coom` (COOM package itself not installed -- conflicting `gymnasium` pin) | coom-gym (`gym/coom/`) |
+| `baba`        | Baba Is AI: small generated rule-manipulation puzzles in the style of Baba Is You | baba-gym (`gym/baba/`) over baba-is-ai |
+| `baba_auto`   | Baba Is Auto: Baba Is You's original levels (`baba_is_you`, `out_of_reach`, …) under the full ruleset; a C++ engine compiled from a pinned checkout in `external/baba_auto` | baba-auto-gym (`gym/baba_auto/`) over utilForever/baba-is-auto |
 | `rushhour`    | Rush Hour sliding-block puzzle | `rushhour-gym` (PyPI; fetches its Go engine) |
 | `stk_gym`     | SuperTuxKart 3D racing: frames from the game's gym server, keys to its player controller (needs a real GL display) | [chrplr/stk-code](https://github.com/chrplr/stk-code) fork |
 
@@ -253,13 +253,13 @@ same `fmri-gym` env works.
    git -C external/vgdl checkout d70c3248c504992068c8fb318238f1c3fbe956bf
    ```
 
-2. Install the `vgdl` extra -- **`vgdl-gym`** (`vendor/vgdl/`), the standard
+2. Install the `vgdl` extra -- **`vgdl-gym`** (`gym/vgdl/`), the standard
    Gymnasium env over the fork's `VGDLEnv` (a game name and level in,
    `reset(seed=)`, an offscreen `render()`; it puts the checkout on `sys.path`)
    -- and run a VGDL curriculum:
 
    ```bash
-   uv sync --extra vgdl               # or: pip install -e vendor/vgdl
+   uv sync --extra vgdl               # or: pip install -e gym/vgdl
    uv run fmri-play --subject sub-01 --curriculum configs/demo_vgdl_all.json --ses 1 --run 1
    ```
 
@@ -283,7 +283,7 @@ backend already covers (DeadlyCorridor, DefendCenter, ...).
 COOM's own Python package pins `gymnasium==0.28.1`, which conflicts with
 minihack's `gymnasium==1.2` pin in this shared env, so **the COOM package is
 never installed or imported**. The gym env is **`coom-gym`**
-(`vendor/coom/`, the `coom` extra; also in `dbp`), which drives
+(`gym/coom/`, the `coom` extra; also in `dbp`), which drives
 `vizdoom.DoomGame` on the scenario files of a COOM checkout at its pinned
 commit (see [External checkouts](#external-checkouts-external)):
 
@@ -321,7 +321,7 @@ timing, not physical speaker latency.
 The paper's own model harness drives the page in real time and pauses the game
 while the model thinks, which is neither steppable nor replayable. So the
 games ship here with a small Gymnasium env, **`aigamestore-gym`**
-(`vendor/aigamestore/aigamestore_gym/`), that the `aigamestore` backend wraps
+(`gym/aigamestore/aigamestore_gym/`), that the `aigamestore` backend wraps
 like any other env:
 
 - the page is still the game -- Playwright opens it in Chrome (headless by
@@ -349,11 +349,11 @@ obs, info = env.reset(seed=1)                   # obs: the 600x400 canvas, RGB, 
 obs, r, term, trunc, info = env.step([1, 0, 0, 0, 0])  # hold LEFT (env.keys[0])
 ```
 
-Setup — the `aigamestore` extra (an editable install of `vendor/aigamestore`)
+Setup — the `aigamestore` extra (an editable install of `gym/aigamestore`)
 and a Chromium browser (the **system Chrome** by default):
 
 ```bash
-uv sync --extra aigamestore        # or: pip install -e vendor/aigamestore
+uv sync --extra aigamestore        # or: pip install -e gym/aigamestore
 # or the bundled browser: playwright install chromium, then "browser_channel": null
 ```
 
@@ -407,7 +407,7 @@ Controls, phase fields and the logged columns are documented in the configs'
 simulator of Baba Is You with the game's real ruleset and the original levels'
 maps (`baba_is_you`, `out_of_reach`, `off_limits`, ...), where the `baba` backend
 plays baba-is-ai's small generated puzzles. Its Python module exposes only the
-`Game`, so the Gymnasium env is **`baba-auto-gym`** (`vendor/baba_auto/`, the
+`Game`, so the Gymnasium env is **`baba-auto-gym`** (`gym/baba_auto/`, the
 `baba_auto` extra), one `baba_auto__<level>.json` per level the checkout ships. Installing the extra compiles the engine from the pinned
 checkout (see [External checkouts](#external-checkouts-external); a C++17
 compiler and `python3-dev` are needed; about 30 s), and the env reads the maps
@@ -505,12 +505,13 @@ fmri_gym/
     stk_gym.py      # SuperTuxKart via stk_gym: frames from the game's hidden window, held keys as the env's action
 fmri_play.py        # CLI entry point
 configs/            # example curricula
-vendor/aigamestore/ # the 10 public AI GameStore games (HTML/JS) + aigamestore_gym, their lock-stepped gym env
-vendor/coom/        # coom_gym: COOM scenarios as a Gymnasium env, on a COOM checkout's WADs
-vendor/baba/        # baba_gym: the Gymnasium contract in front of baba-is-ai's old-gym env
-vendor/baba_auto/   # baba_auto_gym: a Gymnasium env over baba-is-auto's pyBaba (C++, built from the baba-is-auto checkout)
-vendor/crafter/     # crafter_gym: the same for crafter.Env, with reset(seed=)
-vendor/vgdl/        # vgdl_gym: a standard env over the language_and_experience fork's VGDLEnv
+gym/                # Gymnasium envs for games that ship none, or a rough one: one small package each
+    aigamestore/    # the 10 public AI GameStore games (HTML/JS) + aigamestore_gym, their lock-stepped env
+    coom/           # coom_gym: COOM scenarios, on a COOM checkout's WADs
+    baba/           # baba_gym: the Gymnasium contract in front of baba-is-ai's old-gym env
+    baba_auto/      # baba_auto_gym: over baba-is-auto's pyBaba (C++, built from the baba-is-auto checkout)
+    crafter/        # crafter_gym: the same for crafter.Env, with reset(seed=)
+    vgdl/           # vgdl_gym: a standard env over the language_and_experience fork's VGDLEnv
 external/           # (gitignored) the vgdl / coom / baba_auto game repos, cloned at the commits pinned above
 ```
 
@@ -528,7 +529,7 @@ class EnvAdapter:
 
 `self.env` is always a `gymnasium.Env`. A game that has no such env -- a bare
 engine, an old-`gym` env, a gymnasium env with habits of its own -- gets a thin
-one under `vendor/` (see `vendor/coom/`, `vendor/baba/`, `vendor/vgdl/`), not
+one under `gym/` (see `gym/coom/`, `gym/baba/`, `gym/vgdl/`), not
 in its adapter; the adapter is then `_make` plus what to log.
 
 `FrameState` carries a standard shape for **every** backend:
@@ -967,10 +968,10 @@ backend; stable-retro titles use the `retro` backend; and the VGDL games use the
 in the same numpy-2 env).
 
 **old-`gym` games (e.g. chess, hanoi, Sokoban).** Three options:
-(a) **a thin Gymnasium env under `vendor/`** that holds the old env and
+(a) **a thin Gymnasium env under `gym/`** that holds the old env and
 presents the contract in front of it -- `reset(seed=)` returning `(obs, info)`,
 a 5-tuple `step`, a `render()` without a mode -- as done for Baba
-(`vendor/baba/`, 70 lines) and Crafter (`vendor/crafter/`); the game's own
+(`gym/baba/`, 70 lines) and Crafter (`gym/crafter/`); the game's own
 package is untouched and the adapter stays `_make` plus what to log. This is
 the usual answer. (b) **port the source to gymnasium**, as done for VGDL —
 usually a small mechanical diff (swap `gym`→`gymnasium`, fix removed `np.*`

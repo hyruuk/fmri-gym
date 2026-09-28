@@ -114,7 +114,7 @@ config's controls message lists exactly what that scenario accepts.
 ### COOM
 
 COOM's own Doom scenarios (not the stock ViZDoom ones above). The env ships
-here as `coom-gym` (`vendor/coom/`, part of the `dbp` extra) and reads the
+here as `coom-gym` (`gym/coom/`, part of the `dbp` extra) and reads the
 scenario files from the COOM checkout at its pinned commit (README "External
 checkouts"):
 

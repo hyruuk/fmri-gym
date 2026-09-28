@@ -1,6 +1,6 @@
 """COOM adapter -- Doom continual-RL scenarios (TTomilin/COOM).
 
-``coom_gym`` (``vendor/coom/``) is the Gymnasium env. COOM's own package pins
+``coom_gym`` (``gym/coom/``) is the Gymnasium env. COOM's own package pins
 gymnasium 0.28, so the env never imports it: it drives ``vizdoom.DoomGame``
 against a checkout's scenario assets (``conf.cfg`` + ``<task>.wad`` under
 ``<repo>/COOM/env/scenarios/<scenario>/``; the checkout is ``external/coom``,

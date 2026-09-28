@@ -68,9 +68,9 @@ RUN virtualenv /venv \
     && cd /src \
 ## nle/nethack compile crash in modern gcc
     && CC=/usr/bin/gcc-12 pip install --no-cache-dir -e .[nethack]  \
-## the vendor/ wrappers by path first (pip has no [tool.uv.sources]); baba_auto compiles pyBaba (~30 s)
-    && pip install --no-cache-dir -e vendor/aigamestore -e vendor/coom -e vendor/crafter \
-                                  -e vendor/baba -e vendor/vgdl -e vendor/baba_auto \
+## the gym/ wrappers by path first (pip has no [tool.uv.sources]); baba_auto compiles pyBaba (~30 s)
+    && pip install --no-cache-dir -e gym/aigamestore -e gym/coom -e gym/crafter \
+                                  -e gym/baba -e gym/vgdl -e gym/baba_auto \
     && pip install --no-cache-dir -e .[dbp,vgdl,baba_auto] \
 ## some of the deps above overwrite pygame-ce, not solved by pyproject.toml need to be reinstalled.
     && pip uninstall -y pygame \

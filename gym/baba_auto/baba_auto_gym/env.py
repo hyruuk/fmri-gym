@@ -46,7 +46,7 @@ _ROTATION = {pyBaba.Direction.NONE: 0, pyBaba.Direction.RIGHT: 0, pyBaba.Directi
 _REWARD = {pyBaba.PlayState.WON: 200.0, pyBaba.PlayState.LOST: -100.0}
 
 
-#: fmri-gym's ``external/baba_auto``; this file is ``vendor/baba_auto/baba_auto_gym/env.py``.
+#: fmri-gym's ``external/baba_auto``; this file is ``gym/baba_auto/baba_auto_gym/env.py``.
 _DEFAULT_REPO = Path(__file__).resolve().parents[3] / "external" / "baba_auto"
 _CLONE = ("git clone https://github.com/utilForever/baba-is-auto.git external/baba_auto && "
           "git -C external/baba_auto checkout <commit>  (the README pins the commit)")

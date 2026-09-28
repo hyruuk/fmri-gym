@@ -1,6 +1,6 @@
 """VGDL adapter (Video Game Description Language games), via ``vgdl-gym``.
 
-``vgdl_gym`` (``vendor/vgdl/``) is the Gymnasium env: it wraps the ``VGDLEnv``
+``vgdl_gym`` (``gym/vgdl/``) is the Gymnasium env: it wraps the ``VGDLEnv``
 of tomov/language_and_experience's ``dbp`` branch (the fork ported from old
 gym to gymnasium, so it runs in this same numpy-2 env) and gives it the
 standard contract -- a game name and level in, ``reset(seed=)``, an offscreen
