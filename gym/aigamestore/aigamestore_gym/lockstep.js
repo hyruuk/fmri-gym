@@ -71,6 +71,36 @@
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 
+  // p5.js and game3's three.js RNG each keep a PRNG of their own, entirely
+  // separate from Math.random above -- every vendored game reseeds them with
+  // a hardcoded literal (p.randomSeed(42) on every restart, level, and boss
+  // fight for most games; game3 calls setSeed('42') on `Math.seedrandom`
+  // likewise), which replays the exact same sequence every episode no matter
+  // what seed we pass. Trap both as they load and patch them to ignore
+  // whatever literal a game passes, using ours instead.
+  const envSeed = (Number(new URLSearchParams(location.search).get("seed")) || 1) >>> 0;
+  Object.defineProperty(window, "p5", {
+    configurable: true,
+    get() { return undefined; },
+    set(realP5) {
+      const original = realP5.prototype.randomSeed;
+      realP5.prototype.randomSeed = function () { return original.call(this, envSeed); };
+      Object.defineProperty(window, "p5", { value: realP5, writable: true, configurable: true });
+    },
+  });
+  Object.defineProperty(Math, "seedrandom", {
+    configurable: true,
+    get() { return undefined; },
+    set(original) {
+      function seedrandom(_seed, ...rest) {
+        return new.target
+          ? Reflect.construct(original, [envSeed, ...rest], new.target)
+          : original.call(this, envSeed, ...rest);
+      }
+      Object.defineProperty(Math, "seedrandom", { value: seedrandom, writable: true, configurable: true });
+    },
+  });
+
   // ---- keyboard ----------------------------------------------------------
   // The keys the ten games listen for (they switch on e.keyCode), by the
   // upper-case pygame-style names the host uses: [keyCode, key, code].

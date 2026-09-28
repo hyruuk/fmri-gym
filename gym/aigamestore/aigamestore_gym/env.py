@@ -47,6 +47,7 @@ import contextlib
 import functools
 import http.server
 import io
+import re
 import socketserver
 import threading
 import urllib.parse
@@ -159,6 +160,7 @@ class AIGameStoreEnv(gym.Env):
             **({"channel": browser_channel} if browser_channel else {}))
         self._page = self._browser.new_page(viewport={"width": 900, "height": 700})
         self._page.add_init_script(path=str(_LOCKSTEP_JS))
+        self._page.route("**/rng.js", self._patch_rng)
 
         self._frame: np.ndarray | None = None
         self._score = 0.0
@@ -243,8 +245,26 @@ class AIGameStoreEnv(gym.Env):
 
     def _load(self, seed: int) -> None:
         """Navigate to the game with ``seed`` and tick it up to its START screen."""
+        self._seed = seed          # read by _patch_rng, which the coming navigation triggers
         self._page.goto(f"{self._url}&seed={seed}")
         self._page.evaluate("n => window.__aigs.boot(n)", _BOOT_FRAMES)
+
+    def _patch_rng(self, route: Any) -> None:
+        """Force game7's own vendored RNG module (``rng.js``) onto this episode's seed.
+
+        It is a same-origin ES module the game imports directly, not a global
+        like ``Math.random`` or p5's own PRNG -- lockstep.js's page-init script
+        cannot trap an import binding, so this rewrites the file in flight
+        instead: ``setSeed`` is made to ignore whatever literal the game passes
+        it (game7 hardcodes ``42`` on every restart, level and boss fight) and
+        always reseed from the episode's own seed.
+        """
+        response = route.fetch()
+        body = re.sub(r"export function setSeed\(newSeed\) \{.*?\}",
+                       f"export function setSeed(newSeed) {{ seed = {self._seed}; "
+                       f"state = {self._seed}; }}",
+                       response.text(), count=1, flags=re.DOTALL)
+        route.fulfill(response=response, body=body)
 
     def _step(self, names: list[str], frames: int) -> tuple[np.ndarray, dict]:
         """Hold exactly ``names``, tick ``frames``, and read canvas + state."""
