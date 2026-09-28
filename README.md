@@ -393,7 +393,6 @@ They assume `sub-01` and a 1024x768 window, and take the subject's next free ses
                                 // is repeated until cleared). Names: won, lost, terminated,
                                 // truncated, playing (the block's clock) -- see EnvAdapter.outcome
  "max_duration": 300.0,         // hard wall-clock safety cap (episode mode)
- "hud": true,                   // time left (top left) and score (top right) above the frame
  "outcome_duration": 2.0,       // seconds "Final score: N" + the outcome show after each episode
  "fps": 30,                     // required: steps (and frames) per second. The engine's own rate
                                 // (console cores and Atari ~60, Doom 35 / frame_skip) plays the game

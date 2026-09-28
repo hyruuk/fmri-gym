@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 BG_COLOR = (0, 0, 0)
 TEXT_COLOR = (220, 220, 220)
 FIX_COLOR = (255, 255, 255)
+HUD_COLOR = (235, 235, 235)
 
 
 class Display:
@@ -95,7 +96,8 @@ class Display:
                   file=sys.stderr)
         self.font = pygame.font.Font(pygame.font.get_default_font(), 28)
         self.fix_font = pygame.font.Font(pygame.font.get_default_font(), 80)
-        self._labels: dict[str, pygame.Surface] = {}    # draw_frame's rendered HUD lines
+        self.hud_font = pygame.font.Font(pygame.font.get_default_font(), 24)
+        self._labels: dict[str, pygame.Surface] = {}    # _draw_hud's rendered lines
 
     def _open(self) -> pygame.Surface:
         """Open the window, trying for a vsync-locked flip.
@@ -192,39 +194,88 @@ class Display:
             return
         time.sleep(max(0.0, min(poll, deadline - time.perf_counter())))
 
-    def draw_frame(
-        self, rgb: np.ndarray, score: float | None = None, time_left: float | None = None,
-    ) -> float:
+    def draw_frame(self, rgb: np.ndarray, hud: list[str] | None = None) -> float:
         """Blit an RGB frame, aspect-fit and centered with black pad.
 
-        With a ``score`` or ``time_left``, the frame is fit below a strip the
-        height of a text line and the two are printed in it, flush with the
-        frame's edges: the time to the left, the score to the right.
+        With a ``hud``, the frame is fit below a strip above it where the lines
+        are drawn (see :meth:`_draw_hud`), so the text never covers a pixel the
+        subject is playing on.
 
         :param rgb: frame array shaped ``(H, W, 3)``.
-        :param score: the running score, or ``None`` for none.
-        :param time_left: seconds left in the block, or ``None`` for none.
+        :param hud: status lines from the adapter's
+            :meth:`~fmri_gym.adapters.base.EnvAdapter.hud`, or ``None`` for none.
         :return: ``perf_counter`` of the flip that showed it.
         """
         self.canvas.fill(BG_COLOR)
         h, w = rgb.shape[:2]
         surf = pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))  # -> (W,H)
-        strip = self.font.get_linesize() + 8 if score is not None or time_left is not None else 0
-        scale = min(self.size[0] / w, (self.size[1] - strip) / h)
-        dw, dh = int(w * scale), int(h * scale)
+        # The HUD is packed to the frame's width, and the strip it needs shrinks
+        # a height-limited frame: fit, pack, and fit again until they agree.
+        rows: list[list[pygame.Surface]] = []
+        strip = 0
+        while True:
+            scale = min(self.size[0] / w, (self.size[1] - strip) / h)
+            dw, dh = int(w * scale), int(h * scale)
+            if not hud:
+                break
+            rows = self._hud_rows(hud, dw)
+            needed = len(rows) * self.hud_font.get_linesize() + 8
+            if needed <= strip:
+                break
+            strip = needed
         surf = pygame.transform.scale(surf, (dw, dh))
         rect = surf.get_rect(center=(self.size[0] // 2, strip + (self.size[1] - strip) // 2))
         self.canvas.blit(surf, rect.topleft)
-        if time_left is not None:
-            text = self._label(f"{max(0, int(time_left))} s")
-            self.canvas.blit(text, text.get_rect(bottomleft=(rect.left, rect.top - 4)))
-        if score is not None:
-            text = self._label(f"Score: {score:g}")
-            self.canvas.blit(text, text.get_rect(bottomright=(rect.right, rect.top - 4)))
+        if rows:
+            self._draw_hud(rows, rect)
         return self._present()
 
+    def _draw_hud(self, rows: list[list[pygame.Surface]], rect: pygame.Rect) -> None:
+        """Draw the HUD in the strip above the frame, as rows of lines laid out left to right.
+
+        Within a row the first line sits flush with the frame's left edge and
+        the last flush with its right, the others spaced evenly between -- so
+        the two-line default (time left, score) reads as a left and a right
+        corner, and a longer status list as a row of fields. Rows are what
+        :meth:`_hud_rows` split the lines into when they do not fit one; the
+        last row sits just above the frame.
+
+        :param rows: the rendered lines, by row.
+        :param rect: the rect the frame was blitted into.
+        """
+        y = rect.top - 4
+        for row in reversed(rows):
+            y -= self.hud_font.get_linesize()
+            if len(row) == 1:
+                self.canvas.blit(row[0], (rect.left, y))
+                continue
+            free = rect.width - sum(s.get_width() for s in row)
+            gap = free / (len(row) - 1)
+            x = float(rect.left)
+            for surf in row:
+                self.canvas.blit(surf, (round(x), y))
+                x += surf.get_width() + gap
+
+    def _hud_rows(self, lines: list[str], width: int) -> list[list[pygame.Surface]]:
+        """Render the HUD lines and pack them into rows no wider than the frame.
+
+        :param lines: the adapter's status lines.
+        :param width: the width they have to fit, in pixels.
+        :return: rows of rendered lines, in order.
+        """
+        gap = self.hud_font.size("  ")[0]
+        rows: list[list[pygame.Surface]] = [[]]
+        used = 0
+        for surf in (self._label(line) for line in lines):
+            if rows[-1] and used + gap + surf.get_width() > width:
+                rows.append([])
+                used = 0
+            rows[-1].append(surf)
+            used += surf.get_width() + (gap if len(rows[-1]) > 1 else 0)
+        return rows
+
     def _label(self, text: str) -> pygame.Surface:
-        """Render a HUD line, cached: it only changes when the number does.
+        """Render one HUD line, cached: a line only changes when its number does.
 
         :param text: the line.
         :return: its surface.
@@ -232,7 +283,7 @@ class Display:
         if text not in self._labels:
             if len(self._labels) > 64:
                 self._labels.clear()
-            self._labels[text] = self.font.render(text, True, TEXT_COLOR, BG_COLOR)
+            self._labels[text] = self.hud_font.render(text, True, HUD_COLOR, BG_COLOR)
         return self._labels[text]
 
     def _wrap(self, font: pygame.font.Font, line: str, max_w: int) -> list[str]:

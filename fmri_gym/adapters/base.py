@@ -128,6 +128,26 @@ class EnvAdapter:
         self.last_reward, self.last_info = float(out[1]), out[4]
         return out
 
+    def hud(self, score: float, time_remaining: float) -> list[str] | None:
+        """The status lines drawn above the frame every step, or ``None`` for none.
+
+        The session hands over what it knows -- the episode's running score
+        (its cumulative reward) and the seconds left in the block -- and the
+        backend decides what the subject sees of it, in a strip above the frame
+        that never covers game pixels (:meth:`~fmri_gym.display.Display
+        .draw_frame`). Whatever goes here has to be state the env already
+        reports, so a model reads the same numbers off the log. The default is
+        the two the session knows, time left first and the score last; a game
+        with a HUD of its own may return ``None`` to draw nothing, and one
+        with more to say may extend the list (lines are laid out left to right
+        along the strip, the first flush left and the last flush right).
+
+        :param score: the episode's cumulative reward so far.
+        :param time_remaining: seconds until the block ends.
+        :return: the lines, or ``None``.
+        """
+        return [f"{max(0, int(time_remaining))} s", f"Score: {score:g}"]
+
     def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
         """How the episode stands after its last step, as a name and a line for the subject.
 

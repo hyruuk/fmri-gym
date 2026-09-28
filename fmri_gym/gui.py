@@ -193,9 +193,6 @@ _GAME_FIELDS = [
     Field("audio", "audio", "bool", default=True,
           tip="Play the game's sound in this block. Off mutes the speakers; audio the env "
               "returns is still logged."),
-    Field("hud", "hud", "bool", default=True,
-          tip="Print the block's time left (top left) and the running score (top right) above "
-              "the frame."),
     Field("outcome_duration", "outcome_duration (s)", "float",
           tip="Seconds the final score and outcome (won / lost / time is up ...) are shown after "
               "each episode (default 2; 0 = none)."),

@@ -196,8 +196,6 @@ def _phase_problems(phase: dict) -> list[str]:
             isinstance(phase["outcome_duration"], (int, float))
             and phase["outcome_duration"] >= 0):
         out.append(f"outcome_duration: expected seconds >= 0, got {phase['outcome_duration']!r}")
-    if "hud" in phase and not isinstance(phase["hud"], bool):
-        out.append(f"hud: expected true or false, got {phase['hud']!r}")
     if "menu" in phase:
         out.extend(menu_problems(phase["menu"]))
     return out

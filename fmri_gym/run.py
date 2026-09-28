@@ -437,7 +437,6 @@ class Run:
         block_end: float,
         play_sound: bool,
         menu: Menu | None,
-        hud: bool,
         outcome_duration: float,
     ) -> str:
         """Run one episode, appending frame data to ``frames``.
@@ -453,7 +452,6 @@ class Run:
         :param play_sound: pass the adapter's sound to the speakers (the
             phase's ``audio``); muting never changes what is logged.
         :param menu: the block's :class:`~.menu.Menu`, or ``None``.
-        :param hud: print the score and the block's time left above the frame.
         :param outcome_duration: seconds the final score and outcome are shown.
         :return: the episode's outcome: one of the adapter's
             (:meth:`~.adapters.base.EnvAdapter.outcome`: ``"won"``,
@@ -477,7 +475,7 @@ class Run:
         # Paced from the flip, so a slow reset does not become a burst of
         # catch-up frames. The reset frame's sound is not played: it is not a
         # step's, and it would start the episode's sound off its flips.
-        next_t = self._show(adapter, False, score, block_end if hud else None) + dt
+        next_t = self._show(adapter, False, score, block_end) + dt
 
         ## Loop over frames within episode
         while not (terminated or truncated) and time.perf_counter() < block_end:
@@ -496,7 +494,7 @@ class Run:
                 if choice != "resume":
                     outcome = choice
                     break
-                next_t = self._show(adapter, False, score, block_end if hud else None) + dt
+                next_t = self._show(adapter, False, score, block_end) + dt
                 continue
             next_t += dt
             if turn_based and action is None:
@@ -513,7 +511,7 @@ class Run:
             fs = adapter.capture(obs, info, want_blob=save_blob)
             # The frame trigger goes out on the flip that shows this frame.
             self.display.call_on_flip(self.triggers.frame)
-            flip_t = self._show(adapter, play_sound, score, block_end if hud else None)
+            flip_t = self._show(adapter, play_sound, score, block_end)
             # More than a frame behind (a stall): drop the debt, or it is repaid
             # as a burst of one-refresh frames. The frame of slack is what a
             # vsync-locked flip normally lands after its tick.
@@ -552,24 +550,17 @@ class Run:
         frames["episode_score"].append(score)
         return outcome
 
-    def _show(
-        self, adapter: EnvAdapter, play_sound: bool,
-        score: float | None = None, block_end: float | None = None,
-    ) -> float:
-        """Flip the adapter's frame, then queue its sound against that flip.
+    def _show(self, adapter: EnvAdapter, play_sound: bool, score: float, block_end: float) -> float:
+        """Flip the adapter's frame with its HUD, then queue its sound against that flip.
 
-        :param adapter: the env whose ``render`` / ``sound`` to present.
+        :param adapter: the env whose ``render`` / ``hud`` / ``sound`` to present.
         :param play_sound: pass the sound to the speakers.
-        :param score: the running score to print above the frame, if any.
-        :param block_end: ``perf_counter`` the block ends at, to print the time
-            left above the frame; ``None`` prints neither.
+        :param score: the episode's running score, for the HUD.
+        :param block_end: ``perf_counter`` the block ends at, for the HUD.
         :return: ``perf_counter`` of the flip.
         """
-        if block_end is None:
-            flip_t = self.display.draw_frame(adapter.render())
-        else:
-            flip_t = self.display.draw_frame(adapter.render(), score,
-                                             block_end - time.perf_counter())
+        hud = adapter.hud(score, block_end - time.perf_counter())
+        flip_t = self.display.draw_frame(adapter.render(), hud)
         if play_sound:
             self.audio.play(adapter.sound(), flip_t)
         return flip_t
@@ -582,7 +573,7 @@ class Run:
 
         :param phase: game-phase config (``backend``, ``game``, ``mode``,
             ``duration`` / ``n_episodes`` and ``advancing_outcomes``, ``fps``,
-            ``seed``, ``state_stride``, ``turn_based``, ``keys``, ``hud``,
+            ``seed``, ``state_stride``, ``turn_based``, ``keys``,
             ``outcome_duration``, …).
         :param index: phase index in the curriculum (for the manifest).
         :raises KeyboardInterrupt: if the subject quits mid-block.
@@ -598,7 +589,6 @@ class Run:
         # they clear it, max_duration runs out, or they forfeit from the menu.
         # None: every episode counts, whatever its outcome.
         advancing = phase.get("advancing_outcomes")
-        hud = bool(phase.get("hud", True))
         outcome_duration = float(phase.get("outcome_duration", 2.0))
         base_seed = phase.get("seed", 1000 + index)
         # Save a full savestate every `state_stride` frames (and always at each
@@ -657,7 +647,7 @@ class Run:
                 seed=base_seed + completed, episode_id=episode_id,
                 turn_based=turn_based, dt=dt, state_stride=state_stride,
                 block_end=block_end, play_sound=play_sound, menu=menu,
-                hud=hud, outcome_duration=outcome_duration)
+                outcome_duration=outcome_duration)
             # An episode's last sounds are still queued when it ends; drop them
             # so they do not play over the next episode or the next fixation.
             self.audio.stop()
