@@ -31,6 +31,7 @@
       "game": "MiniHack-Room-5x5-v0",
       "mode": "episode",
       "n_episodes": 3,
+      "advancing_outcomes": ["won"],
       "max_duration": 120.0,
       "fps": 15,
       "turn_based": true,
