@@ -585,6 +585,7 @@ all = [
     { name = "crafter-gym" },
     { name = "gymnasium", extra = ["box2d", "mujoco"] },
     { name = "minihack" },
+    { name = "minihack-levels" },
     { name = "nle" },
     { name = "pylsl" },
     { name = "pyparallel" },
@@ -619,6 +620,7 @@ dbp = [
     { name = "coom-gym" },
     { name = "crafter-gym" },
     { name = "minihack" },
+    { name = "minihack-levels" },
     { name = "nle" },
     { name = "rushhour-gym" },
     { name = "supertuxkart-gym" },
@@ -629,6 +631,7 @@ gui = [
 ]
 minihack = [
     { name = "minihack" },
+    { name = "minihack-levels" },
     { name = "nle" },
 ]
 mujoco = [
@@ -678,6 +681,7 @@ requires-dist = [
     { name = "gymnasium", extras = ["box2d"], marker = "extra == 'box2d'" },
     { name = "gymnasium", extras = ["mujoco"], marker = "extra == 'mujoco'" },
     { name = "minihack", marker = "extra == 'minihack'" },
+    { name = "minihack-levels", marker = "extra == 'minihack'", editable = "gym/minihack" },
     { name = "nle", marker = "extra == 'minihack'", specifier = ">=1.3" },
     { name = "nle", marker = "extra == 'nethack'", specifier = ">=1.3" },
     { name = "numpy" },
@@ -1188,6 +1192,27 @@ dependencies = [
     { name = "setuptools" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/96/30/e080baba3366a5ef109c0cb9f17a631b474cea6f3818a27aecf453ec87b2/minihack-1.0.2.tar.gz", hash = "sha256:dd219af762f2adc859f523edf7b5a22a90015c2f561f68a9a4f8268d76afcd44", size = 249259, upload-time = "2025-03-03T17:18:25.411Z" }
+
+[[package]]
+name = "minihack-levels"
+version = "0.1.0"
+source = { editable = "gym/minihack" }
+dependencies = [
+    { name = "minihack" },
+    { name = "nle" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "setuptools" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "minihack" },
+    { name = "nle", specifier = ">=1.3" },
+    { name = "numpy" },
+    { name = "setuptools", specifier = "<81" },
+]
 
 [[package]]
 name = "mujoco"
