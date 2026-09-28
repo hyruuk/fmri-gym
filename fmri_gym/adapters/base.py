@@ -128,6 +128,31 @@ class EnvAdapter:
         self.last_reward, self.last_info = float(out[1]), out[4]
         return out
 
+    def autoplay(self, info: dict) -> Any | None:
+        """The action to step with while the env is ignoring input, or ``None``.
+
+        Some games have stretches the player cannot act in: crafter discards
+        the action while the player is asleep and forces ``sleep`` until they
+        wake. A real-time block steps through those on its own clock and
+        nobody notices. A ``turn_based`` block does not: it advances only on a
+        press, so it would ask the subject for presses the env throws away, and
+        the number of them is a property of the game rather than of the
+        decision. Returning an action here says "step with this and do not
+        wait", and the loop keeps doing so, at the phase's fps and logging
+        every frame, until this returns ``None`` again. The subject still sees
+        what happened, because every one of those steps is a drawn frame.
+
+        It is the action and not a flag so that the choice of what a
+        do-nothing step is stays with the backend that knows its space: these
+        spaces have no action that means "do nothing" everywhere. The default
+        is ``None``, which is every game that has no such state and every
+        real-time phase.
+
+        :param info: the info dict from the step just taken.
+        :return: the action to step with, or ``None`` to wait for the subject.
+        """
+        return None
+
     def hud(self, score: float, time_remaining: float) -> list[str] | None:
         """The status lines drawn above the frame every step, or ``None`` for none.
 

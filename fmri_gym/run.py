@@ -513,6 +513,10 @@ class Run:
         # whose HUD says nothing about time has nothing to gain, and a
         # real-time wait is one frame long and repaints anyway.
         repaint = redraw if turn_based and live_hud else None
+        # Set while the env is in a state it takes no action in, to the action
+        # to step it with; see EnvAdapter.autoplay. Only a turn-based block
+        # cares: a real-time one steps through such a stretch anyway.
+        auto: Any = None
 
         ## Reset environment and show initial state
         obs, info = adapter.reset(seed)
@@ -528,11 +532,17 @@ class Run:
             # the block end), polling keys as we go so presses are stamped on
             # arrival; a vsync-locked display re-presents the frame meanwhile.
             # TODO(#43): anchor the wait to the last step (t_step + dt), not to the flip.
-            deadline = block_end if turn_based else next_t
+            # An autoplayed stretch is paced like a real-time frame even in a
+            # turn-based block: the env is not waiting on the subject, so the
+            # wait is one tick and the keys polled through it are logged but
+            # not acted on.
+            waits_for_press = turn_based and auto is None
+            deadline = block_end if waits_for_press else next_t
             action, user_quit = _poll_keys_until(
-                self.display, deadline, key_log, self.clock, key_to_action, menu,
+                self.display, deadline, key_log, self.clock,
+                key_to_action if waits_for_press else None, menu,
                 latch=latched and not turn_based,
-                repaint=repaint if turn_based else None)
+                repaint=repaint if waits_for_press else None)
             if user_quit:
                 outcome = "quit"
                 break
@@ -544,14 +554,17 @@ class Run:
                 next_t = self._show(adapter, False, score, block_end) + dt
                 continue
             next_t += dt
-            if turn_based and action is None:
+            if waits_for_press and action is None:
                 continue                        # block ended without a press
-            if not turn_based and action is None:
+            if auto is not None:
+                action = auto                   # the env is not taking ours
+            elif not turn_based and action is None:
                 # No latched press this frame (or the phase never asked for
                 # one): the action is whatever is held down at the tick.
                 action = adapter.keymap.resolve(held_key_names())
 
             obs, reward, terminated, truncated, info = adapter.step(action)
+            auto = adapter.autoplay(info) if turn_based else None
             t_step = self.clock.run_time()
             score += float(reward)
             # Anchor a full savestate at episode start and every stride.
@@ -565,7 +578,14 @@ class Run:
             # as a burst of one-refresh frames. The frame of slack is what a
             # vsync-locked flip normally lands after its tick.
             # TODO(#43): why frames fall behind at all is not established.
-            if not turn_based and next_t + dt < flip_t:
+            if turn_based:
+                # Anchor the next tick to this flip. A turn-based wait leaves
+                # next_t far behind -- the deadline it waits on is the block's,
+                # not the tick -- so an autoplayed stretch starting from the
+                # old value would find every tick already past and run flat
+                # out instead of at fps.
+                next_t = flip_t + dt
+            elif next_t + dt < flip_t:
                 late = flip_t - (next_t - dt)
                 frames["pacing_reset"].append((self.clock.from_perf(flip_t), late))
                 next_t = flip_t + dt

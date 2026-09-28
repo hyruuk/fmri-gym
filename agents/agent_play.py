@@ -72,7 +72,7 @@ def build_policy(args, adapter) -> Policy:
 
 def play_episode(adapter, policy: Policy, frames: dict, clock: Clock, *,
                  seed: int, episode_id: int, state_stride: int, fps: float,
-                 max_frames: int) -> tuple[int, int]:
+                 turn_based: bool, max_frames: int) -> tuple[int, int]:
     """Run one episode under ``policy``, appending to ``frames``.
 
     Mirrors ``Run._episode`` field for field, minus everything that is about a
@@ -87,6 +87,9 @@ def play_episode(adapter, policy: Policy, frames: dict, clock: Clock, *,
     :param episode_id: index of this episode within the block.
     :param state_stride: save a full state blob every this many frames.
     :param fps: the phase's frames per second, for the HUD's countdown only.
+    :param turn_based: the phase's, so the same stretches the run loop steps
+        by itself are not put to the policy either
+        (:meth:`~fmri_gym.adapters.base.EnvAdapter.autoplay`).
     :param max_frames: stop the episode after this many frames.
     :return: ``(frames stepped, frames the policy pressed nothing)``.
     """
@@ -97,23 +100,32 @@ def play_episode(adapter, policy: Policy, frames: dict, clock: Clock, *,
     terminated = truncated = False
     score = 0.0                         # the episode's cumulative reward
     ep_frame = skipped = 0
+    auto = None                         # see EnvAdapter.autoplay
     while not (terminated or truncated) and ep_frame + skipped < max_frames:
-        # The subject's block ends on a wall clock; the model's ends on this
-        # frame budget, so the countdown it reads is over its own budget at the
-        # block's fps. The alternative, a real clock, would tell the model how
-        # long its own inference took, which is not something the game shows.
-        remaining = (max_frames - ep_frame - skipped) / fps
-        status = list(adapter.hud(score, remaining) or [])
-        over = adapter.overlay()
-        action = policy.act(adapter.render(), status + list(over[0] if over else []))
-        if action is None:
-            # A turn-based phase with no key pressed: nothing steps, exactly as
-            # in the run loop. It costs the frame, which is what keeps a policy
-            # that never names a key from looping here forever.
-            skipped += 1
-            continue
+        if auto is not None:
+            # The env is in a state it takes no action in, so the policy is not
+            # asked for one, exactly as the subject is not asked to press. The
+            # frames still cost budget: they are engine steps, and the subject
+            # pays for them in block time.
+            action = auto
+        else:
+            # The subject's block ends on a wall clock; the model's ends on this
+            # frame budget, so the countdown it reads is over its own budget at the
+            # block's fps. The alternative, a real clock, would tell the model how
+            # long its own inference took, which is not something the game shows.
+            remaining = (max_frames - ep_frame - skipped) / fps
+            status = list(adapter.hud(score, remaining) or [])
+            over = adapter.overlay()
+            action = policy.act(adapter.render(), status + list(over[0] if over else []))
+            if action is None:
+                # A turn-based phase with no key pressed: nothing steps, exactly as
+                # in the run loop. It costs the frame, which is what keeps a policy
+                # that never names a key from looping here forever.
+                skipped += 1
+                continue
 
         obs, reward, terminated, truncated, info = adapter.step(action)
+        auto = adapter.autoplay(info) if turn_based else None
         score += float(reward)
         # Anchor a full savestate at episode start and every stride.
         save_blob = (ep_frame % state_stride == 0)
@@ -171,7 +183,8 @@ def play_block(phase: dict, index: int, args, logger: Logger,
         n, n_skipped = play_episode(
             adapter, policy, frames, clock, seed=base_seed + episode_id,
             episode_id=episode_id, state_stride=state_stride,
-            fps=phase["fps"], max_frames=args.max_frames)
+            fps=phase["fps"], turn_based=bool(phase.get("turn_based", False)),
+            max_frames=args.max_frames)
         skipped += n_skipped
         print(f"  episode {episode_id} (seed {base_seed + episode_id}): "
               f"{n} frames, {frames['episode_outcome'][-1]}, "

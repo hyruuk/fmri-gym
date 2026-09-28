@@ -489,6 +489,35 @@ class CrafterAdapter(EnvAdapter):
         """
         return self._cue_sounds.get(self._cue)
 
+    def autoplay(self, info: dict) -> int | None:
+        """``noop`` while the player is asleep, otherwise ``None``.
+
+        Crafter takes no action from a sleeping player: ``Player.update``
+        overwrites it with ``sleep`` until energy is full, and the step on
+        which it fills is the one that wakes them and runs their action
+        normally (``crafter/objects.py``). So under ``turn_based`` the presses
+        a sleep costs buy nothing; they only turn the world's crank, and stock
+        crafter charges eleven steps per point of energy, which is sixty-six
+        presses to go from three to nine. Stepping those frames here leaves
+        every rule alone -- the night still passes at its own rate, hunger,
+        thirst and health still move at their sleeping rates, a zombie still
+        closes in and still deals 7 to a sleeper -- and only stops asking the
+        subject to supply the crank.
+
+        The wake is what the subject needs to see, so it is drawn like any
+        other frame and the loop stops on it: waking from a blow clears
+        ``sleeping`` (``_wake_up_when_hurt``), so the last autoplayed frame is
+        the one with the zombie next to them and the health bar already down.
+        A frame is logged for every one of these steps, with ``noop`` as its
+        action, so the npz and a replay see exactly what happened; the ``noop``
+        also keeps a press made mid-sleep from moving the menu cursor, which
+        is wrapper state the engine would not have discarded.
+
+        :param info: crafter's info for the step just taken.
+        :return: 0 (``noop``) while asleep, else ``None``.
+        """
+        return 0 if info.get("sleeping") else None
+
     def hud(self, score: float, time_remaining: float) -> list[str]:
         """Time left, then the achievement count.
 
@@ -566,6 +595,11 @@ class CrafterAdapter(EnvAdapter):
             "no_effect": self._outcome["refused"],
             "cue": self._cue,
             "target": self._outcome["target"],
+            # True on every frame the player spent asleep, which under
+            # turn_based are the frames the loop stepped itself (see
+            # `autoplay`): without it a run of noops is indistinguishable from
+            # a subject who pressed nothing.
+            "sleeping": bool(info.get("sleeping", False)),
         }
         if self._menu_mode:
             # What the engine was given, beside the button `actions` holds.

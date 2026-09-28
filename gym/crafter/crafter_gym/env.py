@@ -14,7 +14,8 @@ returns the latest one. Actions are crafter's Discrete(17) (crafter/data.yaml):
 10 = place_plant, 11 = make_wood_pickaxe, 12 = make_stone_pickaxe,
 13 = make_iron_pickaxe, 14 = make_wood_sword, 15 = make_stone_sword,
 16 = make_iron_sword. ``info`` carries ``inventory``, ``achievements``,
-``player_pos``, ``semantic`` (the map around the player) and ``discount``.
+``player_pos``, ``semantic`` (the map around the player) and ``discount``,
+plus ``sleeping``, which crafter tracks but does not report (see :meth:`CrafterEnv.step`).
 """
 
 from __future__ import annotations
@@ -114,11 +115,20 @@ class CrafterEnv(gym.Env):
         the episode and what a block's ``advancing_outcomes`` reads, so it is
         split here from the health the game reports anyway.
 
+        ``info`` gains ``sleeping``, which crafter keeps on the player and
+        reports nowhere. It is the one state in which the game discards the
+        action it was given: ``Player.update`` overwrites it with ``sleep``
+        until energy is full (``crafter/objects.py``), so a press made while it
+        is True never reaches the world. A caller that asks a person for one
+        press per step needs to know that, or it will ask for presses the game
+        throws away.
+
         :param action: an index into crafter's 17 actions.
         :return: ``(frame, reward, terminated, truncated, info)``.
         """
         self._frame, reward, done, info = self.game.step(int(action))
         dead = info["inventory"]["health"] <= 0
+        info["sleeping"] = bool(self.game._player.sleeping)
         return (self._frame, float(reward),
                 bool(done and dead), bool(done and not dead), info)
 

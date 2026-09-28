@@ -327,7 +327,10 @@ class EnvAdapter:
     def reset(self, seed)         -> (obs, info)
     def capture(self, obs, info)  -> FrameState    # per-frame state to log
     def restore(self, blob)       -> None          # inverse of capture().blob
+    def autoplay(self, info)      -> action | None # step with this, don't wait
 ```
+
+`autoplay` is how a `turn_based` block gets through a stretch the env takes no action in. Crafter is the case it exists for: a sleeping player's action is overwritten with `sleep` until their energy fills, so the sixty-six presses a full sleep would cost under `turn_based` are all discarded by the engine, and how many there are is a fact about the game rather than a decision the subject is making. Returning an action says "step with this and do not wait for a press"; the loop keeps doing so, at the phase's fps and logging every frame like any other, until it returns `None` again. Nothing is skipped and nothing is hidden: the subject watches the night pass, and because waking from a blow ends the stretch, the picture stops on the frame with the zombie beside them. The default is `None`, so every other backend and every real-time phase is unaffected.
 
 `self.env` is always a `gymnasium.Env`. A game that has no such env -- a bare engine, an old-`gym` env, a gymnasium env with habits of its own -- gets a thin one under `gym/` (see `gym/coom/`, `gym/baba/`, `gym/vgdl/`), not in its adapter; the adapter is then `_make` plus what to log.
 
