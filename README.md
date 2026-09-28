@@ -395,6 +395,12 @@ They assume `sub-01` and a 1024x768 window, and take the subject's next free ses
  "turn_based": false,           // step only on a key PRESS, not per frame (grid/toy_text games)
  "latched_keys": false,         // real-time: a fresh key PRESS beats the held-key poll, so a tap
                                 // shorter than one frame is not dropped (games below ~10 fps)
+ "live_hud": false,             // turn_based only: redraw the standing frame while the loop waits
+                                // for the press, so the clock in the HUD keeps up with the block's.
+                                // Draws pixels and nothing else -- no step, no log row, no trigger,
+                                // no sound. A duration block ends on the wall clock whether anyone
+                                // presses or not, so without this a subject who is thinking reads
+                                // the time their last press left behind
  "seed": 1234,                  // optional base seed: episodes play with seed, seed+1, ...
                                 // Pinned, every participant and run gets the same episodes.
                                 // Left out, it is derived from the run (sub/ses/task/run) and
