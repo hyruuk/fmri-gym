@@ -52,13 +52,17 @@ class NetHackAdapter(EnvAdapter):
 
     def render(self) -> np.ndarray:
         return _tty_to_rgb(self._last, self._cell)
+    
 
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         self._last = obs
         variables = {}
-        for k in ("blstats", "glyphs", "message"):
-            if isinstance(obs, dict) and k in obs:
-                variables[k] = np.asarray(obs[k])
+        if isinstance(obs, dict):
+            for k, v in obs.items():
+                if k in ("tty_chars", "tty_colors"):
+                    continue
+                variables[k] = np.asarray(v)
+        variables.update(info or {})
         return FrameState(blob=None, variables=variables)
 
 

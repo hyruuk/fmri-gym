@@ -75,7 +75,5 @@ class AIGameStoreAdapter(EnvAdapter):
         return self.env.metadata["render_fps"]
 
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
-        # The scalar fields of the game's own state (score, level, gamePhase,
-        # lives, ...), one state_* variable each.
         return FrameState(blob=None, variables={
             f"state_{name}": value for name, value in info["state"].items()})

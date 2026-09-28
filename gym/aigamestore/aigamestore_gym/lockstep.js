@@ -12,7 +12,7 @@
 // Host API (window.__aigs):
 //   boot(maxFrames)  -> tick until the game has a canvas and a state, or throw
 //   step(names, n)   -> hold exactly the named keys, tick n frames, return
-//                       {png: dataURL of the canvas, state: scalar game state}
+//                       {png: dataURL of the canvas, state: full game state}
 (() => {
   const FRAME_MS = 1000 / 60;   // p5's frameRate(60) and rAF's nominal rate
   let now = 0;                  // fake performance.now(), ms
@@ -95,11 +95,21 @@
     window.dispatchEvent(e);      // p5 and the three.js game both listen on window
   }
 
-  // ---- host API ----------------------------------------------------------
-  function scalars(obj) {
+  
+  function plain(v, budget, seen = new WeakSet()) {
+    if (v === null || typeof v !== "object") return v;
+    if (seen.has(v)) return undefined;
+    const isPlain = Array.isArray(v) || Object.getPrototypeOf(v) === Object.prototype;
+    if (!isPlain) {
+      if (budget <= 0) return undefined;
+      budget -= 1;
+    }
+    seen.add(v);
+    if (Array.isArray(v)) return v.map((x) => plain(x, budget, seen));
     const out = {};
-    for (const [k, v] of Object.entries(obj || {})) {
-      if (["number", "string", "boolean"].includes(typeof v)) out[k] = v;
+    for (const [k, x] of Object.entries(v)) {
+      const p = plain(x, budget, seen);
+      if (p !== undefined) out[k] = p;
     }
     return out;
   }
@@ -126,7 +136,8 @@
       // Read the pixels in the same task as the draw: a WebGL canvas is
       // cleared once the browser composites it.
       const canvas = document.querySelector("canvas");
-      return { png: canvas.toDataURL("image/png"), state: scalars(window.getGameState()) };
+      // return { png: canvas.toDataURL("image/png"), state: scalars(window.getGameState()) };
+      return { png: canvas.toDataURL("image/png"), state: plain(window.getGameState(), 1) };
     },
   };
 })();

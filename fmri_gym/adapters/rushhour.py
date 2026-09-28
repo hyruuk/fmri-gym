@@ -39,12 +39,6 @@ from .base import EnvAdapter, FrameState
 
 _ENV_ID = "RushHourHuman-v0"
 _ENV_KWARGS = ("puzzle", "puzzle_indices", "min_moves_range", "movable_only", "binary")
-# info fields logged as per-frame variables: the program's results-file
-# columns, plus what ties a row to the engine (env_action) and to the UI.
-_LOGGED = ("event", "phase", "puzzle", "puzzle_index", "min_moves",
-           "car", "orientation", "from_row", "from_col", "to_row", "to_col",
-           "n_slides", "solved", "t_ms", "trial_ms",
-           "env_action", "selected", "slot", "moved", "illegal")
 
 
 class RushHourAdapter(EnvAdapter):
@@ -64,4 +58,4 @@ class RushHourAdapter(EnvAdapter):
         self, obs: Any, info: dict, want_blob: bool = True
     ) -> FrameState:
         info = info if isinstance(info, dict) else {}
-        return FrameState(blob=None, variables={k: info.get(k) for k in _LOGGED if k in info})
+        return FrameState(blob=None, variables=dict(info))

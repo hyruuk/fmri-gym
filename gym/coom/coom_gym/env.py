@@ -17,7 +17,10 @@ execute, 4 = right, 6 = right + forward, 8 = left, 10 = left + forward.
 One step is one Doom tic. ``conf.cfg`` asks for a 160x120 training view; the
 screen here is 640x480. Reward is ViZDoom's raw reward, not COOM's shaping.
 ``audio_buffer_enabled`` puts one 44.1 kHz stereo buffer for that tic on the
-live ``DoomGame`` (``env.game``).
+live ``DoomGame`` (``env.game``). The labels/objects/sectors buffers are
+turned on here (COOM's own scenarios leave them off) so ``game.get_state()``
+also carries every object in the level and the level's own sector geometry,
+not just ``game_variables``.
 """
 
 from __future__ import annotations
@@ -119,6 +122,9 @@ class COOMEnv(gym.Env):
         game.set_screen_resolution(vzd.ScreenResolution.RES_640X480)
         game.set_seed(seed)
         _configure_audio(game, enabled=audio_buffer_enabled, efx=audio_efx)
+        game.set_labels_buffer_enabled(True)
+        game.set_objects_info_enabled(True)
+        game.set_sectors_info_enabled(True)
         game.init()
         buttons = [str(b).split(".")[-1] for b in game.get_available_buttons()]
         if len(buttons) != 4:
