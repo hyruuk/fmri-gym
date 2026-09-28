@@ -13,4 +13,4 @@ obs, info = env.reset(seed=0)                    # obs is the (512, 512, 3) fram
 obs, reward, terminated, truncated, info = env.step(5)   # do
 ```
 
-Keyword arguments are `crafter.Env`'s: `area`, `view`, `size`, `reward`, `length`, `seed`. Actions are crafter's Discrete(17): 0 = noop, 1..4 = move left/right/up/down, 5 = do, 6 = sleep, 7..10 = place stone/table/furnace/plant, 11..16 = make wood/stone/iron pickaxe, wood/stone/iron sword. `info` carries `inventory`, `achievements`, `player_pos`, `semantic`. No savestate: an episode replays from its seed and actions.
+Keyword arguments are `crafter.Env`'s: `area`, `view`, `size`, `reward`, `length`, `seed`. Actions are crafter's Discrete(17): 0 = noop, 1..4 = move left/right/up/down, 5 = do, 6 = sleep, 7..10 = place stone/table/furnace/plant, 11..16 = make wood/stone/iron pickaxe, wood/stone/iron sword. `info` carries `inventory`, `achievements`, `player_pos`, `semantic`. There is no savestate API, but the env pickles whole, so a caller that wants one takes it that way; an episode also replays from its seed and its actions, and replays exactly only on the crafter fork this package pins (see `pyproject.toml`).

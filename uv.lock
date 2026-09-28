@@ -465,8 +465,8 @@ requires-dist = [
 
 [[package]]
 name = "crafter"
-version = "1.8.3"
-source = { registry = "https://pypi.org/simple" }
+version = "1.8.3+deterministic.1"
+source = { git = "https://github.com/chengfanbrain/crafter.git?rev=deterministic#764b9ab9903a668d8296a4a0b8e3524a05686c17" }
 dependencies = [
     { name = "imageio" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -476,7 +476,6 @@ dependencies = [
     { name = "pillow" },
     { name = "ruamel-yaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/32/50/dad93d72f9cb97320d9817c34181d3f76e41a934c3c7b91ef4adc7a5ef36/crafter-1.8.3.tar.gz", hash = "sha256:efd72a7e0b8945cfd00eca6c8caf99f746be5f69072853a2f173fa1f85b4088d", size = 107631, upload-time = "2023-12-13T20:13:23.073Z" }
 
 [[package]]
 name = "crafter-gym"
@@ -492,7 +491,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "crafter" },
+    { name = "crafter", git = "https://github.com/chengfanbrain/crafter.git?rev=deterministic" },
     { name = "gymnasium" },
     { name = "numpy" },
 ]

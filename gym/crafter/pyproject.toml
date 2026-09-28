@@ -8,7 +8,18 @@ version = "0.1.0"
 description = "Crafter as a Gymnasium env."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["gymnasium", "numpy", "crafter"]
+dependencies = [
+    "gymnasium",
+    "numpy",
+    # A fork of crafter 1.8.3, not the PyPI release: stock crafter iterates
+    # `set`s of world objects, so the same seed and the same actions give a
+    # different game in a process started with a different PYTHONHASHSEED, and
+    # a block cannot be replayed from `episode_seeds` + `actions`. The fork
+    # orders those iterations and changes nothing else. Pinned here rather than
+    # cloned into external/ because crafter is an ordinary pip package: the
+    # direct reference resolves to a commit in uv.lock and installs itself.
+    "crafter @ git+https://github.com/chengfanbrain/crafter.git@deterministic",
+]
 
 [tool.setuptools]
 packages = ["crafter_gym"]
