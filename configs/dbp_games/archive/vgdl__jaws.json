@@ -1,6 +1,6 @@
 {
   "_game": "VGDL: jaws",
-  "_note": "Needs VGDL_REPO=../language_and_experience + PYTHONPATH set.",
+  "_note": "Needs the language_and_experience fork cloned into external/vgdl at the commit the README pins (README 'External checkouts').",
   "curriculum": [
     {"type": "message", "text": "VGDL: jaws", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},

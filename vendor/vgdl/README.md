@@ -9,10 +9,12 @@ This wraps one of them: a game name and level in, `reset(seed=)`, an
 offscreen `render()`, and the display left alone.
 
 ```bash
-git clone -b dbp https://github.com/tomov/language_and_experience.git ../language_and_experience
 pip install -e .            # from this directory
-export VGDL_REPO=../language_and_experience
 ```
+
+The games come from a checkout of the fork: fmri-gym's `external/vgdl` by
+default (at the commit its README pins), or any
+`git clone -b dbp https://github.com/tomov/language_and_experience.git` passed as `repo=`.
 
 ```python
 import vgdl_gym

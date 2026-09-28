@@ -15,6 +15,7 @@ fmri_gym/adapters/base.py        CORE  EnvAdapter + FrameState: the seam
 fmri_gym/adapters/keymap.py      CORE  the phase's keys, one Keymap per action space
 fmri_gym/adapters/<BACKEND>.py   YOU   one small wrapper per game engine
 configs/dbp_games/<GAME>.json    YOU   one curriculum per game
+external/<BACKEND>/              (gitignored) a game's own repo, cloned at the commit the README pins
 ```
 
 The core is engine-agnostic: `run.py` never imports a game engine, never touches
@@ -38,9 +39,9 @@ adapter should do only these things:
   under `vendor/` puts the contract in front of it (`vendor/baba/`, `vendor/crafter/`,
   `vendor/vgdl/`, `vendor/coom/`, `vendor/baba_auto/`), and that is where any new one goes; the adapter never
   normalizes `reset`/`step` itself. Two rules for that env:
-  - **Only the wrapper lives here.** The game's own code is a pip package or a checkout the
-    user clones (`COOM_REPO`, `VGDL_REPO`, `BABA_IS_AUTO_REPO`; the README gives the
-    `git clone`), never copied or submoduled into this repo.
+  - **Only the wrapper lives here.** The game's own code is a pip package, or a checkout in
+    `external/<backend>` at the commit the README pins ("External checkouts"). The env
+    reads that path by default and takes `repo=` for another; the pin is the README's.
   - **It is a plain RL env.** It follows the Gymnasium API and knows nothing about fMRI,
     scanners, phases, blocks, subjects or how it will be used; someone training an agent on it
     should find nothing odd. That vocabulary belongs to the adapter and the core.
@@ -91,6 +92,12 @@ please try to solve the problem in your adapter. If you cannot:
 - **Comments explain the trap, not the code.** The good ones here record a fact you cannot
   see from the source: why MiniHack needs an explicit `seed(core=, disp=)`, why classic
   control tears down the shared pygame window.
+- **Describe the present, not the path to it.** Comments, docstrings, READMEs and config
+  `_note`s state how things are, never what they replaced or what was considered: no
+  "no longer", "instead of the old X", "there is no env var", "not submoduled". A reader
+  who never saw the earlier iterations should not have to. The reasoning behind a change
+  goes in the commit message; a rejected alternative is mentioned only when a reader
+  would otherwise try it (a documented trap), and then as a fact, not a story.
 - `from __future__ import annotations`, type hints on signatures, `_private` for helpers,
   lines under ~100 chars. Otherwise, code should be self-explanatory.
 - **Import heavy/optional deps lazily**, inside `_make` or inside `get_adapter`, so that

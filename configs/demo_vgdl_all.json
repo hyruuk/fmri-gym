@@ -1,6 +1,6 @@
 {
-  "_demo": "All VGDL games, 15s each. Needs VGDL_REPO + PYTHONPATH (see README).",
-  "_note": "Run in fmri-gym with VGDL_REPO and PYTHONPATH set to the language_and_experience checkout.",
+  "_demo": "All VGDL games, 15s each. Needs the fork cloned into external/vgdl at the pinned commit (README 'External checkouts').",
+  "_note": "Run in fmri-gym with the language_and_experience fork cloned into external/vgdl at the pinned commit (README 'External checkouts').",
   "curriculum": [
     {"type": "message", "text": "aliens", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},

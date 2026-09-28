@@ -1,4 +1,4 @@
-"""Baba Is You (nacloos/baba-is-ai) as a Gymnasium env.
+"""Baba Is AI (nacloos/baba-is-ai; puzzles in the style of Baba Is You) as a Gymnasium env.
 
 ``baba`` is written against the old ``gym`` API: ``reset`` returns the
 observation alone, ``step`` returns ``(obs, reward, done, info)`` and
@@ -22,7 +22,7 @@ from gymnasium import spaces
 
 
 class BabaEnv(gym.Env):
-    """One Baba Is You puzzle.
+    """One Baba Is AI puzzle.
 
     :param game: a ``baba`` env id -- ``env/make_win``, ``env/goto_win``,
         ``env/you_win``, ``env/two_room-make_win``, and the distractor

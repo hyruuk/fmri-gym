@@ -1,4 +1,4 @@
-"""Baba Is You adapter on the baba-is-auto C++ engine, via ``baba-auto-gym``.
+"""Baba Is Auto adapter -- Baba Is You's levels on the baba-is-auto C++ engine, via ``baba-auto-gym``.
 
 utilForever/baba-is-auto simulates the real game's ruleset -- pushes, word
 tiles parsed into rules each turn, SINK / HOT-MELT / DEFEAT / OPEN-SHUT,
@@ -7,8 +7,8 @@ transformations, MOVE -- on the original levels' text maps, where ``baba``
 puzzles. ``baba_auto_gym`` (``vendor/baba_auto/``) is the Gymnasium env over
 its ``pyBaba`` module, drawing with the engine's own GUI sprites (24 px tiles;
 the display scales the frame up). The engine is built from, and the maps and
-sprites read from, a baba-is-auto checkout: the phase's ``repo``,
-``--baba-is-auto-repo`` or ``BABA_IS_AUTO_REPO``.
+sprites read from, the baba-is-auto checkout at ``external/baba_auto`` (README
+"External checkouts"), or the phase's ``repo``.
 
 A phase's ``keys`` index ``Discrete(5)``: 0 = wait, 1 = up, 2 = down,
 3 = left, 4 = right. The phase's ``game`` is a map name under the checkout's

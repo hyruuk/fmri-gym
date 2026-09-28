@@ -1,4 +1,4 @@
-"""Baba Is You as a Gymnasium environment.
+"""Baba Is AI as a Gymnasium environment.
 
 ``gym.make("Baba-v0", game="env/make_win")`` or :class:`BabaEnv` directly.
 See :mod:`baba_gym.env`.

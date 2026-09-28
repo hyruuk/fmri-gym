@@ -113,19 +113,13 @@ def fold_cli_options(curriculum: list[dict], args: Any) -> None:
     spec, and the manifest's curriculum shows what was actually played.
 
     :param curriculum: the run's phases, changed in place.
-    :param args: ``fmri_play``'s parsed flags (``no_audio``, the repo paths).
+    :param args: ``fmri_play``'s parsed flags (``no_audio``).
     """
     for phase in curriculum:
         if phase.get("type") != "game":
             continue
         if args.no_audio:
             phase["audio"] = False
-        if phase.get("backend") == "vgdl" and args.vgdl_repo:
-            phase.setdefault("repo", args.vgdl_repo)
-        if phase.get("backend") == "coom" and args.coom_repo:
-            phase.setdefault("repo", args.coom_repo)
-        if phase.get("backend") == "baba_auto" and args.baba_is_auto_repo:
-            phase.setdefault("repo", args.baba_is_auto_repo)
 
 
 def validate_config(config: dict) -> list[str]:

@@ -1,6 +1,6 @@
 # baba-gym
 
-[Baba Is You](https://github.com/nacloos/baba-is-ai) (`baba`) as a Gymnasium
+[Baba Is AI](https://github.com/nacloos/baba-is-ai) (`baba`; generated puzzles in the style of Baba Is You) as a Gymnasium
 env. `baba` speaks the old `gym` API -- `reset` returns the observation alone,
 `step` a 4-tuple, `render` takes a mode -- so this holds one `baba` env and
 presents the Gymnasium contract in front of it. The game is untouched.

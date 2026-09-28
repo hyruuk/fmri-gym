@@ -12,7 +12,7 @@ never touches ``pygame.display``.
 Games live at ``<repo>/games/<game>_v0/<game>.txt`` and ``<game>_lvl<level>.txt``
 (``aliens``, ``beesAndBirds``, ``avoidGeorge``, ``jaws``, ``missile_command``,
 ``plaqueAttack``, ``portals``, ``preconditions``, ``pushBoulders``,
-``relational``); ``repo`` defaults to ``$VGDL_REPO`` and is put on ``sys.path``
+``relational``); ``repo`` defaults to fmri-gym's ``external/vgdl`` and is put on ``sys.path``
 (the fork's package is ``src.vgdl``). The observation is the fork's "objects"
 observation; ``info`` carries the symbolic per-cell ``state``, the collision
 ``events_triggered``, ``won`` and ``lose``. Actions are the fork's fixed order:
@@ -22,13 +22,17 @@ observation; ``info`` carries the symbolic per-cell ``state``, the collision
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from typing import Any, ClassVar
 
 import gymnasium as gym
 import numpy as np
+
+#: fmri-gym's ``external/vgdl``; this file is ``vendor/vgdl/vgdl_gym/env.py``.
+_DEFAULT_REPO = Path(__file__).resolve().parents[3] / "external" / "vgdl"
+_CLONE = ("git clone -b dbp https://github.com/tomov/language_and_experience.git external/vgdl "
+          "&& git -C external/vgdl checkout <commit>  (the README pins the commit)")
 
 
 class VGDLEnv(gym.Wrapper):
@@ -38,19 +42,19 @@ class VGDLEnv(gym.Wrapper):
     :param game: game name, the ``<game>_v0`` directory under ``games/``.
     :param level: level index, ``<game>_lvl<level>.txt``.
     :param repo: the language_and_experience checkout. Defaults to
-        ``$VGDL_REPO``.
+        ``external/vgdl`` under the fmri-gym root.
     :param block_size: pixels per grid cell in the rendered frame.
-    :raises RuntimeError: no checkout path.
+    :raises RuntimeError: no checkout at the resolved path.
     """
 
     metadata: ClassVar[dict[str, Any]] = {"render_modes": ["rgb_array"], "render_fps": 25}
 
     def __init__(self, game: str, *, level: int = 0, repo: str | None = None,
                  block_size: int = 25) -> None:
-        repo = repo or os.environ.get("VGDL_REPO")
-        if not repo:
-            raise RuntimeError(
-                "VGDL env needs the language_and_experience checkout; pass repo= or set VGDL_REPO")
+        repo = repo or str(_DEFAULT_REPO)
+        if not (Path(repo) / "games").is_dir():
+            raise RuntimeError(f"no language_and_experience checkout at {repo}; {_CLONE}, "
+                               "or pass repo=")
         if repo not in sys.path:
             sys.path.insert(0, repo)
         from src.vgdl.interfaces.gym.env import VGDLEnv as ForkEnv

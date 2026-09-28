@@ -1,4 +1,4 @@
-"""Baba Is You adapter -- the DBP "language" pick, via ``baba-gym``.
+"""Baba Is AI adapter -- the DBP "language" pick (Baba Is You-style puzzles), via ``baba-gym``.
 
 A Baba-Is-You-style puzzle where you push word blocks to rewrite the rules.
 ``baba_gym`` (``vendor/baba/``) is the Gymnasium env: nacloos/baba-is-ai speaks

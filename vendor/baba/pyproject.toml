@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "baba-gym"
 version = "0.1.0"
-description = "Baba Is You (baba-is-ai) as a Gymnasium env."
+description = "Baba Is AI (nacloos/baba-is-ai, Baba Is You-style puzzles) as a Gymnasium env."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

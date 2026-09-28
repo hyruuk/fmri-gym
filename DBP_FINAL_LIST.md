@@ -14,7 +14,7 @@ have no Gymnasium interface; Overcooked's env is not a Gymnasium env.)
 | Building/open-world | **Crafter** | `crafter` (crafter-gym, `vendor/crafter/`, over crafter's old-gym env) | `dbp_games/crafter__crafter.json` | ✅ |
 | Building/open-world | **Craftium** | `gym` + `import_module` (Luanti voxel) | `dbp_games/craftium__choptree.json` | ✅ |
 | Puzzle | **Rush Hour** | `rushhour` (Go engine + colored board) | `dbp_games/rushhour__easy.json` | ✅ |
-| Language | **Baba Is You** | `baba` (baba-gym, `vendor/baba/`, over baba-is-ai's old-gym env) | `dbp_games/baba__make_win.json` | ✅ |
+| Language | **Baba Is AI** (Baba Is You-style puzzles) | `baba` (baba-gym, `vendor/baba/`, over baba-is-ai's old-gym env) | `dbp_games/baba__make_win.json` | ✅ |
 | Adventure | **MiniHack** | `minihack` | `dbp_games/minihack__room5x5.json` | ✅ |
 | Sports/racing | **SuperTuxKart** | `stk_gym` (stk-code fork's gym server, 3D) | `dbp_games/stk_gym__race.json` | ✅ |
 | Interactive fiction | Zork* | — (no Gymnasium) | — | ⏭️ skipped |
@@ -32,7 +32,7 @@ Each was verified to render a real frame (PNG spot-checks for the SuperTuxKart
    scenarios — so we use it for the DBP slot above. COOM's own continual-learning
    scenarios (pitfall, chainsaw, hide_and_seek, ...) are now also reachable
    without a separate env: the `coom` backend drives `vizdoom.DoomGame` directly
-   against COOM's `conf.cfg`/`.wad` files from a `COOM_REPO` checkout, never
+   against COOM's `conf.cfg`/`.wad` files from the pinned `external/coom` checkout, never
    importing the COOM package itself (see `dbp_games/coom__pitfall.json`, etc.).
 
 2. **SuperTuxKart needs a real GL display.** The frame *is* the game's own

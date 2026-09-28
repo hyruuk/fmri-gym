@@ -42,8 +42,8 @@ Any `ALE/*` env id. Keymap auto-derived from action meanings. Per-frame
 
 ### ✅ vgdl (vgdl)
 Runs from the gymnasium-ported fork
-<https://github.com/tomov/language_and_experience/tree/dbp>. Set `VGDL_REPO` +
-`PYTHONPATH` to the checkout. Per-frame `get_state`/`set_state` savestate;
+<https://github.com/tomov/language_and_experience/tree/dbp>, cloned into
+`external/vgdl` at the README's pinned commit. Per-frame `get_state`/`set_state` savestate;
 symbolic object grid + collision events logged. Games: aliens, beesAndBirds,
 avoidGeorge, jaws, missile_command, plaqueAttack, portals, preconditions,
 pushBoulders, relational.
@@ -108,7 +108,7 @@ that program's whole self-paced session.
 `TTomilin/COOM` pins `gymnasium==0.28.1` (conflicts with minihack's `1.2`), so
 the `coom` adapter never imports the COOM package — it drives
 `vizdoom.DoomGame` directly against COOM's own `conf.cfg`/`.wad` scenario
-files from a `COOM_REPO` checkout (env var / `--coom-repo`, like `vgdl`).
+files from the `external/coom` checkout at the README's pinned commit (like `vgdl`).
 Reaches all 9 of COOM's own scenarios (pitfall, chainsaw, hide_and_seek,
 health_gathering, arms_dealer, parkour, raise_the_roof, run_and_gun,
 floor_is_lava), distinct from `vizdoom`'s stock ones. Keymap auto-derived

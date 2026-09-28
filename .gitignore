@@ -7,12 +7,19 @@ __pycache__/
 .venv/
 .ruff_cache/
 
+# gen AI
+.cursor
+.vscode
+
 # Stray logs written by backends / drivers into the working directory
 *.log
 _vizdoom.ini
 
 # Rush Hour: build-from-source Go engine (clone+build locally; see rushhour config _note)
 vendor/rush-hour-src/
+
+# The vgdl / coom / baba_auto game repos, cloned at the commits the README pins ("External checkouts")
+/external/
 
 # Build metadata from pip install -e . / uv sync
 *.egg-info/

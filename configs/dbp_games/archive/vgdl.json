@@ -23,7 +23,7 @@
       "fps": 15,
       "_source": "https://github.com/tomov/language_and_experience/tree/dbp",
       "_status": "verified",
-      "_note": "Set VGDL_REPO + PYTHONPATH to the fork checkout. Games: aliens, beesAndBirds, avoidGeorge, jaws, missile_command, plaqueAttack, portals, preconditions, pushBoulders, relational."
+      "_note": "Clone the fork into external/vgdl at the pinned commit (README 'External checkouts'). Games: aliens, beesAndBirds, avoidGeorge, jaws, missile_command, plaqueAttack, portals, preconditions, pushBoulders, relational."
     },
     {
       "type": "fixation",

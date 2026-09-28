@@ -22,7 +22,6 @@ and README.md for the config schema.
 from __future__ import annotations
 
 import argparse
-import os
 import signal
 import sys
 
@@ -68,12 +67,6 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--dummy-trigger", action="store_true")
     p.add_argument("--no-audio", action="store_true", help="mute game audio in every block (the curriculum saved "
                    "in the manifest shows \"audio\": false)")
-    p.add_argument("--vgdl-repo", default=os.environ.get("VGDL_REPO"),
-                   help="path to the language_and_experience checkout (vgdl backend)")
-    p.add_argument("--coom-repo", default=os.environ.get("COOM_REPO"),
-                   help="path to the TTomilin/COOM checkout (coom backend)")
-    p.add_argument("--baba-is-auto-repo", default=os.environ.get("BABA_IS_AUTO_REPO"),
-                   help="path to the utilForever/baba-is-auto checkout (baba_auto backend)")
     return p
 
 

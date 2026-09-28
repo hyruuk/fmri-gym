@@ -1,7 +1,7 @@
 """VGDL games as standard Gymnasium environments.
 
 ``gym.make("VGDL-v0", game="aliens", level=0)`` or :class:`VGDLEnv` directly.
-Needs a language_and_experience checkout (``repo=`` or ``VGDL_REPO``). See
+Needs a language_and_experience checkout (fmri-gym's ``external/vgdl``, or ``repo=``). See
 :mod:`vgdl_gym.env`.
 """
 

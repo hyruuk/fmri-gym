@@ -1,6 +1,6 @@
-"""Baba Is You (utilForever/baba-is-auto) as a Gymnasium env.
+"""Baba Is Auto (utilForever/baba-is-auto) as a Gymnasium env.
 
-baba-is-auto is a C++17 Baba Is You simulator: it loads a text map, parses
+baba-is-auto is a C++17 simulator of Baba Is You: it loads a text map, parses
 the rules the word tiles spell out, and applies pushes, transformations, SINK,
 HOT/MELT, DEFEAT, OPEN/SHUT and the rest of the ruleset (its ARCHITECTURE.md
 is the contract). Its ``pyBaba`` module exposes ``Game`` alone: no gym env
@@ -8,7 +8,7 @@ is the contract). Its ``pyBaba`` module exposes ``Game`` alone: no gym env
 open a window to render). This env holds one ``pyBaba.Game`` and presents the
 Gymnasium contract in front of it; the rules stay in the simulator. The
 maps and sprites are read from a utilForever/baba-is-auto checkout, ``repo=``
-or ``BABA_IS_AUTO_REPO`` (the one ``pyBaba`` was built from).
+or fmri-gym's ``external/baba_auto`` (the one ``pyBaba`` was built from).
 
 The picture is the one baba-is-auto's own GUI draws (``Extensions/BabaGUI``):
 its 24x24 sprites, one tile per cell, KEKE turned to face where it walks, on
@@ -27,7 +27,6 @@ from its seed and actions.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -47,13 +46,21 @@ _ROTATION = {pyBaba.Direction.NONE: 0, pyBaba.Direction.RIGHT: 0, pyBaba.Directi
 _REWARD = {pyBaba.PlayState.WON: 200.0, pyBaba.PlayState.LOST: -100.0}
 
 
+#: fmri-gym's ``external/baba_auto``; this file is ``vendor/baba_auto/baba_auto_gym/env.py``.
+_DEFAULT_REPO = Path(__file__).resolve().parents[3] / "external" / "baba_auto"
+_CLONE = ("git clone https://github.com/utilForever/baba-is-auto.git external/baba_auto && "
+          "git -C external/baba_auto checkout <commit>  (the README pins the commit)")
+
+
 def _repo(repo: str | None) -> Path:
-    """The baba-is-auto checkout: ``repo`` or ``BABA_IS_AUTO_REPO``."""
-    repo = repo or os.environ.get("BABA_IS_AUTO_REPO")
-    if not repo:
-        raise RuntimeError("baba_auto_gym needs a utilForever/baba-is-auto checkout: pass repo= "
-                           "or set BABA_IS_AUTO_REPO")
-    return Path(repo)
+    """The baba-is-auto checkout: ``repo``, or fmri-gym's ``external/baba_auto``.
+
+    :raises RuntimeError: nothing at the resolved path.
+    """
+    path = Path(repo or _DEFAULT_REPO)
+    if not (path / "Resources" / "Maps").is_dir():
+        raise RuntimeError(f"no baba-is-auto checkout at {path}; {_CLONE}, or pass repo=")
+    return path
 
 
 def map_path(game: str, repo: str | None = None) -> Path:
@@ -61,7 +68,7 @@ def map_path(game: str, repo: str | None = None) -> Path:
 
     :param game: a map name under the checkout's ``Resources/Maps``
         (``baba_is_you``, ``out_of_reach``, ...) or the path of a map file.
-    :param repo: the baba-is-auto checkout; default ``BABA_IS_AUTO_REPO``.
+    :param repo: the baba-is-auto checkout; default fmri-gym's ``external/baba_auto``.
     :raises FileNotFoundError: no such map.
     """
     if Path(game).is_file():
@@ -86,11 +93,11 @@ def _load_sprites(sprites_dir: Path) -> dict[Any, Any]:
 
 
 class BabaAutoEnv(gym.Env):
-    """One Baba Is You map.
+    """One Baba Is Auto map (a Baba Is You level).
 
     :param game: a map name under the checkout's ``Resources/Maps``, or a
         path to a map file.
-    :param repo: the baba-is-auto checkout; default ``BABA_IS_AUTO_REPO``.
+    :param repo: the baba-is-auto checkout; default fmri-gym's ``external/baba_auto``.
     :raises ValueError: the map has an object the GUI has no sprite for.
     """
 

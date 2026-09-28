@@ -31,10 +31,11 @@ retro = ["stable-retro"]
 # the extra installs, and which pulls the game itself in.
 crafter = ["crafter-gym"]
 baba = ["baba-gym"]
-# Baba Is You on the baba-is-auto C++ engine, compiled at install time from a
-# BABA_IS_AUTO_REPO checkout (needs a C++17 compiler and python3-dev).
+# Baba Is Auto: Baba Is You's levels on the baba-is-auto C++ engine, compiled at install time from the
+# external/baba_auto checkout (README "External checkouts"; needs a C++17
+# compiler and python3-dev).
 baba_auto = ["baba-auto-gym"]
-vgdl = ["vgdl-gym"]  # the games come from a language_and_experience checkout (VGDL_REPO)
+vgdl = ["vgdl-gym"]  # the games come from the external/vgdl checkout (language_and_experience)
 # nle>=1.3 is what ships wheels for current Pythons; without the floor a
 # resolver may prefer gymnasium 1.3 and fall back to nle 0.9.1 (source build).
 minihack = ["minihack", "nle>=1.3"]
@@ -42,8 +43,8 @@ nethack = ["nle>=1.3"]
 # The ten browser games as a gym env, from vendor/aigamestore (see tool.uv.sources).
 aigamestore = ["aigamestore-gym"]
 vizdoom = ["vizdoom"]
-# COOM scenarios as a gym env, from vendor/coom (see tool.uv.sources). Needs a
-# COOM_REPO checkout too; the COOM package itself is not installed.
+# COOM scenarios as a gym env, from vendor/coom (see tool.uv.sources). Needs the
+# external/coom checkout too; the COOM package itself is not installed.
 coom = ["coom-gym"]
 rushhour = ["rushhour-gym>=0.6.0"]
 # SuperTuxKart is the chrplr/stk-code fork's client. The wheel is pure Python; it fetches the

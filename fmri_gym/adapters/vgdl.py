@@ -5,8 +5,8 @@ of tomov/language_and_experience's ``dbp`` branch (the fork ported from old
 gym to gymnasium, so it runs in this same numpy-2 env) and gives it the
 standard contract -- a game name and level in, ``reset(seed=)``, an offscreen
 ``render()`` that leaves the fMRI window alone, and ``get_state``/``set_state``
-for an exact savestate. The checkout is found through the phase's ``repo`` or
-``VGDL_REPO`` and must be importable (``PYTHONPATH``).
+for an exact savestate. The checkout is ``external/vgdl`` (README "External
+checkouts"), or the phase's ``repo``; the env puts it on ``sys.path`` itself.
 
 A phase's ``keys`` index the fork's fixed action order: 0 = UP, 1 = DOWN,
 2 = LEFT, 3 = RIGHT, 4 = NO_OP, 5 = SPACE; the no-key entry is ``"": 4``.

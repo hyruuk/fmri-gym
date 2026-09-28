@@ -23,7 +23,6 @@ live ``DoomGame`` (``env.game``).
 from __future__ import annotations
 
 import ctypes
-import os
 import sys
 from pathlib import Path
 from typing import Any, ClassVar
@@ -42,6 +41,11 @@ def _actions() -> list[list[bool]]:
 
 
 _ACTIONS = _actions()
+
+#: fmri-gym's ``external/coom``; this file is ``vendor/coom/coom_gym/env.py``.
+_DEFAULT_REPO = Path(__file__).resolve().parents[3] / "external" / "coom"
+_CLONE = ("git clone https://github.com/TTomilin/COOM.git external/coom && "
+          "git -C external/coom checkout <commit>  (the README pins the commit)")
 
 
 def _configure_audio(game: Any, *, enabled: bool, efx: bool) -> None:
@@ -79,15 +83,15 @@ class COOMEnv(gym.Env):
 
     :param scenario: directory name under ``COOM/env/scenarios`` (``pitfall``,
         ``chainsaw``, ...).
-    :param repo: the TTomilin/COOM checkout. Defaults to the ``COOM_REPO`` env
-        var.
+    :param repo: the TTomilin/COOM checkout. Defaults to ``external/coom``
+        under the fmri-gym root.
     :param task: WAD variant inside the scenario (default ``default``; some
         scenarios ship ``hard``, ``blue``, ``red``, ...).
     :param seed: seed applied before the game is initialised.
     :param audio_buffer_enabled: record one PCM buffer per tic.
     :param audio_efx: Doom's reverb on that buffer.
-    :raises RuntimeError: no checkout path, or the scenario does not have
-        COOM's 4-button layout.
+    :raises RuntimeError: no such scenario at the checkout, or the scenario does
+        not have COOM's 4-button layout.
     """
 
     metadata: ClassVar[dict[str, Any]] = {"render_modes": ["rgb_array"], "render_fps": 35}
@@ -104,11 +108,10 @@ class COOMEnv(gym.Env):
     ) -> None:
         import vizdoom as vzd
 
-        repo = repo or os.environ.get("COOM_REPO")
-        if not repo:
-            raise RuntimeError(
-                "COOM env needs the TTomilin/COOM repo path; pass repo= or set COOM_REPO")
-        scenario_dir = Path(repo) / "COOM" / "env" / "scenarios" / scenario
+        scenario_dir = Path(repo or _DEFAULT_REPO) / "COOM" / "env" / "scenarios" / scenario
+        if not scenario_dir.is_dir():
+            raise RuntimeError(f"no COOM scenario {scenario!r} at {scenario_dir}; {_CLONE}, "
+                               "or pass repo=")
         game = vzd.DoomGame()
         game.load_config(str(scenario_dir / "conf.cfg"))
         game.set_doom_scenario_path(str(scenario_dir / f"{task}.wad"))

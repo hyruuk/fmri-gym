@@ -54,12 +54,24 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY fmri_gym ./ /src
+# external/: the vgdl / coom / baba_auto game repos at the commits the README pins.
+# Cloned in the builder (which has git) and carried into the runtime image with /src.
+RUN cd /src \
+    && git clone -q -b dbp https://github.com/tomov/language_and_experience.git external/vgdl \
+    && git -C external/vgdl checkout -q d70c3248c504992068c8fb318238f1c3fbe956bf \
+    && git clone -q https://github.com/TTomilin/COOM.git external/coom \
+    && git -C external/coom checkout -q 7929801176c6e2e036c7c1c7dd6ce9b84a9d1f3e \
+    && git clone -q https://github.com/utilForever/baba-is-auto.git external/baba_auto \
+    && git -C external/baba_auto checkout -q 24cefb48d47ae6a6f5c0d936310d8bceb9c4279d
 RUN virtualenv /venv \
     && . /venv/bin/activate \
     && cd /src \
 ## nle/nethack compile crash in modern gcc
     && CC=/usr/bin/gcc-12 pip install --no-cache-dir -e .[nethack]  \
-    && pip install --no-cache-dir -e .[dbp] \
+## the vendor/ wrappers by path first (pip has no [tool.uv.sources]); baba_auto compiles pyBaba (~30 s)
+    && pip install --no-cache-dir -e vendor/aigamestore -e vendor/coom -e vendor/crafter \
+                                  -e vendor/baba -e vendor/vgdl -e vendor/baba_auto \
+    && pip install --no-cache-dir -e .[dbp,vgdl,baba_auto] \
 ## some of the deps above overwrite pygame-ce, not solved by pyproject.toml need to be reinstalled.
     && pip uninstall -y pygame \
     && pip install --no-cache-dir --force pygame-ce

@@ -12,15 +12,15 @@ through small pluggable **adapters**:
 | `ale`         | Atari 2600 (`ALE/Pong-v5`, …) | ALE / Stella |
 | `retro`       | NES / SNES / Genesis / GB / … (`Airstriker-Genesis-v0`, …) | stable-retro / libretro |
 | `gym`         | **any** Gymnasium env (`CartPole-v1`, MuJoCo, Box2D, toy_text, …); old-`gym` envs via shimmy | various |
-| `vgdl`        | VGDL games (`aliens`, `beesAndBirds`, …), from a `VGDL_REPO` checkout | vgdl-gym (`vendor/vgdl/`) over the language_and_experience fork |
+| `vgdl`        | VGDL games (`aliens`, `beesAndBirds`, …), from a pinned checkout in `external/vgdl` | vgdl-gym (`vendor/vgdl/`) over the language_and_experience fork |
 | `crafter`     | Crafter (open-world survival) | crafter-gym (`vendor/crafter/`) over crafter |
 | `minihack`    | MiniHack tasks (pixel obs) | minihack / NLE |
 | `nethack`     | NetHack (`NetHack*-v0`; TTY rendered to pixels) | nle |
 | `aigamestore` | AI GameStore browser games (`game1`…`game10`), lock-stepped | aigamestore-gym (`vendor/aigamestore/`) |
 | `vizdoom`     | Doom action-shooter scenarios (COOM's engine) | ViZDoom |
-| `coom`        | COOM's own continual-RL scenarios (`pitfall`, `chainsaw`, …), from a `COOM_REPO` checkout (COOM package itself not installed -- conflicting `gymnasium` pin) | coom-gym (`vendor/coom/`) |
-| `baba`        | Baba Is You (rule-manipulation puzzle) | baba-gym (`vendor/baba/`) over baba-is-ai |
-| `baba_auto`   | Baba Is You on the original levels' maps (`baba_is_you`, `out_of_reach`, …), the full ruleset; a C++ engine compiled from a `BABA_IS_AUTO_REPO` checkout | baba-auto-gym (`vendor/baba_auto/`) over utilForever/baba-is-auto |
+| `coom`        | COOM's own continual-RL scenarios (`pitfall`, `chainsaw`, …), from a pinned checkout in `external/coom` (COOM package itself not installed -- conflicting `gymnasium` pin) | coom-gym (`vendor/coom/`) |
+| `baba`        | Baba Is AI: small generated rule-manipulation puzzles in the style of Baba Is You | baba-gym (`vendor/baba/`) over baba-is-ai |
+| `baba_auto`   | Baba Is Auto: Baba Is You's original levels (`baba_is_you`, `out_of_reach`, …) under the full ruleset; a C++ engine compiled from a pinned checkout in `external/baba_auto` | baba-auto-gym (`vendor/baba_auto/`) over utilForever/baba-is-auto |
 | `rushhour`    | Rush Hour sliding-block puzzle | `rushhour-gym` (PyPI; fetches its Go engine) |
 | `stk_gym`     | SuperTuxKart 3D racing: frames from the game's gym server, keys to its player controller (needs a real GL display) | [chrplr/stk-code](https://github.com/chrplr/stk-code) fork |
 
@@ -75,15 +75,13 @@ uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/demo_text
 uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/demo_box2d.json --ses 1 --run 1     # LunarLander, BipedalWalker, CarRacing  (`box2d` extra)
 MUJOCO_GL=egl uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/demo_mujoco.json --ses 1 --run 1   # 10 MuJoCo tasks  (`mujoco` extra)
 uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/demo_aigamestore.json --ses 1 --run 1  # 10 AI GameStore p5.js games (`aigamestore` extra; see below)
-VGDL_REPO=../language_and_experience PYTHONPATH=../language_and_experience \
-  uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/demo_vgdl_all.json --ses 1 --run 1   # all 10 VGDL games (see below)
+uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/demo_vgdl_all.json --ses 1 --run 1   # all 10 VGDL games (`vgdl` extra + external/vgdl; see below)
 
 # demo_mixed spans EVERY backend in one session (Pong/ale, Airstriker/retro,
 # Crafter, MiniHack, Aliens/vgdl, MountainCar/classic, FrozenLake/toy_text,
-# CarRacing/box2d, WaterSort/aigamestore) -- needs the VGDL repo + box2d-py +
+# CarRacing/box2d, WaterSort/aigamestore) -- needs the VGDL checkout + box2d-py +
 # crafter + minihack + playwright:
-VGDL_REPO=../language_and_experience PYTHONPATH=../language_and_experience \
-  uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/demo_mixed.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/demo_mixed.json --ses 1 --run 1
 
 # Play ONE game on its own, for a long stretch (see configs/dbp_games/):
 uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/dbp_games/atari__pong.json --ses 1 --run 1
@@ -216,6 +214,30 @@ need ROMs for exactly this reason: the `retro` backend itself is verified
 (with Airstriker), but those titles won't run until you import their ROMs and
 confirm the integration name.
 
+## External checkouts (`external/`)
+
+Three backends read their game files from a checkout of the game's own repo:
+`vgdl` (game, level and sprite files), `coom` (`conf.cfg`/`.wad` scenarios) and
+`baba_auto` (the C++ sources of `pyBaba`, plus maps and sprites). The checkout
+lives at `external/<backend>` (gitignored), at a pinned commit, so every
+session plays the same tree. Clone the ones you play:
+
+| backend | clone into `external/<backend>` at | commit |
+|---|---|---|
+| `vgdl` | [tomov/language_and_experience](https://github.com/tomov/language_and_experience) `dbp` | `d70c3248c504992068c8fb318238f1c3fbe956bf` |
+| `coom` | [TTomilin/COOM](https://github.com/TTomilin/COOM) | `7929801176c6e2e036c7c1c7dd6ce9b84a9d1f3e` |
+| `baba_auto` | [utilForever/baba-is-auto](https://github.com/utilForever/baba-is-auto) | `24cefb48d47ae6a6f5c0d936310d8bceb9c4279d` |
+
+```bash
+git clone https://github.com/TTomilin/COOM.git external/coom
+git -C external/coom checkout 7929801176c6e2e036c7c1c7dd6ce9b84a9d1f3e
+```
+
+The env reads `external/<backend>` by default; a phase's `"repo"` field names
+another checkout for that block. To bump a pin, edit this table and check the
+new commit out (for `baba_auto`, also `uv sync --reinstall-package baba-auto-gym`:
+the compiled engine is tied to the checkout it was built from).
+
 ## Running VGDL games
 
 The `vgdl` backend drives the VGDL games from a gymnasium-ported fork:
@@ -223,32 +245,28 @@ The `vgdl` backend drives the VGDL games from a gymnasium-ported fork:
 Because it runs under gymnasium + numpy 2, no separate env is needed — the
 same `fmri-gym` env works.
 
-1. Clone the fork (the `dbp` branch has the gymnasium port) **as an adjacent
-   repo** — the commands below assume it sits next to `fmri-gym`:
+1. Clone the fork at its pinned commit (the `dbp` branch has the gymnasium port;
+   see [External checkouts](#external-checkouts-external)):
 
    ```bash
-   git clone -b dbp https://github.com/tomov/language_and_experience.git ../language_and_experience
+   git clone -b dbp https://github.com/tomov/language_and_experience.git external/vgdl
+   git -C external/vgdl checkout d70c3248c504992068c8fb318238f1c3fbe956bf
    ```
 
 2. Install the `vgdl` extra -- **`vgdl-gym`** (`vendor/vgdl/`), the standard
    Gymnasium env over the fork's `VGDLEnv` (a game name and level in,
-   `reset(seed=)`, an offscreen `render()`) -- then point the framework at the
-   checkout, add it to `PYTHONPATH` (so `src.vgdl...` is importable), and run
-   a VGDL curriculum:
+   `reset(seed=)`, an offscreen `render()`; it puts the checkout on `sys.path`)
+   -- and run a VGDL curriculum:
 
    ```bash
    uv sync --extra vgdl               # or: pip install -e vendor/vgdl
-   VGDL_REPO=../language_and_experience \
-   PYTHONPATH=../language_and_experience \
-     uv run fmri-play --subject sub-01 --curriculum configs/demo_vgdl_all.json --ses 1 --run 1
+   uv run fmri-play --subject sub-01 --curriculum configs/demo_vgdl_all.json --ses 1 --run 1
    ```
 
-   `VGDL_REPO` locates the game/level/sprite files; a phase can also override it
-   per block with a `"repo"` field. Game files live at
-   `<repo>/games/<game>_v0/<game>.txt` and `<game>_lvl<level>.txt`. Available
-   games include `aliens`, `beesAndBirds`, `avoidGeorge`, `jaws`,
-   `missile_command`, `plaqueAttack`, `portals`, `preconditions`,
-   `pushBoulders`, `relational`.
+   Game files live at `<repo>/games/<game>_v0/<game>.txt` and
+   `<game>_lvl<level>.txt`. Available games include `aliens`, `beesAndBirds`,
+   `avoidGeorge`, `jaws`, `missile_command`, `plaqueAttack`, `portals`,
+   `preconditions`, `pushBoulders`, `relational`.
 
 VGDL blocks log a symbolic per-cell object grid (`symbolic_state`) and collision
 `events` as analysis variables, plus a per-frame exact savestate (get/set_state)
@@ -266,17 +284,18 @@ COOM's own Python package pins `gymnasium==0.28.1`, which conflicts with
 minihack's `gymnasium==1.2` pin in this shared env, so **the COOM package is
 never installed or imported**. The gym env is **`coom-gym`**
 (`vendor/coom/`, the `coom` extra; also in `dbp`), which drives
-`vizdoom.DoomGame` on the scenario files of a COOM checkout:
+`vizdoom.DoomGame` on the scenario files of a COOM checkout at its pinned
+commit (see [External checkouts](#external-checkouts-external)):
 
 ```bash
-git clone https://github.com/TTomilin/COOM.git ../COOM
-export COOM_REPO=../COOM     # or --coom-repo ../COOM, or a phase's "repo" field
+git clone https://github.com/TTomilin/COOM.git external/coom
+git -C external/coom checkout 7929801176c6e2e036c7c1c7dd6ce9b84a9d1f3e
 uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/coom__pitfall.json --ses 1 --run 1
 ```
 
 The env reads `<repo>/COOM/env/scenarios/<scenario>/conf.cfg` and `<task>.wad`
 (`env_kwargs.task`, default `"default"`; `run_and_gun` also ships `blue`,
-`red`, `hard`, ...). Without a checkout path the run stops at start-up.
+`red`, `hard`, ...). Without the checkout the run stops at start-up.
 
 Every scenario always exposes exactly 4 buttons (`TURN_LEFT`, `TURN_RIGHT`,
 `MOVE_FORWARD`, plus one of `JUMP`/`ATTACK`/`SPEED`/`USE`), driven through
@@ -382,20 +401,21 @@ uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/dbp_games
 Controls, phase fields and the logged columns are documented in the configs'
 `_note`s and in the package's README ("A person at the board").
 
-## Running Baba Is You on the baba-is-auto engine (`baba_auto`)
+## Running Baba Is Auto (`baba_auto`)
 
 [utilForever/baba-is-auto](https://github.com/utilForever/baba-is-auto) is a C++
-Baba Is You simulator with the game's real ruleset and the original levels'
+simulator of Baba Is You with the game's real ruleset and the original levels'
 maps (`baba_is_you`, `out_of_reach`, `off_limits`, ...), where the `baba` backend
 plays baba-is-ai's small generated puzzles. Its Python module exposes only the
 `Game`, so the Gymnasium env is **`baba-auto-gym`** (`vendor/baba_auto/`, the
-`baba_auto` extra), one `baba_auto__<level>.json` per level the checkout ships. Installing the extra compiles the engine from a checkout of
-your own (a C++17 compiler and `python3-dev` are needed; about 30 s), and the
-env reads the maps and the GUI's sprites from the same checkout:
+`baba_auto` extra), one `baba_auto__<level>.json` per level the checkout ships. Installing the extra compiles the engine from the pinned
+checkout (see [External checkouts](#external-checkouts-external); a C++17
+compiler and `python3-dev` are needed; about 30 s), and the env reads the maps
+and the GUI's sprites from the same checkout:
 
 ```bash
-git clone https://github.com/utilForever/baba-is-auto.git ../baba-is-auto
-export BABA_IS_AUTO_REPO=../baba-is-auto   # or --baba-is-auto-repo ../baba-is-auto, or a phase's "repo" field
+git clone https://github.com/utilForever/baba-is-auto.git external/baba_auto
+git -C external/baba_auto checkout 24cefb48d47ae6a6f5c0d936310d8bceb9c4279d
 uv sync --extra dbp --extra baba_auto
 uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/baba_auto__baba_is_you.json --ses 1 --run 1
 ```
@@ -480,7 +500,7 @@ fmri_gym/
     nethack.py      # base NLE: TTY grid -> RGB; vi-key movement; blstats
     aigamestore.py  # AI GameStore via aigamestore-gym: held keys as the env's action, state_* from getGameState
     coom.py         # COOM via coom-gym: Discrete(12) actions, game variables and PCM logged
-    baba_auto.py    # Baba Is You on baba-is-auto via baba-auto-gym: Discrete(5) turns, play_state + state tensor logged
+    baba_auto.py    # Baba Is Auto (Baba Is You's levels on baba-is-auto) via baba-auto-gym: Discrete(5) turns, play_state + state tensor logged
     rushhour.py     # Go engine via rushhour-gym; select+slide UI, rushui look, Rush-Hour's log columns; one puzzle per block
     stk_gym.py      # SuperTuxKart via stk_gym: frames from the game's hidden window, held keys as the env's action
 fmri_play.py        # CLI entry point
@@ -488,9 +508,10 @@ configs/            # example curricula
 vendor/aigamestore/ # the 10 public AI GameStore games (HTML/JS) + aigamestore_gym, their lock-stepped gym env
 vendor/coom/        # coom_gym: COOM scenarios as a Gymnasium env, on a COOM checkout's WADs
 vendor/baba/        # baba_gym: the Gymnasium contract in front of baba-is-ai's old-gym env
-vendor/baba_auto/   # baba_auto_gym: a Gymnasium env over baba-is-auto's pyBaba (C++, built from a BABA_IS_AUTO_REPO checkout)
+vendor/baba_auto/   # baba_auto_gym: a Gymnasium env over baba-is-auto's pyBaba (C++, built from the baba-is-auto checkout)
 vendor/crafter/     # crafter_gym: the same for crafter.Env, with reset(seed=)
 vendor/vgdl/        # vgdl_gym: a standard env over the language_and_experience fork's VGDLEnv
+external/           # (gitignored) the vgdl / coom / baba_auto game repos, cloned at the commits pinned above
 ```
 
 The loop (`run.py`) only ever calls the adapter — never `env.unwrapped`, an
@@ -574,7 +595,7 @@ the start-up between runs):
 ```bash
 sh configs/ses_dbp_mix.sh      # one run per genre: Crafter, COOM, MiniHack, Rush Hour, Baba, ViZDoom, AI GameStore...
 sh configs/ses_dbp_doom.sh     # the nine COOM scenarios, then two ViZDoom ones
-sh configs/ses_dbp_puzzle.sh   # nine AI GameStore puzzles, Rush Hour, Baba Is You
+sh configs/ses_dbp_puzzle.sh   # nine AI GameStore puzzles, Rush Hour, Baba Is AI
 sh configs/ses_dbp_mix.sh 003  # ... into session 3: how one that stopped is resumed
 ```
 

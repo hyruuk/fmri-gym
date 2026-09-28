@@ -1,1 +1,5 @@
 Dockerfile
+# The image builds its own /venv and clones external/ at the pinned commits; data/ is sessions.
+.venv/
+external/
+data/

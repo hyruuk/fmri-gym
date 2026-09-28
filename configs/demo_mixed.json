@@ -1,5 +1,5 @@
 {
-  "_note": "Mixed backends in one session. VGDL (Aliens) needs VGDL_REPO=../language_and_experience + PYTHONPATH; Box2D (CarRacing) needs box2d-py; Crafter/MiniHack need their packages; AI GameStore (Water Sort) needs playwright + system Chrome.",
+  "_note": "Mixed backends in one session. VGDL (Aliens) needs the fork cloned into external/vgdl at the pinned commit (README 'External checkouts'); Box2D (CarRacing) needs box2d-py; Crafter/MiniHack need their packages; AI GameStore (Water Sort) needs playwright + system Chrome.",
   "curriculum": [
     {"type": "message", "text": "Pong (Atari)", "duration": 2.0},
     {"type": "fixation", "duration": 2.0},

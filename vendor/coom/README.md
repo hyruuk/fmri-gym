@@ -11,7 +11,8 @@ pip install -e .            # from this directory; also needs the COOM checkout
 
 ```python
 import coom_gym
-env = coom_gym.COOMEnv("pitfall", repo="../COOM")   # or COOM_REPO=../COOM
+env = coom_gym.COOMEnv("pitfall")                   # fmri-gym's external/coom, at the README's pinned commit
+# env = coom_gym.COOMEnv("pitfall", repo="/path/to/COOM")   # another checkout
 # env = gym.make("COOM-v0", scenario="pitfall")
 obs, info = env.reset(seed=1)
 obs, reward, terminated, truncated, info = env.step(2)   # move forward

@@ -1,7 +1,7 @@
 """COOM scenarios as a Gymnasium environment.
 
 ``gym.make("COOM-v0", scenario="pitfall")`` or :class:`COOMEnv` directly.
-Needs a TTomilin/COOM checkout (``repo=`` or ``COOM_REPO``) and does not
+Needs a TTomilin/COOM checkout (fmri-gym's ``external/coom``, or ``repo=``) and does not
 import the COOM package. See :mod:`coom_gym.env`.
 """
 

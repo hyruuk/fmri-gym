@@ -1,4 +1,4 @@
-"""Baba Is You (baba-is-auto) as a Gymnasium environment.
+"""Baba Is Auto (baba-is-auto, a Baba Is You simulator) as a Gymnasium environment.
 
 ``gym.make("BabaAuto-v0", game="baba_is_you")`` or :class:`BabaAutoEnv`
 directly. See :mod:`baba_auto_gym.env`.

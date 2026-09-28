@@ -3,8 +3,9 @@
 ``coom_gym`` (``vendor/coom/``) is the Gymnasium env. COOM's own package pins
 gymnasium 0.28, so the env never imports it: it drives ``vizdoom.DoomGame``
 against a checkout's scenario assets (``conf.cfg`` + ``<task>.wad`` under
-``<repo>/COOM/env/scenarios/<scenario>/``, from the phase ``repo`` field or
-``COOM_REPO``). This adapter builds one env per block and logs its sound and
+``<repo>/COOM/env/scenarios/<scenario>/``; the checkout is ``external/coom``,
+README "External checkouts", or the phase's ``repo`` field). This adapter
+builds one env per block and logs its sound and
 game variables.
 
 A phase's ``keys`` are the env's Discrete(12) indices (turn x move x execute;
