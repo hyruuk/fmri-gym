@@ -28,6 +28,7 @@
       "fps": 15,
       "mode": "episode",
       "n_episodes": 1,
+      "advancing_outcomes": ["won"],
       "max_duration": 900,
       "menu": {"key": "X", "hold": 1.5, "after": 0.0, "options": ["reset", "forfeit", "resume"], "move": ["UP", "DOWN"], "confirm": "SPACE"}
     }
