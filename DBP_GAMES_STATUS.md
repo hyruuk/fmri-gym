@@ -10,7 +10,7 @@ Legend: ✅ verified · 🟡 runs, display-only · ⚠️ needs assets · ❌ do
 |---|---|---|---|---|
 | Atari | `atari` | ale | ✅ verified | any `ALE/*` id; `keys` index its action meanings |
 | VGDL | `vgdl` | vgdl | ✅ verified | needs the gymnasium-ported fork checkout |
-| Crafter | `crafter` | crafter | ✅ verified | new adapter (old-gym API); obs is the frame; logs achievements |
+| Crafter | `crafter`, `crafter_menu` | crafter | ✅ verified | new adapter over `gym/crafter`; obs is the frame; logs achievements; replays only on the determinism fork |
 | MiniHack | `minihack` | minihack | ✅ verified | new adapter; pixel obs + 8-way compass; logs blstats/glyphs/message |
 | Tile Match | `tile-match-gym` | gym | 🟡 display-only | runs & logs, but `Discrete(84)` swaps → no keyboard play |
 | Tobu Tobu Girl DX | `tobutobugirldx` | retro | ⚠️ needs ROM | backend proven (Airstriker); import ROM + confirm integration name |
@@ -35,7 +35,7 @@ Any `ALE/*` env id. Keymap auto-derived from action meanings. Per-frame `clone_s
 Runs from the gymnasium-ported fork <https://github.com/tomov/language_and_experience/tree/dbp>, cloned into `external/vgdl` at the README's pinned commit. Per-frame `get_state`/`set_state` savestate; symbolic object grid + collision events logged. Games: aliens, beesAndBirds, avoidGeorge, jaws, missile_command, plaqueAttack, portals, preconditions, pushBoulders, relational.
 
 ### ✅ crafter (crafter)  — new backend
-`pip install crafter`. Uses the **old-gym API shape** (reset()→obs only, step()→4-tuple), so a dedicated `crafter` adapter normalizes it to gymnasium. The observation IS the 64×64×3 RGB frame; `Discrete(17)` actions (arrows move, SPACE=interact, S=sleep; place/make via a `keys` override). No savestate → seed+replay. Achievements logged as an analysis variable.
+`uv sync --extra crafter`, which installs `gym/crafter` and, through it, crafter itself from the determinism fork the package pins (crafter speaks the **old-gym API shape** — reset()→obs only, step()→4-tuple — so the Gymnasium contract lives in `gym/crafter`, not in the adapter). The observation IS the RGB frame (64×64 by default, 384 in the DBP config); `Discrete(17)` actions, all 17 keyed (arrows move, SPACE=interact, S=sleep, R/T/F/P place, 1–6 make). The whole env pickles, so every frame carries a savestate (`state_stride` anchors), and a replay is bit-exact only against the fork. Achievements, inventory, player position and the semantic grid are logged; `cues` adds the score/hit/blocked feedback layer, crafter having no audio of its own. `crafter_menu` is the same game and level through the eight buttons the scanner rig uses, a `MenuWrapper` shipped with the env: six actions keep a button, the other ten sit in a cursor the subject cycles to.
 
 ### ✅ minihack (minihack)  — new backend
 `pip install minihack` (needs `setuptools<81` for `pkg_resources`; pulls `nle`, downgrades gymnasium to 1.2). Default `render()` is None and obs is ASCII/tty, so the adapter requests a `pixel` observation (336×1264×3) and displays that. `Discrete(8)` compass (arrows = N/E/S/W; diagonals via `keys` override 4–7). No savestate → seed+replay. blstats/glyphs/message logged.
