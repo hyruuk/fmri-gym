@@ -74,6 +74,17 @@ class AIGameStoreAdapter(EnvAdapter):
     def native_fps(self) -> float:
         return self.env.metadata["render_fps"]
 
+    def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
+        # All ten games share the gamePhase vocabulary (globals.js GAME_PHASES):
+        # an episode leaves PLAYING for GAME_OVER_LOSE, or for GAME_OVER_WIN /
+        # LEVEL_COMPLETE / LEVEL_TRANSITION -- or, in game3, 5 and 10, stays
+        # PLAYING and moves on to the next level, which the env ends the episode
+        # on. So an ending that is not GAME_OVER_LOSE is a clear.
+        if terminated:
+            lost = self.last_info.get("state", {}).get("gamePhase") == "GAME_OVER_LOSE"
+            return ("lost", "Game lost") if lost else ("won", "Level cleared")
+        return super().outcome(terminated, truncated)
+
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         return FrameState(blob=None, variables={
             f"state_{name}": value for name, value in info["state"].items()})

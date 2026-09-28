@@ -85,6 +85,9 @@ class EnvAdapter:
         self.spec = spec
         self.env = self._make(spec)
         self.keymap = make_keymap(spec, self.env.action_space)
+        #: the last step's ``info`` and reward, for :meth:`outcome`
+        self.last_info: dict = {}
+        self.last_reward: float = 0.0
 
     def _make(self, spec: dict) -> gym.Env:
         """Create and return the underlying env for one game block.
@@ -121,7 +124,38 @@ class EnvAdapter:
         :param action: action to apply (type depends on the env).
         :return: ``(obs, reward, terminated, truncated, info)``.
         """
-        return self.env.step(action)
+        out = self.env.step(action)
+        self.last_reward, self.last_info = float(out[1]), out[4]
+        return out
+
+    def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
+        """How the episode stands after its last step, as a name and a line for the subject.
+
+        Gymnasium says only that an episode ended (``terminated``) or ran out
+        of steps (``truncated``), not how it went; a game says "you won" or
+        "you lost", and the subject expects to hear which. This is where a
+        backend adds that reading, from the flags and whatever its env left in
+        :attr:`last_info` / :attr:`last_reward`. The names are a fixed
+        vocabulary the session logs per episode and a phase's
+        ``advancing_outcomes`` picks from:
+
+        - ``"playing"`` -- neither flag: the block's clock cut the episode off.
+        - ``"terminated"`` -- the env ended it and this backend cannot say more.
+        - ``"truncated"`` -- the env's own step limit.
+        - ``"won"`` / ``"lost"`` -- terminated, with the game's verdict.
+
+        The default is the flags alone. Overrides return the same names with
+        their own message; the loop never interprets the message.
+
+        :param terminated: the last step's ``terminated``.
+        :param truncated: the last step's ``truncated``.
+        :return: ``(outcome, message)``.
+        """
+        if terminated:
+            return "terminated", "Game over"
+        if truncated:
+            return "truncated", "Timeout"
+        return "playing", "Still playing"
 
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         """Return the :class:`FrameState` to log for the current frame.

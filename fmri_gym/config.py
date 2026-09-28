@@ -46,6 +46,9 @@ TRIGGER_PRESETS: dict[str, dict] = {
 }
 
 
+#: An episode's possible outcomes: EnvAdapter.outcome's names, and the subject's own endings.
+OUTCOMES = frozenset({"won", "lost", "terminated", "truncated", "playing", "forfeit", "reset"})
+
 def check_shape(config: Any, where: str) -> dict:
     """Enforce the one config shape.
 
@@ -178,6 +181,23 @@ def _phase_problems(phase: dict) -> list[str]:
         out.append(f"mode: expected 'duration' or 'episode', got {phase.get('mode')!r}")
     out.extend(_fps_problems(phase))
     out.extend(_keys_problems(phase))
+    # advancing_outcomes gates n_episodes, so it means nothing to a block that
+    # ends on the clock; the names are EnvAdapter.outcome's plus the menu's.
+    if "advancing_outcomes" in phase:
+        names = phase["advancing_outcomes"]
+        if not isinstance(names, list) or not names or not all(isinstance(n, str) for n in names):
+            out.append(f"advancing_outcomes: expected a list of outcome names, got {names!r}")
+        elif set(names) - OUTCOMES:
+            out.append(f"advancing_outcomes: unknown {sorted(set(names) - OUTCOMES)}; "
+                       f"the names are {sorted(OUTCOMES)}")
+        elif phase.get("mode", "duration") != "episode":
+            out.append("advancing_outcomes: only in mode 'episode' (a duration block ends on the clock)")
+    if "outcome_duration" in phase and not (
+            isinstance(phase["outcome_duration"], (int, float))
+            and phase["outcome_duration"] >= 0):
+        out.append(f"outcome_duration: expected seconds >= 0, got {phase['outcome_duration']!r}")
+    if "hud" in phase and not isinstance(phase["hud"], bool):
+        out.append(f"hud: expected true or false, got {phase['hud']!r}")
     if "menu" in phase:
         out.extend(menu_problems(phase["menu"]))
     return out

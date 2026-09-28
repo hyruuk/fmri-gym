@@ -95,6 +95,7 @@ class Display:
                   file=sys.stderr)
         self.font = pygame.font.Font(pygame.font.get_default_font(), 28)
         self.fix_font = pygame.font.Font(pygame.font.get_default_font(), 80)
+        self._labels: dict[str, pygame.Surface] = {}    # draw_frame's rendered HUD lines
 
     def _open(self) -> pygame.Surface:
         """Open the window, trying for a vsync-locked flip.
@@ -191,21 +192,48 @@ class Display:
             return
         time.sleep(max(0.0, min(poll, deadline - time.perf_counter())))
 
-    def draw_frame(self, rgb: np.ndarray) -> float:
+    def draw_frame(
+        self, rgb: np.ndarray, score: float | None = None, time_left: float | None = None,
+    ) -> float:
         """Blit an RGB frame, aspect-fit and centered with black pad.
 
+        With a ``score`` or ``time_left``, the frame is fit below a strip the
+        height of a text line and the two are printed in it, flush with the
+        frame's edges: the time to the left, the score to the right.
+
         :param rgb: frame array shaped ``(H, W, 3)``.
+        :param score: the running score, or ``None`` for none.
+        :param time_left: seconds left in the block, or ``None`` for none.
         :return: ``perf_counter`` of the flip that showed it.
         """
         self.canvas.fill(BG_COLOR)
         h, w = rgb.shape[:2]
         surf = pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))  # -> (W,H)
-        scale = min(self.size[0] / w, self.size[1] / h)
+        strip = self.font.get_linesize() + 8 if score is not None or time_left is not None else 0
+        scale = min(self.size[0] / w, (self.size[1] - strip) / h)
         dw, dh = int(w * scale), int(h * scale)
         surf = pygame.transform.scale(surf, (dw, dh))
-        rect = surf.get_rect(center=(self.size[0] // 2, self.size[1] // 2))
+        rect = surf.get_rect(center=(self.size[0] // 2, strip + (self.size[1] - strip) // 2))
         self.canvas.blit(surf, rect.topleft)
+        if time_left is not None:
+            text = self._label(f"{max(0, int(time_left))} s")
+            self.canvas.blit(text, text.get_rect(bottomleft=(rect.left, rect.top - 4)))
+        if score is not None:
+            text = self._label(f"Score: {score:g}")
+            self.canvas.blit(text, text.get_rect(bottomright=(rect.right, rect.top - 4)))
         return self._present()
+
+    def _label(self, text: str) -> pygame.Surface:
+        """Render a HUD line, cached: it only changes when the number does.
+
+        :param text: the line.
+        :return: its surface.
+        """
+        if text not in self._labels:
+            if len(self._labels) > 64:
+                self._labels.clear()
+            self._labels[text] = self.font.render(text, True, TEXT_COLOR, BG_COLOR)
+        return self._labels[text]
 
     def _wrap(self, font: pygame.font.Font, line: str, max_w: int) -> list[str]:
         """Word-wrap one logical line so no rendered line exceeds ``max_w`` px.

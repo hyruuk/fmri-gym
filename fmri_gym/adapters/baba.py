@@ -40,3 +40,15 @@ class BabaAdapter(EnvAdapter):
             "step_count": int(g.step_count),
         }
         return FrameState(blob=None, variables=variables)
+
+    def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
+        # The grid's own verdict; done without either is its step limit, which
+        # the env reports as terminated.
+        g = self.env.game
+        if terminated:
+            if getattr(g, "is_win", False):
+                return "won", "Game won"
+            if getattr(g, "is_lose", False):
+                return "lost", "Game lost"
+            return "truncated", "Timeout"
+        return super().outcome(terminated, truncated)

@@ -73,6 +73,12 @@ class STKGymAdapter(EnvAdapter):
             )
         return env
 
+    def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
+        # The env's is_success: the kart crossed the finish line.
+        if terminated and self.last_info.get("is_success"):
+            return "won", "Race finished"
+        return super().outcome(terminated, truncated)
+
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         # Every SAMPLE_FIELDS column every frame (NaN when the game did not
         # report), including the controls the kart applied.

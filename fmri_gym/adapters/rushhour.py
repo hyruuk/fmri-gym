@@ -54,6 +54,12 @@ class RushHourAdapter(EnvAdapter):
         kwargs = {k: spec[k] for k in _ENV_KWARGS if k in spec}
         return gym.make(_ENV_ID, render_mode="rgb_array", **kwargs)
 
+    def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
+        # The engine ends an episode only when the red car is out.
+        if terminated:
+            return "won", "Puzzle solved"
+        return super().outcome(terminated, truncated)
+
     def capture(
         self, obs: Any, info: dict, want_blob: bool = True
     ) -> FrameState:

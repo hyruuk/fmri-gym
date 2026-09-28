@@ -388,7 +388,13 @@ They assume `sub-01` and a 1024x768 window, and take the subject's next free ses
  "mode": "duration",            // "duration" = replay until time up; "episode" = play N episodes
  "duration": 30.0,              // seconds (duration mode)
  "n_episodes": 1,               // episodes (episode mode)
+ "advancing_outcomes": ["won"], // episode mode, optional: only an episode that ends this way counts
+                                // towards n_episodes; any other replays the same instance (a level
+                                // is repeated until cleared). Names: won, lost, terminated,
+                                // truncated, playing (the block's clock) -- see EnvAdapter.outcome
  "max_duration": 300.0,         // hard wall-clock safety cap (episode mode)
+ "hud": true,                   // time left (top left) and score (top right) above the frame
+ "outcome_duration": 2.0,       // seconds "Final score: N" + the outcome show after each episode
  "fps": 30,                     // required: steps (and frames) per second. The engine's own rate
                                 // (console cores and Atari ~60, Doom 35 / frame_skip) plays the game
                                 // at its real speed and fits its sound; the editor's Controls tab
@@ -449,7 +455,7 @@ A subject can get stuck (a Baba Is You puzzle with its rules pushed into a corne
          "move": ["UP", "DOWN"], "confirm": "SPACE"}
 ```
 
-Holding `key` for `hold` seconds -- even if that key does something in the game -- pauses the game and shows the options; `move` steps through them and `confirm` picks one. `reset` starts the episode over -- a new `reset()` of the env with the same seed, so the very same level instance -- `forfeit` ends the block and moves on to the next phase, `resume` continues. The menu is unavailable for the first `after` seconds of the block (0 = always), and a hold plus a two-key choice is hard to do by accident -- the point is that this is possible but never done lightly. Only `key` is required; the rest default to the values shown, and `options` may list any subset, in the order to show them. The manifest's phase entry records the settings and every pop-up (`menu.events`: when, and what was chosen); a reset episode's last frame is marked `truncated`, and it does not count towards `n_episodes`. `configs/dbp_games/baba__make_win.json` uses it.
+Holding `key` for `hold` seconds -- even if that key does something in the game -- pauses the game and shows the options; `move` steps through them and `confirm` picks one. `reset` starts the episode over -- a new `reset()` of the env with the same seed, so the very same level instance -- `forfeit` ends the block and moves on to the next phase, `resume` continues. The menu is unavailable for the first `after` seconds of the block (0 = always), and a hold plus a two-key choice is hard to do by accident -- the point is that this is possible but never done lightly. Only `key` is required; the rest default to the values shown, and `options` may list any subset, in the order to show them. The manifest's phase entry records the settings and every pop-up (`menu.events`: when, and what was chosen); a reset or forfeited episode's `episode_outcome` is `reset` / `forfeit` (the env's own `terminated` / `truncated` flags are never touched), and a reset one does not count towards `n_episodes`. `configs/dbp_games/baba__make_win.json` uses it.
 
 ## Triggers: fMRI vs MEG/EEG
 

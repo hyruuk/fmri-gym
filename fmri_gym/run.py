@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import sys
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -190,6 +190,34 @@ def _wait_for_duration(display: Display, duration: float) -> None:
         if _check_quit():
             raise KeyboardInterrupt
         display.idle(end, poll=0.005)
+
+
+def _final_outcome(
+    adapter: EnvAdapter, outcome: str, terminated: bool, truncated: bool
+) -> tuple[str, str]:
+    """Settle how the episode ended: its outcome's name and the line for the subject.
+
+    The subject's choices (quit, reset, forfeit) are known here and have
+    their own lines; otherwise the adapter reads the env's flags
+    (:meth:`~.adapters.base.EnvAdapter.outcome`), which is where "won" and
+    "lost" come from. A quit has no line: the run is ending.
+
+    :param adapter: the block's adapter.
+    :param outcome: ``"quit"``, ``"reset"``, ``"forfeit"``, or ``""`` for
+        the env's own end or the block's clock.
+    :param terminated: the last step's ``terminated``.
+    :param truncated: the last step's ``truncated``.
+    :return: ``(outcome, message)``; the message is ``""`` on a quit.
+    """
+    if outcome == "quit":
+        return outcome, ""
+    if outcome:
+        message = {"reset": "Starting over", "forfeit": "Forfeited"}[outcome]
+    else:
+        outcome, message = adapter.outcome(terminated, truncated)
+        if outcome == "playing":        # the block's clock, not the game, ended it
+            message = "Block ended. Game will resume in the next block" # TODO actually implement `resume`
+    return outcome, message
 
 
 class Run:
@@ -409,6 +437,8 @@ class Run:
         block_end: float,
         play_sound: bool,
         menu: Menu | None,
+        hud: bool,
+        outcome_duration: float,
     ) -> str:
         """Run one episode, appending frame data to ``frames``.
 
@@ -423,12 +453,20 @@ class Run:
         :param play_sound: pass the adapter's sound to the speakers (the
             phase's ``audio``); muting never changes what is logged.
         :param menu: the block's :class:`~.menu.Menu`, or ``None``.
-        :return: why the episode ended: ``""`` for the env's own end or the
-            block's, ``"quit"`` for ESC / window close, ``"reset"`` or
-            ``"forfeit"`` for the subject's choice in the menu.
+        :param hud: print the score and the block's time left above the frame.
+        :param outcome_duration: seconds the final score and outcome are shown.
+        :return: the episode's outcome: one of the adapter's
+            (:meth:`~.adapters.base.EnvAdapter.outcome`: ``"won"``,
+            ``"lost"``, ``"terminated"``, ``"truncated"``, or ``"playing"``
+            when the block's clock cut it off), or ``"quit"`` for ESC /
+            window close, ``"reset"`` / ``"forfeit"`` for the subject's choice
+            in the menu. Also appended to ``frames["episode_outcome"]``, with
+            the score to ``frames["episode_score"]``.
         """
         frames["episode_seeds"].append(seed)
         terminated = truncated = False
+        outcome = ""
+        score = 0.0                     # the episode's cumulative reward
         ep_frame = 0
         key_to_action = adapter.keymap.turn_actions() if turn_based else None
         key_log = frames["key_events"]
@@ -439,7 +477,7 @@ class Run:
         # Paced from the flip, so a slow reset does not become a burst of
         # catch-up frames. The reset frame's sound is not played: it is not a
         # step's, and it would start the episode's sound off its flips.
-        next_t = self._show(adapter, play_sound=False) + dt
+        next_t = self._show(adapter, False, score, block_end if hud else None) + dt
 
         ## Loop over frames within episode
         while not (terminated or truncated) and time.perf_counter() < block_end:
@@ -451,14 +489,14 @@ class Run:
             action, user_quit = _poll_keys_until(
                 self.display, deadline, key_log, self.clock, key_to_action, menu)
             if user_quit:
-                return "quit"
+                outcome = "quit"
+                break
             if menu is not None and menu.pending:
                 choice = menu.run(self.display, key_log, self.clock.run_time)
                 if choice != "resume":
-                    if ep_frame:            # the episode was cut short
-                        frames["truncated"][-1] = True
-                    return choice
-                next_t = self._show(adapter, play_sound=False) + dt
+                    outcome = choice
+                    break
+                next_t = self._show(adapter, False, score, block_end if hud else None) + dt
                 continue
             next_t += dt
             if turn_based and action is None:
@@ -468,13 +506,14 @@ class Run:
 
             obs, reward, terminated, truncated, info = adapter.step(action)
             t_step = self.clock.run_time()
+            score += float(reward)
             # Anchor a full savestate at episode start and every stride.
             save_blob = (ep_frame % state_stride == 0)
             ep_frame += 1
             fs = adapter.capture(obs, info, want_blob=save_blob)
             # The frame trigger goes out on the flip that shows this frame.
             self.display.call_on_flip(self.triggers.frame)
-            flip_t = self._show(adapter, play_sound)
+            flip_t = self._show(adapter, play_sound, score, block_end if hud else None)
             # More than a frame behind (a stall): drop the debt, or it is repaid
             # as a burst of one-refresh frames. The frame of slack is what a
             # vsync-locked flip normally lands after its tick.
@@ -502,16 +541,35 @@ class Run:
                 frames["trigger"].append(self.triggers.last_frame)
             for k, v in fs.variables.items():
                 frames["variables"][k].append(v)
-        return ""
 
-    def _show(self, adapter: EnvAdapter, play_sound: bool) -> float:
+        ## Final outcome
+        outcome, message = _final_outcome(adapter, outcome, terminated, truncated)
+        if message and outcome_duration > 0:
+            self.audio.stop()               # the episode's last sounds, still queued
+            self.display.draw_text(f"Final score: {score:g}\n{message}")
+            _wait_for_duration(self.display, outcome_duration)
+        frames["episode_outcome"].append(outcome)
+        frames["episode_score"].append(score)
+        return outcome
+
+    def _show(
+        self, adapter: EnvAdapter, play_sound: bool,
+        score: float | None = None, block_end: float | None = None,
+    ) -> float:
         """Flip the adapter's frame, then queue its sound against that flip.
 
         :param adapter: the env whose ``render`` / ``sound`` to present.
         :param play_sound: pass the sound to the speakers.
+        :param score: the running score to print above the frame, if any.
+        :param block_end: ``perf_counter`` the block ends at, to print the time
+            left above the frame; ``None`` prints neither.
         :return: ``perf_counter`` of the flip.
         """
-        flip_t = self.display.draw_frame(adapter.render())
+        if block_end is None:
+            flip_t = self.display.draw_frame(adapter.render())
+        else:
+            flip_t = self.display.draw_frame(adapter.render(), score,
+                                             block_end - time.perf_counter())
         if play_sound:
             self.audio.play(adapter.sound(), flip_t)
         return flip_t
@@ -523,8 +581,9 @@ class Run:
         episode count / quit, then writes an npz and a manifest phase entry.
 
         :param phase: game-phase config (``backend``, ``game``, ``mode``,
-            ``duration`` / ``n_episodes``, ``fps``, ``seed``, ``state_stride``,
-            ``turn_based``, ``keys``, …).
+            ``duration`` / ``n_episodes`` and ``advancing_outcomes``, ``fps``,
+            ``seed``, ``state_stride``, ``turn_based``, ``keys``, ``hud``,
+            ``outcome_duration``, …).
         :param index: phase index in the curriculum (for the manifest).
         :raises KeyboardInterrupt: if the subject quits mid-block.
         """
@@ -533,6 +592,14 @@ class Run:
         mode = phase.get("mode", "duration")
         duration = phase.get("duration", 30.0)
         n_episodes = phase.get("n_episodes", 1)
+        # A blocking block: only an episode whose outcome is listed (usually
+        # ["won"]) counts toward n_episodes; any other replays the same instance
+        # (the seed follows the count), so the subject stays on a level until
+        # they clear it, max_duration runs out, or they forfeit from the menu.
+        # None: every episode counts, whatever its outcome.
+        advancing = phase.get("advancing_outcomes")
+        hud = bool(phase.get("hud", True))
+        outcome_duration = float(phase.get("outcome_duration", 2.0))
         base_seed = phase.get("seed", 1000 + index)
         # Save a full savestate every `state_stride` frames (and always at each
         # episode's first frame, the replay anchor). 1 = every frame (default);
@@ -589,13 +656,15 @@ class Run:
                 adapter, frames,
                 seed=base_seed + completed, episode_id=episode_id,
                 turn_based=turn_based, dt=dt, state_stride=state_stride,
-                block_end=block_end, play_sound=play_sound, menu=menu)
+                block_end=block_end, play_sound=play_sound, menu=menu,
+                hud=hud, outcome_duration=outcome_duration)
             # An episode's last sounds are still queued when it ends; drop them
             # so they do not play over the next episode or the next fixation.
             self.audio.stop()
             episode_id += 1
-            # An episode the subject restarted from the menu was not played.
-            completed += outcome != "reset"
+            # An episode the subject restarted from the menu was not played; nor,
+            # in a blocking block, one whose outcome does not advance.
+            completed += outcome != "reset" and (advancing is None or outcome in advancing)
             if mode == "episode" and completed >= n_episodes:
                 break
         user_quit = outcome == "quit"
@@ -617,6 +686,9 @@ class Run:
             "game": phase["game"], "mode": mode,
             "onset": onset, "offset": self.clock.run_time(),
             "n_episodes": episode_id, "n_frames": len(frames["action"]),
+            # How the episodes ended, by outcome name (see EnvAdapter.outcome).
+            "outcomes": dict(Counter(frames["episode_outcome"])),
+            **({"advancing_outcomes": advancing} if advancing is not None else {}),
             "n_pacing_resets": len(frames["pacing_reset"]),
             "total_reward": sum(float(r) for r in frames["reward"]),
             "data_file": path.split("/")[-1], **speed,

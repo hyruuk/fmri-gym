@@ -46,6 +46,15 @@ class VGDLAdapter(EnvAdapter):
     #     blob = pickle.dumps(self.env.get_state()) if want_blob else None
     #     return FrameState(blob=blob, variables=variables)
 
+    def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
+        # The fork's info carries the game's own ``won`` / ``lose`` flags.
+        if terminated:
+            if self.last_info.get("won"):
+                return "won", "Game won"
+            if self.last_info.get("lose"):
+                return "lost", "Game lost"
+        return super().outcome(terminated, truncated)
+
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         # info also carries won/lose, dropped before; keep the two renamed
         # keys the rest of the pipeline already expects, on top of everything.

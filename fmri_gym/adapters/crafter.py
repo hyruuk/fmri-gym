@@ -33,5 +33,13 @@ class CrafterAdapter(EnvAdapter):
 
         return CrafterEnv(**spec.get("env_kwargs", {}))
 
+    def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
+        # crafter's done is death (discount 0) or the episode length (discount 1).
+        if terminated:
+            if self.last_info.get("discount", 1.0) == 0.0:
+                return "lost", "You died"
+            return "truncated", "Timeout"
+        return super().outcome(terminated, truncated)
+
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         return FrameState(blob=None, variables=dict(info))

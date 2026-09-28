@@ -37,6 +37,13 @@ class BabaAutoAdapter(EnvAdapter):
 
         return BabaAutoEnv(spec["game"], repo=spec.get("repo"))
 
+    def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
+        # The engine's PlayState, WON or LOST, is what ended the episode.
+        if terminated:
+            won = self.last_info.get("play_state") == "WON"
+            return ("won", "Game won") if won else ("lost", "Game lost")
+        return super().outcome(terminated, truncated)
+
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         return FrameState(variables={"play_state": _PLAY_STATE[info["play_state"]],
                                      "state": np.asarray(obs).copy()})

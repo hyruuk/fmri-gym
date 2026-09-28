@@ -168,6 +168,10 @@ _GAME_FIELDS = [
           tip="duration = play (and replay) until the time is up; episode = play n_episodes."),
     Field("duration", "duration (s)", "float", tip="duration mode: block length in seconds."),
     Field("n_episodes", "n_episodes", "int", tip="episode mode: how many episodes."),
+    Field("advancing_outcomes", "advancing_outcomes", "list",
+          tip="episode mode: the outcomes that count toward n_episodes, e.g. won. Any other "
+              "replays the same instance, so the block ends on one of these, at max_duration, "
+              "or from the menu. Names: won, lost, terminated, truncated, playing. Blank = all."),
     Field("max_duration", "max_duration (s)", "float",
           tip="episode mode: hard wall-clock cap for the block."),
     Field("fps", "fps", "float",
@@ -189,6 +193,12 @@ _GAME_FIELDS = [
     Field("audio", "audio", "bool", default=True,
           tip="Play the game's sound in this block. Off mutes the speakers; audio the env "
               "returns is still logged."),
+    Field("hud", "hud", "bool", default=True,
+          tip="Print the block's time left (top left) and the running score (top right) above "
+              "the frame."),
+    Field("outcome_duration", "outcome_duration (s)", "float",
+          tip="Seconds the final score and outcome (won / lost / time is up ...) are shown after "
+              "each episode (default 2; 0 = none)."),
 ]
 
 PHASE_FIELDS: dict[str, list[Field]] = {

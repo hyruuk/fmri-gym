@@ -58,6 +58,17 @@ class MiniHackAdapter(EnvAdapter):
         # Display the pixel observation (env.render() is None for MiniHack).
         return np.asarray(self._last[self._pixel_key])
 
+    def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
+        # NLE's end_status: TASK_SUCCESSFUL, DEATH, or ABORTED at the step limit.
+        status = getattr(self.last_info.get("end_status"), "name", "")
+        if status == "TASK_SUCCESSFUL":
+            return "won", "Task complete"
+        if status == "DEATH":
+            return "lost", "You died"
+        if status == "ABORTED":
+            return "truncated", "Timeout"
+        return super().outcome(terminated, truncated)
+
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         self._last = obs
         variables = {}

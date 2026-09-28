@@ -115,6 +115,13 @@ class VizDoomAdapter(EnvAdapter):
         return Sound(state.audio_buffer,
                      self.env.unwrapped.game.get_audio_sampling_rate())
 
+    def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
+        # Doom ends an episode on the player's death or the scenario's tic
+        # limit; a scenario with a goal (a vest to reach, a monster to kill) ends
+        # there too, but the engine does not say which, so only death is read.
+        if terminated and self.env.unwrapped.game.is_player_dead():
+            return "lost", "You died"
+        return super().outcome(terminated, truncated)
 
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         variables = {}
