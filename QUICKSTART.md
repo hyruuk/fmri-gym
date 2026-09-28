@@ -198,7 +198,7 @@ Controls: arrow keys (N/E/S/W). Needs `setuptools<81` (already a core dependency
 uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/stk_gym__race.json --ses 1 --run 1
 ```
 
-Needs a real GL display (does **not** work under `SDL_VIDEODRIVER=dummy`); the game itself comes with `supertuxkart-gym`, which fetches it on first use. See the README section "Running SuperTuxKart from the stk-code fork" — including the temporary fork build needed while the released binary's frozen-frame bug is open. Controls: arrows steer/accelerate/brake, SPACE fire, V skid, N nitro, BACKSPACE rescue.
+Needs a real GL display (does **not** work under `SDL_VIDEODRIVER=dummy`); the game itself comes with `supertuxkart-gym`, which fetches it on first use (no checkout, no build). See the README section "Running SuperTuxKart". Controls: arrows steer/accelerate/brake, SPACE fire, V skid, N nitro, BACKSPACE rescue.
 
 ## Tips
 

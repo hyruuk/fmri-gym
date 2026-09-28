@@ -19,7 +19,7 @@ A proof-of-concept framework that turns games into neuroimaging tasks — fixed 
 | `baba`        | Baba Is AI: small generated rule-manipulation puzzles in the style of Baba Is You | baba-gym (`gym/baba/`) over baba-is-ai |
 | `baba_auto`   | Baba Is Auto: Baba Is You's original levels (`baba_is_you`, `out_of_reach`, …) under the full ruleset; a C++ engine compiled from a pinned checkout in `external/baba_auto` | baba-auto-gym (`gym/baba_auto/`) over utilForever/baba-is-auto |
 | `rushhour`    | Rush Hour sliding-block puzzle | `rushhour-gym` (PyPI; fetches its Go engine) |
-| `stk_gym`     | SuperTuxKart 3D racing: frames from the game's gym server, keys to its player controller (needs a real GL display) | [chrplr/stk-code](https://github.com/chrplr/stk-code) fork |
+| `stk_gym`     | SuperTuxKart 3D racing: frames from the game's gym server, keys to its player controller (needs a real GL display) | [supertuxkart-gym](https://pypi.org/project/supertuxkart-gym/) (brings the game itself) |
 
 > **All backends run in ONE env and ONE process.** Verified: a single session with ALE + retro + gym + VGDL blocks back-to-back, and each of Crafter / MiniHack in turn. VGDL originally required *old* `gym` + `numpy<2`, which conflicted with the numpy-2 backends; that's resolved by a fork whose VGDL source is ported to gymnasium ([tomov/language_and_experience @ dbp](https://github.com/tomov/language_and_experience/tree/dbp)). Adapters are imported lazily, so an env only needs the backends a curriculum actually uses. Same code, same curriculum schema, same output format everywhere.
 
@@ -44,7 +44,7 @@ pip install -e ".[dbp]"            # private default index? add --index-url http
 python fmri_play.py --subject sub-01 --dummy-trigger --curriculum configs/dbp_games/atari__pong.json --ses 1 --run 1
 ```
 
-Atari ROMs ship with `ale-py`. For the `retro` backend you must supply and import game ROMs once — see [Running stable-retro games](#running-stable-retro-games). For the `vgdl` backend see [Running VGDL games](#running-vgdl-games); for Rush Hour, [Running Rush-Hour](#running-rush-hour); for SuperTuxKart, [Running SuperTuxKart from the stk-code fork](#running-supertuxkart-from-the-stk-code-fork-stk_gym).
+Atari ROMs ship with `ale-py`. For the `retro` backend you must supply and import game ROMs once — see [Running stable-retro games](#running-stable-retro-games). For the `vgdl` backend see [Running VGDL games](#running-vgdl-games); for Rush Hour, [Running Rush-Hour](#running-rush-hour); for SuperTuxKart, [Running SuperTuxKart](#running-supertuxkart-stk_gym).
 
 ## Quick start
 
@@ -255,28 +255,18 @@ uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/baba_auto__baba
 
 A phase's `game` is a map name under the checkout's `Resources/Maps` or a map file's path; `keys` index `Discrete(5)`: 0 = wait, 1 = up, 2 = down, 3 = left, 4 = right (turn-based). Each turn logs `play_state` (0 playing, 1 won, 2 lost) and the engine's `(16, H, W)` state tensor. No savestate: seed + action replay.
 
-## Running SuperTuxKart from the stk-code fork (`stk_gym`)
+## Running SuperTuxKart (`stk_gym`)
 
-The [chrplr/stk-code](https://github.com/chrplr/stk-code) fork is the current SuperTuxKart with a gym server built in (`--gym`), and `stk_gym` is its Python client. The `stk_gym` backend drives `stk_gym.StkEnv` with `render_mode="rgb_array"` and `action_mode="keys"`: the game renders into a window that is created hidden, every step brings the frame back and fmri-gym shows it; the held keys go to the game's own player controller, so steering ramps and skids latch as they do for a keyboard. Participant and model are in front of the same env object, and a block replays from `episode_seeds` + `actions`. The adapter is a keymap and the fields to log. (This replaced an earlier pystk2-gymnasium backend, which had no pixel obs and needed its own control mapping, so human and model play were not the same interface.)
+`supertuxkart-gym` is the current SuperTuxKart with a gym server built in (`--gym`), plus the `stk_gym` Python client that drives it. The `stk_gym` backend drives `stk_gym.StkEnv` with `render_mode="rgb_array"` and `action_mode="keys"`: the game renders into a window that is created hidden, every step brings the frame back and fmri-gym shows it; the held keys go to the game's own player controller, so steering ramps and skids latch as they do for a keyboard. Participant and model are in front of the same env object, and a block replays from `episode_seeds` + `actions`. The adapter is a keymap and the fields to log. (This replaced an earlier pystk2-gymnasium backend, which had no pixel obs and needed its own control mapping, so human and model play were not the same interface.)
 
 ```bash
 uv pip install "fmri-gym[stk_gym]"      # or: pip install supertuxkart-gym
 uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/dbp_games/stk_gym__race.json --ses 1 --run 1
 ```
 
-No checkout and no build: the wheel is pure Python and fetches the game with a trimmed asset pack (254 MiB, five tracks) from its GitHub release the first time an env is made, into `~/.cache/supertuxkart-gym`. It says so while it downloads, and never does it twice. Linux x86_64 only for now; on anything else it says which platform it has no pack for.
+No checkout and no build: the wheel is pure Python and fetches the game with a trimmed asset pack (270 MiB, five tracks) from its GitHub release the first time an env is made, into `~/.cache/supertuxkart-gym`. It says so while it downloads, and never does it twice. The pack is tied to the package version, so a wheel and its engine cannot drift apart: upgrading `supertuxkart-gym` is the whole update procedure. Linux x86_64 only for now; on anything else it says which platform it has no pack for.
 
-To work on the engine itself, build the fork and install its client instead -- a checkout is preferred over the downloaded pack, so nothing else changes:
-
-```bash
-git clone https://github.com/chrplr/stk-code.git ../stk-code
-cmake -S ../stk-code -B ../stk-code/build -DCMAKE_BUILD_TYPE=Release && cmake --build ../stk-code/build -j
-uv pip install -e ../stk-code/python    # or pip install -e, in the same env
-```
-
-**Temporary:** the released binary (`gym-v0.1.1`) reads its frame from a window that is never mapped, whose contents X11 leaves undefined -- on some drivers (seen on an NVIDIA Quadro T2000, proprietary, GNOME/X11) every frame is then the same frozen picture while the logged state advances normally. The engine fix is [chrplr/stk-code#1](https://github.com/chrplr/stk-code/pull/1) (hidden mode renders into its own framebuffer object). Until it is merged and released, build that branch and install its client as above -- nothing in fmri-gym changes, the adapter is unaware. Note that `uv sync` puts the released wheel back, so re-run the `uv pip install -e` line after one. Once a new pack ships, a plain `supertuxkart-gym` upgrade is all anyone needs and this paragraph can go.
-
-Either way the binary can be overridden with `STK_ENV_BIN`, and `STK_ENV_OFFLINE=1` forbids the download outright. It needs a real OpenGL display (the frame is the game's rendering). `fps` must equal the game's physics rate over `frame_skip` (120 / 2 = 60 in the config); the config's `_note`s list the keys, the phase fields and the logged columns, and the fork's `python/README.md` ("Frames", "Reproducibility") the details and measured cost.
+The binary can be overridden with `STK_ENV_BIN`, and `STK_ENV_OFFLINE=1` forbids the download outright. It needs a real OpenGL display (the frame is the game's rendering). `fps` must equal the game's physics rate over `frame_skip` (120 / 2 = 60 in the config); the config's `_note`s list the keys, the phase fields and the logged columns, and the package's own README on [PyPI](https://pypi.org/project/supertuxkart-gym/) ("Frames", "Reproducibility") the details and measured cost.
 
 ## Design: the experiment loop never knows the engine
 

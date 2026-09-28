@@ -1,6 +1,6 @@
 """SuperTuxKart adapter (stk_gym) -- the current game, in a gym env that returns the screen.
 
-``stk_gym`` is the Python client of the chrplr/stk-code fork: SuperTuxKart with a
+``stk_gym`` is the client half of ``supertuxkart-gym``: SuperTuxKart with a
 ``--gym`` server built in, stepped over a pipe. It is chosen over ``pystk2`` (the
 ``supertuxkart`` backend) for the current engine, tracks and physics, and because
 the same env object is what models train against.
@@ -26,8 +26,8 @@ catches up rather than drops frames, and ``run_time`` records it.
 
 Needs a real OpenGL display (the frame is the game's own rendering) and the
 game itself, which ``pip install supertuxkart-gym`` brings: the wheel fetches a
-prebuilt binary and a trimmed asset pack once, and a fork checkout beside it is
-preferred over that download. ``STK_ENV_BIN`` overrides both.
+prebuilt binary and a trimmed asset pack once, for its own version.
+``STK_ENV_BIN`` overrides that binary.
 Not supported: the pystk2 backend's ``num_kart`` spelling (it is ``num_karts``
 here, the game's), and a different track per episode (one process, one track).
 """
