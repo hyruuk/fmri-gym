@@ -138,7 +138,10 @@ something else: the participant's hour is gone and nobody knew. So:
 2. `fmri_gym/adapters/__init__.py` — one `if backend == ...:` branch with a lazy import.
 3. `configs/dbp_games/<BACKEND>__<GAME>.json` — a runnable curriculum, with a `_note`
    field for any install step that isn't a plain `pip install`, and a `_keys_note` that
-   says what the action indices in its `keys` mean.
+   says what the action indices in its `keys` mean. Lay it out like the others: one
+   `_field` per line, the message's `text` one screen line per line, fixations as
+   one-liners, and the game block on a few lines with `keys` (and `menu`) inline — not
+   one key per line.
 4. `pyproject.toml` — one extra under `[project.optional-dependencies]` (and a
    mention in `dbp` / `all` if it belongs there), then `uv lock` to refresh `uv.lock`.
    A game without a Gymnasium env gets one first, as its own small package under
