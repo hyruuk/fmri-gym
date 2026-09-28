@@ -62,7 +62,8 @@
 
   // ---- randomness --------------------------------------------------------
   // mulberry32: small, fast, good enough to replay a game.
-  let state = (Number(new URLSearchParams(location.search).get("seed")) || 1) >>> 0;
+  const envSeed = (Number(new URLSearchParams(location.search).get("seed")) || 1) >>> 0;
+  let state = envSeed;
   Math.random = () => {
     state = (state + 0x6D2B79F5) >>> 0;
     let t = state;
@@ -70,21 +71,25 @@
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+  // A game may call Math.random() itself for things unrelated to p5/seedrandom
+  // (e.g. particle velocity, spread angles), so the shared Math.random state
+  // has to be reset alongside p5's/seedrandom's own -- not just once at boot,
+  // but every time a game reseeds, since every vendored game does that again
+  // on every restart, level, and boss fight, not only at startup. Otherwise a
+  // game whose idle animation or transition throttles differently between two
+  // runs (p5 skips/fires an extra draw depending on real elapsed time even
+  // though our clock is fake) silently drifts the shared stream from then on.
+  function reseedRandom() { state = envSeed; }
 
-  // p5.js and game3's three.js RNG each keep a PRNG of their own, entirely
-  // separate from Math.random above -- every vendored game reseeds them with
-  // a hardcoded literal (p.randomSeed(42) on every restart, level, and boss
-  // fight for most games; game3 calls setSeed('42') on `Math.seedrandom`
-  // likewise), which replays the exact same sequence every episode no matter
-  // what seed we pass. Trap both as they load and patch them to ignore
-  // whatever literal a game passes, using ours instead.
-  const envSeed = (Number(new URLSearchParams(location.search).get("seed")) || 1) >>> 0;
+  // p5.js and game3's three.js RNG each keep a PRNG of their own. Trap
+  // both as they load and patch them to ignore whatever literal a game
+  // passes, using fmri-gym's seed instead -- and reseed Math.random too.
   Object.defineProperty(window, "p5", {
     configurable: true,
     get() { return undefined; },
     set(realP5) {
       const original = realP5.prototype.randomSeed;
-      realP5.prototype.randomSeed = function () { return original.call(this, envSeed); };
+      realP5.prototype.randomSeed = function () { reseedRandom(); return original.call(this, envSeed); };
       Object.defineProperty(window, "p5", { value: realP5, writable: true, configurable: true });
     },
   });
@@ -93,6 +98,7 @@
     get() { return undefined; },
     set(original) {
       function seedrandom(_seed, ...rest) {
+        reseedRandom();
         return new.target
           ? Reflect.construct(original, [envSeed, ...rest], new.target)
           : original.call(this, envSeed, ...rest);
@@ -156,7 +162,15 @@
       for (let i = 0; i < maxFrames && !ready(); i++) tick();
       if (!ready()) throw new Error(`game did not come up within ${maxFrames} frames: `
         + `no <canvas>, or no window.getGameState() with a gamePhase`);
+      // p5 throttles its own draw() against real elapsed time; while booting (before
+      // ready()), that occasionally fires one extra idle/attract-mode draw -- and if that
+      // draw calls Math.random(), it silently shifts every later draw's random numbers by
+      // however many extra calls happened, though the boot itself is otherwise irrelevant.
+      // Reseed once the game is actually ready, so gameplay always starts from the same
+      // known RNG position no matter how boot went.
+      reseedRandom();
     },
+    reseedRandom,
     step(names, frames) {
       const want = new Set(names);
       for (const n of held) if (!want.has(n)) sendKey("keyup", n);

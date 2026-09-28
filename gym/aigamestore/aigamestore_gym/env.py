@@ -195,6 +195,13 @@ class AIGameStoreEnv(gym.Env):
             self.close()
             raise RuntimeError(f"{self.game}: asked for level {self.level} but the game is in "
                                f"{state.get('gamePhase')!r} at level {_level(state)!r}")
+        # boot() already reseeds once the game is ready, but loadLevel() and this first
+        # tick can themselves consume a variable number of Math.random() calls (entity
+        # spawn jitter, a settling animation frame) before the episode is really
+        # underway -- reseed once more here, after everything above has run, so nothing
+        # before the agent's first observation can leave two "identical" episodes on
+        # different points of the RNG stream.
+        self._page.evaluate("() => window.__aigs.reseedRandom()")
         self._score = float(state.get("score", 0.0))
         self._ended = 0
         return frame, {"state": state}
@@ -257,12 +264,16 @@ class AIGameStoreEnv(gym.Env):
         cannot trap an import binding, so this rewrites the file in flight
         instead: ``setSeed`` is made to ignore whatever literal the game passes
         it (game7 hardcodes ``42`` on every restart, level and boss fight) and
-        always reseed from the episode's own seed.
+        always reseed from the episode's own seed. It also reseeds the shared
+        ``Math.random`` stream (``window.__aigs.reseedRandom``) at the same
+        moment, the same as lockstep.js's own p5/seedrandom traps do -- a game
+        that draws straight from ``Math.random`` alongside its own RNG would
+        otherwise drift out of sync with this reseed.
         """
         response = route.fetch()
         body = re.sub(r"export function setSeed\(newSeed\) \{.*?\}",
                        f"export function setSeed(newSeed) {{ seed = {self._seed}; "
-                       f"state = {self._seed}; }}",
+                       f"state = {self._seed}; window.__aigs.reseedRandom(); }}",
                        response.text(), count=1, flags=re.DOTALL)
         route.fulfill(response=response, body=body)
 
