@@ -8,7 +8,7 @@ The games settled on for the DBP study, and how each runs in **fmri-gym**. All 8
 |---|---|---|---|---|
 | Action/shooter | **COOM** | `vizdoom` (COOM's exact Doom engine) | `dbp_games/vizdoom__defend_center.json` … (9 stock scenarios + 1 pair) | ✅ |
 | Action/shooter, Puzzle | **AI GameStore** | `aigamestore` (p5.js via headless browser) | `dbp_games/aigamestore__game1.json` … | ✅ |
-| Building/open-world | **Crafter** | `crafter` (crafter-gym, `gym/crafter/`, over crafter's old-gym env) | `dbp_games/crafter__crafter.json` | ✅ |
+| Building/open-world | **Crafter** | `crafter` (crafter-gym, `gym/crafter/`, over crafter's old-gym env) | `dbp_games/crafter__crafter_L4.json` | ✅ |
 | Building/open-world | **Craftium** | `gym` + `import_module` (Luanti voxel) | `dbp_games/craftium__choptree.json` | ✅ |
 | Puzzle | **Rush Hour** | `rushhour` (Go engine + colored board) | `dbp_games/rushhour__easy.json` | ✅ |
 | Language | **Baba Is AI** (Baba Is You-style puzzles) | `baba` (baba-gym, `gym/baba/`, over baba-is-ai's old-gym env) | `dbp_games/baba__make_win.json` | ✅ |

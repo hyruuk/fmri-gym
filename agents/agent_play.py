@@ -12,9 +12,9 @@ Episode seeds are the block's own (``seed`` + episode index), which is what make
 this the same-worlds condition rather than a fresh sample of the game.
 
 Usage:
-    python agents/agent_play.py --curriculum configs/dbp_games/crafter__crafter.json \
+    python agents/agent_play.py --curriculum configs/dbp_games/crafter__crafter_L4.json \
         --policy random --outdir data/model-random --max-frames 200
-    python agents/agent_play.py --curriculum configs/dbp_games/crafter__crafter.json \
+    python agents/agent_play.py --curriculum configs/dbp_games/crafter__crafter_L4.json \
         --policy vlm --model claude-sonnet-5 --max-frames 60
 """
 

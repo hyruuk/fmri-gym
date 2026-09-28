@@ -606,10 +606,10 @@ r.unwrapped.em.set_state(d["states"][10]); r.unwrapped.data.update_ram()
 `agents/agent_play.py` runs the same curriculum with a policy where `fmri_play.py` puts a person. It shares everything that defines the task (the config, the adapter, the episode seeds, the Logger and its npz schema) and none of the session loop, which exists for a scanner: trigger wait, fps pacing, a window, a key queue.
 
 ```sh
-python agents/agent_play.py --curriculum configs/dbp_games/crafter__crafter.json \
+python agents/agent_play.py --curriculum configs/dbp_games/crafter__crafter_L4.json \
     --policy random --outdir data/model-random --n-episodes 2 --max-frames 60
 export ANTHROPIC_API_KEY=...      # `--policy vlm` refuses to start without it
-python agents/agent_play.py --curriculum configs/dbp_games/crafter__crafter.json \
+python agents/agent_play.py --curriculum configs/dbp_games/crafter__crafter_L4.json \
     --policy vlm --model claude-sonnet-5 --history 4 --max-frames 60
 ```
 
