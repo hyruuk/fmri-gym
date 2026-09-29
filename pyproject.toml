@@ -53,7 +53,7 @@ rushhour = ["rushhour-gym>=0.6.0"]
 # needs a real GL display, because the observation is the game's own rendering.
 # The pack is tied to the package version, so upgrading the pin is the whole
 # update procedure; STK_ENV_BIN overrides the binary it fetched.
-stk_gym = ["supertuxkart-gym>=0.1.3"]
+stk = ["supertuxkart-gym>=0.1.3"]
 # `gym` backend families beyond classic_control / toy_text (which ship with gymnasium):
 box2d = ["gymnasium[box2d]"]
 mujoco = ["gymnasium[mujoco]"]  # run with MUJOCO_GL=egl headless
@@ -69,7 +69,7 @@ gui = ["PySide6-Essentials>=6.6"]
 # therefore not listed: craftium (prebuilt wheel on its GitHub releases) and
 # the VGDL games (a repo checkout on PYTHONPATH; see README "Running VGDL games").
 dbp = [
-    "fmri-gym[vizdoom,coom,aigamestore,crafter,rushhour,baba,minihack,stk_gym]",
+    "fmri-gym[vizdoom,coom,aigamestore,crafter,rushhour,baba,minihack,stk]",
 ]
 all = [
     "fmri-gym[dbp,ale,retro,nethack,vgdl,baba_auto,box2d,mujoco,shimmy,tilematch,triggers,gui]",

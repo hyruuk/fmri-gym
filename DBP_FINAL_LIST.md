@@ -13,7 +13,7 @@ The games settled on for the DBP study, and how each runs in **fmri-gym**. All 8
 | Puzzle | **Rush Hour** | `rushhour` (Go engine + colored board) | `dbp_games/rushhour__easy.json` | ✅ |
 | Language | **Baba Is AI** (Baba Is You-style puzzles) | `baba` (baba-gym, `gym/baba/`, over baba-is-ai's old-gym env) | `dbp_games/baba__make_win.json` | ✅ |
 | Adventure | **MiniHack** | `minihack` | `dbp_games/minihack__room5x5.json` | ✅ |
-| Sports/racing | **SuperTuxKart** | `stk_gym` (supertuxkart-gym's gym server, 3D) | `dbp_games/stk_gym__race.json` | ✅ |
+| Sports/racing | **SuperTuxKart** | `stk` (supertuxkart-gym's gym server, 3D) | `dbp_games/stk__hacienda.json` (+ 4 more tracks) | ✅ |
 | Interactive fiction | Zork* | — (no Gymnasium) | — | ⏭️ skipped |
 | Social | Overcooked* | — (`overcooked_ai` is not a Gymnasium env) | — | ⏭️ skipped |
 | Motor/music | Stepmania* | — (no Gymnasium) | — | ⏭️ skipped |
@@ -24,7 +24,7 @@ Each was verified to render a real frame (PNG spot-checks for the SuperTuxKart 3
 
 1. **COOM → ViZDoom.** Real COOM pins `gymnasium==0.28`, which breaks MiniHack/NetHack/retro (need 1.2). ViZDoom is the *identical Doom engine* COOM is built on, works with our gymnasium, and provides the action-shooter scenarios — so we use it for the DBP slot above. COOM's own continual-learning scenarios (pitfall, chainsaw, hide_and_seek, ...) are now also reachable without a separate env: the `coom` backend drives `vizdoom.DoomGame` directly against COOM's `conf.cfg`/`.wad` files from the pinned `external/coom` checkout, never importing the COOM package itself (see `dbp_games/coom__pitfall.json`, etc.).
 
-2. **SuperTuxKart needs a real GL display.** The frame *is* the game's own rendering, and Irrlicht needs a real GL context (works on `DISPLAY=:1`, **not** under headless `SDL_VIDEODRIVER=dummy`). Fine for the fMRI presentation machine. This slot was first filled by pystk2-gymnasium, which is state-only (no pixels) and needed its own control mapping; the `stk_gym` backend replaced it with `supertuxkart-gym`'s gym server, whose env serves the pixels and takes held keys directly (see README).
+2. **SuperTuxKart needs a real GL display.** The frame *is* the game's own rendering, and Irrlicht needs a real GL context (works on `DISPLAY=:1`, **not** under headless `SDL_VIDEODRIVER=dummy`). Fine for the fMRI presentation machine. This slot was first filled by pystk2-gymnasium, which is state-only (no pixels) and needed its own control mapping; the `stk` backend replaced it with `supertuxkart-gym`'s gym server, whose env serves the pixels and takes held keys directly (see README).
 
 3. **Rush Hour brings its own Go engine.** `rushhour-gym` (PyPI, the `rushhour` extra) downloads the matching `rushhour-env` binary into `~/.cache/rushhour-gym/` on first use; `RUSHHOUR_ENV_BIN` points at a build of your own (see README "Running Rush-Hour").
 

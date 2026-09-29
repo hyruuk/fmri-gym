@@ -1,6 +1,7 @@
-"""SuperTuxKart adapter (stk_gym) -- the current game, in a gym env that returns the screen.
+"""SuperTuxKart adapter (``stk``) -- the current game, in a gym env that returns the screen.
 
-``stk_gym`` is the client half of ``supertuxkart-gym``: SuperTuxKart with a
+The backend is ``stk``; the package it drives is ``stk_gym``, the client half of
+``supertuxkart-gym`` (don't confuse the two). That is SuperTuxKart with a
 ``--gym`` server built in, stepped over a pipe. It is chosen over ``pystk2`` (the
 ``supertuxkart`` backend) for the current engine, tracks and physics, and because
 the same env object is what models train against.
@@ -29,7 +30,10 @@ game itself, which ``pip install supertuxkart-gym`` brings: the wheel fetches a
 prebuilt binary and a trimmed asset pack once, for its own version.
 ``STK_ENV_BIN`` overrides that binary.
 Not supported: the pystk2 backend's ``num_kart`` spelling (it is ``num_karts``
-here, the game's), and a different track per episode (one process, one track).
+here, the game's), and a different track per episode (one process, one track):
+a curriculum that wants several tracks uses one game phase per track, as
+``configs/dbp_games/stk__<track>.json`` does (one per race track the asset pack
+ships; its arenas and soccer fields need game modes this adapter never sets).
 """
 
 from __future__ import annotations
@@ -41,8 +45,8 @@ import gymnasium as gym
 from .base import EnvAdapter, FrameState
 
 
-class STKGymAdapter(EnvAdapter):
-    name: str = "stk_gym"
+class STKAdapter(EnvAdapter):
+    name: str = "stk"
 
     def _make(self, spec: dict) -> gym.Env:
         import stk_gym
