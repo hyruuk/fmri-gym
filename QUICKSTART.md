@@ -111,7 +111,7 @@ Controls: UP moves forward, LEFT/RIGHT turn, and the scenario's one extra button
 ### Crafter
 
 ```bash
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/crafter__crafter.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/crafter__crafter_L4.json --ses 1 --run 1
 ```
 
 

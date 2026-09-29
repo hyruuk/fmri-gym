@@ -306,7 +306,10 @@ fmri_gym/
     baba_auto.py    # Baba Is Auto (Baba Is You's levels on baba-is-auto) via baba-auto-gym: Discrete(5) turns, play_state + state tensor logged
     rushhour.py     # Go engine via rushhour-gym; select+slide UI, rushui look, Rush-Hour's log columns; one puzzle per block
     stk.py          # SuperTuxKart via stk_gym: frames from the game's hidden window, held keys as the env's action
-fmri_play.py        # CLI entry point
+fmri_play.py        # CLI entry point: a person in the scanner
+agents/             # CLI entry point: a policy, on the same config, seeds and npz schema
+    policies.py     # what chooses the action when nobody is at the keyboard
+    agent_play.py   # the block loop a policy needs: no window, no clock, no key queue
 configs/            # example curricula
 gym/                # Gymnasium envs for games that ship none, or a rough one: one small package each
     aigamestore/    # the 10 public AI GameStore games (HTML/JS) + aigamestore_gym, their lock-stepped env
@@ -326,7 +329,10 @@ class EnvAdapter:
     def reset(self, seed)         -> (obs, info)
     def capture(self, obs, info)  -> FrameState    # per-frame state to log
     def restore(self, blob)       -> None          # inverse of capture().blob
+    def autoplay(self, info)      -> action | None # step with this, don't wait
 ```
+
+`autoplay` is how a `turn_based` block gets through a stretch the env takes no action in. Crafter is the case it exists for: a sleeping player's action is overwritten with `sleep` until their energy fills, so the sixty-six presses a full sleep would cost under `turn_based` are all discarded by the engine, and how many there are is a fact about the game rather than a decision the subject is making. Returning an action says "step with this and do not wait for a press"; the loop keeps doing so, at the phase's fps and logging every frame like any other, until it returns `None` again. Nothing is skipped and nothing is hidden: the subject watches the night pass, and because waking from a blow ends the stretch, the picture stops on the frame with the zombie beside them. The default is `None`, so every other backend and every real-time phase is unaffected.
 
 `self.env` is always a `gymnasium.Env`. A game that has no such env -- a bare engine, an old-`gym` env, a gymnasium env with habits of its own -- gets a thin one under `gym/` (see `gym/coom/`, `gym/baba/`, `gym/vgdl/`), not in its adapter; the adapter is then `_make` plus what to log.
 
@@ -392,6 +398,14 @@ They assume `sub-01` and a 1024x768 window, and take the subject's next free ses
                                 // (Check with the engine) shows it. Any other value plays the game slower or faster: the
                                 // manifest logs "speed" and the console says so when it is not 1
  "turn_based": false,           // step only on a key PRESS, not per frame (grid/toy_text games)
+ "latched_keys": false,         // real-time: a fresh key PRESS beats the held-key poll, so a tap
+                                // shorter than one frame is not dropped (games below ~10 fps)
+ "live_hud": false,             // turn_based only: redraw the standing frame while the loop waits
+                                // for the press, so the clock in the HUD keeps up with the block's.
+                                // Draws pixels and nothing else -- no step, no log row, no trigger,
+                                // no sound. A duration block ends on the wall clock whether anyone
+                                // presses or not, so without this a subject who is thinking reads
+                                // the time their last press left behind
  "seed": 1234,                  // optional base seed: episodes play with seed, seed+1, ...
                                 // Pinned, every participant and run gets the same episodes.
                                 // Left out, it is derived from the run (sub/ses/task/run) and
@@ -405,7 +419,9 @@ They assume `sub-01` and a 1024x768 window, and take the subject's next free ses
  "level": 0,                    // vgdl: level index; also uses "game","block_size"
  "keys": {"": 0, "LEFT": 0, "RIGHT": 1}, // REQUIRED: key -> env action, the whole map;
                                 //   "" is the action sent with no key held (see below)
- "save_pixels": false}          // also store lossless pixels, where the backend can
+ "save_pixels": false,          // also store lossless pixels, where the backend can
+ "log_frames": false,           // crafter: store the displayed frame (zlib) every frame
+ "show_score": false}           // crafter: draw the achievement count beside the frame
 ```
 
 ### Keys (the `keys` field)
@@ -584,6 +600,28 @@ r.unwrapped.em.set_state(d["states"][10]); r.unwrapped.data.update_ram()
 ```
 
 > ⚠️ **Storage note & `state_stride`.** Per-frame savestates are cheap for ALE (~0.4 KB/frame) but large for retro consoles: a Genesis state is ~1 MB/frame. Set **`"state_stride": K`** on a game phase to snapshot a full savestate only every K frames (always including each episode's first frame, the replay anchor); frames between anchors stay reconstructable by restoring the last anchor and replaying the logged actions (retro/ALE/VGDL are deterministic). Measured on Airstriker-Genesis: a 1.5 s @60 fps block drops from **780 KB → 86 KB with `state_stride: 15`** (~9×). Analysis variables (RAM, `info_*`) are always logged every frame regardless of stride. ⚠️ **`"save_pixels": true`** stores the screen every frame. It's lossless (indexed palette; `palette[screen_index] == RGB`) and zlib-friendly (~0.25 KB/frame) — but unnecessary, since per-frame state already reconstructs pixels. Prints a loud warning when enabled.
+
+> ⚠️ **Crafter replays only on a fork.** Every tenth step stock crafter rebalances creatures per chunk by iterating a Python *set* of objects, so which animal is despawned follows object `id()` and two runs of the same seed and the same action list diverge: terrain is identical, creatures are not. Measured 2026-09-28 on stock 1.8.3, replaying one episode's 225 actions in a second process that differed only in `PYTHONHASHSEED`: the two left each other at step 30, and the episode ended a step apart. Ordering that list by position is the whole fix, and it lives in [`chengfanbrain/crafter@deterministic`](https://github.com/chengfanbrain/crafter/tree/deterministic), which `gym/crafter/pyproject.toml` pins as a direct reference resolved to a commit in `uv.lock` (nothing to clone into `external/`). The same measurement on that build: a 750-frame block of 5 episodes replayed from `episode_seeds` + `actions` into every logged pixel and the whole logged symbolic state, 750 frames of 750, and all 32 savestate anchors restored and then played their episode out identically, which is what a model rollout from a subject's own state needs. Keep **`"log_frames": true`** on a crafter phase regardless: the displayed frame is zlib'd into `frame_zlib` every frame, and those pixels are the record that does not depend on whoever opens the block later having the fork installed. What that block cost at size 384 and 2.5 fps: a median frame is 7.4 KB, but crafter mixes per-pixel noise into the view at night, so its 107 night frames ran to 212 KB and the pixels came to 22.5 MB, 20.6 MB of a 22.5 MB npz; the 32 anchors pickle to 2.3 MB each, nearly all of it the observation space's constant bounds and the cached frame, and compress to 1.8 MB of that same file. Decode a frame with `np.frombuffer(zlib.decompress(blob.tobytes()), np.uint8).reshape(frame_shape)`. That night noise is drawn from the RNG the creatures use, so a `render()` outside the step loop would shift every later draw; nothing renders out of band, because `CrafterEnv` hands back the frame `step` already produced.
+
+## Playing a block with a model
+
+`agents/agent_play.py` runs the same curriculum with a policy where `fmri_play.py` puts a person. It shares everything that defines the task (the config, the adapter, the episode seeds, the Logger and its npz schema) and none of the session loop, which exists for a scanner: trigger wait, fps pacing, a window, a key queue.
+
+```sh
+python agents/agent_play.py --curriculum configs/dbp_games/crafter__crafter_L4.json \
+    --policy random --outdir data/model-random --n-episodes 2 --max-frames 60
+export ANTHROPIC_API_KEY=...      # `--policy vlm` refuses to start without it
+python agents/agent_play.py --curriculum configs/dbp_games/crafter__crafter_L4.json \
+    --policy vlm --model claude-sonnet-5 --history 4 --max-frames 60
+```
+
+The key is read before the first frame rather than at the first request: a block whose every call came back 401 would otherwise run to the end and log a model that chose to stand still. A call that fails later costs one frame, recorded as a noop and counted in the phase log as `dropped_calls`, beside `invalid_replies` (a reply that named no key) and `skipped_frames` (a turn-based block, where pressing nothing steps nothing).
+
+The block npz carries the fields a human block carries, plus `policy` and `policy_model`, so one analysis reads both. Episode seeds are the block's own (`seed` + episode index), which is what makes this the same-worlds condition rather than a fresh sample of the game.
+
+A policy is given the frame the display would have shown, the key table the subject was taught, and the lines the subject could read beside the frame. Nothing else: a policy handed engine state is no longer playing the game the human played. Where a block's feedback is a sound, the harness turns on the adapter's `cue_overlay` so the same thing is said in text, a model having no ears. `--history` fixes how many recent frames and past keys a VLM policy sees, and it is the one asymmetry against a subject watching a continuous stream, so pin it and report it rather than tuning it against scores.
+
+Rolling a model out from a *human's* savestate anchor, and reading a VLM's forward pass over a human's frames, both consume these npz files from outside and are deliberately not part of this repo.
 
 ## Migrating your game list
 

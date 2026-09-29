@@ -21,6 +21,7 @@ from __future__ import annotations
 import sys
 import time
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -43,6 +44,10 @@ EXPERIMENTER_KEY = " "
 #: How far ``fps`` may sit from the engine's own rate and still count as real
 #: speed: what the audio output absorbs by resampling.
 _SAME_SPEED = 2e-3
+#: Seconds between the redraws a ``live_hud`` phase asks for while it waits.
+#: The HUD's coarsest field is a whole second, so this only has to be fast
+#: enough that the number is never seen a second behind.
+HUD_REPAINT_S = 0.2
 
 
 class Clock:
@@ -101,6 +106,8 @@ def _poll_keys_until(
     clock: Clock,
     key_to_action: dict | None = None,
     menu: Menu | None = None,
+    latch: bool = False,
+    repaint: Callable[[], float] | None = None,
 ) -> tuple[object | None, bool]:
     """Poll the keyboard until ``deadline``, logging every press/release.
 
@@ -108,19 +115,29 @@ def _poll_keys_until(
     -- to about a millisecond, or to one refresh when the display is
     vsync-locked and :meth:`Display.idle` re-presents the frame instead of
     sleeping. In turn-based play (``key_to_action`` given) the wait ends at
-    the first mapped keydown so the step happens then, not at the tick. It
-    also ends the moment the block's menu is armed (its key held long enough),
-    which the caller reads off ``menu.pending``.
+    the first mapped keydown so the step happens then, not at the tick.
+    ``latch`` is the real-time counterpart: the keydown is remembered but the
+    wait still runs to the tick, so the frame period is what it says it is.
+    The wait also ends the moment the block's menu is armed (its key held long
+    enough), which the caller reads off ``menu.pending``.
 
     :param display: the display, idled between polls.
     :param deadline: ``perf_counter`` at which to stop waiting.
     :param key_log: list receiving ``(run_time, key_name, is_down)``.
     :param clock: the run's clock for the timestamps.
-    :param key_to_action: turn-based: map of single key NAMES to env actions.
+    :param key_to_action: turn-based or latched: map of single key NAMES to
+        env actions.
     :param menu: the block's :class:`~.menu.Menu`, if the phase has one.
-    :return: ``(action_or_None, user_quit)``; ``action`` is set only in
-        turn-based play, ``user_quit`` on window close / ESC.
+    :param latch: keep waiting after a mapped keydown and return the last one
+        seen, instead of ending the wait at the first.
+    :param repaint: called every :data:`HUD_REPAINT_S` while waiting, for a
+        wait long enough that the screen would otherwise go stale (see
+        ``live_hud``). It redraws; it must not step, log or trigger.
+    :return: ``(action_or_None, user_quit)``; ``action`` is set only when
+        ``key_to_action`` is given, ``user_quit`` on window close / ESC.
     """
+    latched_action = None
+    next_repaint = time.perf_counter() + HUD_REPAINT_S
     while True:
         if menu is not None and menu.armed():
             return None, False
@@ -137,9 +154,19 @@ def _poll_keys_until(
             down = event.type == pygame.KEYDOWN
             key_log.append((clock.run_time(), name, down))
             if down and key_to_action and name in key_to_action:
-                return key_to_action[name], False
+                if not latch:
+                    return key_to_action[name], False
+                # TODO: find out whether every real-time game wants this, not
+                # only the slow ones that asked for it -- a press dropped
+                # between two frames is a lost action at any fps, and if it is
+                # general, latching stops being a phase flag and becomes what
+                # the loop does.
+                latched_action = key_to_action[name]
         if time.perf_counter() >= deadline:
-            return None, False
+            return latched_action, False
+        if repaint is not None and time.perf_counter() >= next_repaint:
+            repaint()
+            next_repaint = time.perf_counter() + HUD_REPAINT_S
         display.idle(deadline)
 
 
@@ -432,6 +459,8 @@ class Run:
         seed: int,
         episode_id: int,
         turn_based: bool,
+        latched: bool,
+        live_hud: bool,
         dt: float,
         state_stride: int,
         block_end: float,
@@ -446,6 +475,9 @@ class Run:
         :param seed: RNG seed for this episode's ``reset``.
         :param episode_id: index of this episode within the game block.
         :param turn_based: if True, advance only on mapped keydowns.
+        :param latched: real-time only: let a fresh keydown win over held keys.
+        :param live_hud: turn-based only: redraw the HUD while waiting for the
+            press, so its clock is not the one the last press left behind.
         :param dt: target seconds per frame (``1 / fps``).
         :param state_stride: save a full state blob every this many frames.
         :param block_end: ``perf_counter`` deadline for the game block.
@@ -466,8 +498,25 @@ class Run:
         outcome = ""
         score = 0.0                     # the episode's cumulative reward
         ep_frame = 0
-        key_to_action = adapter.keymap.turn_actions() if turn_based else None
+        key_to_action = (adapter.keymap.turn_actions()
+                         if turn_based or latched else None)
         key_log = frames["key_events"]
+
+        def redraw() -> float:
+            """Present the frame again, for its HUD. Never steps, logs or triggers."""
+            return self._show(adapter, False, score, block_end)
+
+        # A turn-based wait is unbounded -- it ends at a press -- and the HUD
+        # is drawn only by _show, so without this the block clock a subject
+        # reads is the one their last press left behind, while the clock the
+        # loop ends on runs on regardless. Off unless the phase asks: a game
+        # whose HUD says nothing about time has nothing to gain, and a
+        # real-time wait is one frame long and repaints anyway.
+        repaint = redraw if turn_based and live_hud else None
+        # Set while the env is in a state it takes no action in, to the action
+        # to step it with; see EnvAdapter.autoplay. Only a turn-based block
+        # cares: a real-time one steps through such a stretch anyway.
+        auto: Any = None
 
         ## Reset environment and show initial state
         obs, info = adapter.reset(seed)
@@ -483,9 +532,17 @@ class Run:
             # the block end), polling keys as we go so presses are stamped on
             # arrival; a vsync-locked display re-presents the frame meanwhile.
             # TODO(#43): anchor the wait to the last step (t_step + dt), not to the flip.
-            deadline = block_end if turn_based else next_t
+            # An autoplayed stretch is paced like a real-time frame even in a
+            # turn-based block: the env is not waiting on the subject, so the
+            # wait is one tick and the keys polled through it are logged but
+            # not acted on.
+            waits_for_press = turn_based and auto is None
+            deadline = block_end if waits_for_press else next_t
             action, user_quit = _poll_keys_until(
-                self.display, deadline, key_log, self.clock, key_to_action, menu)
+                self.display, deadline, key_log, self.clock,
+                key_to_action if waits_for_press else None, menu,
+                latch=latched and not turn_based,
+                repaint=repaint if waits_for_press else None)
             if user_quit:
                 outcome = "quit"
                 break
@@ -497,12 +554,17 @@ class Run:
                 next_t = self._show(adapter, False, score, block_end) + dt
                 continue
             next_t += dt
-            if turn_based and action is None:
+            if waits_for_press and action is None:
                 continue                        # block ended without a press
-            if not turn_based:
+            if auto is not None:
+                action = auto                   # the env is not taking ours
+            elif not turn_based and action is None:
+                # No latched press this frame (or the phase never asked for
+                # one): the action is whatever is held down at the tick.
                 action = adapter.keymap.resolve(held_key_names())
 
             obs, reward, terminated, truncated, info = adapter.step(action)
+            auto = adapter.autoplay(info) if turn_based else None
             t_step = self.clock.run_time()
             score += float(reward)
             # Anchor a full savestate at episode start and every stride.
@@ -516,7 +578,14 @@ class Run:
             # as a burst of one-refresh frames. The frame of slack is what a
             # vsync-locked flip normally lands after its tick.
             # TODO(#43): why frames fall behind at all is not established.
-            if not turn_based and next_t + dt < flip_t:
+            if turn_based:
+                # Anchor the next tick to this flip. A turn-based wait leaves
+                # next_t far behind -- the deadline it waits on is the block's,
+                # not the tick -- so an autoplayed stretch starting from the
+                # old value would find every tick already past and run flat
+                # out instead of at fps.
+                next_t = flip_t + dt
+            elif next_t + dt < flip_t:
                 late = flip_t - (next_t - dt)
                 frames["pacing_reset"].append((self.clock.from_perf(flip_t), late))
                 next_t = flip_t + dt
@@ -553,14 +622,15 @@ class Run:
     def _show(self, adapter: EnvAdapter, play_sound: bool, score: float, block_end: float) -> float:
         """Flip the adapter's frame with its HUD, then queue its sound against that flip.
 
-        :param adapter: the env whose ``render`` / ``hud`` / ``sound`` to present.
+        :param adapter: the env whose ``render`` / ``hud`` / ``overlay`` /
+            ``sound`` to present.
         :param play_sound: pass the sound to the speakers.
         :param score: the episode's running score, for the HUD.
         :param block_end: ``perf_counter`` the block ends at, for the HUD.
         :return: ``perf_counter`` of the flip.
         """
         hud = adapter.hud(score, block_end - time.perf_counter())
-        flip_t = self.display.draw_frame(adapter.render(), hud)
+        flip_t = self.display.draw_frame(adapter.render(), hud, adapter.overlay())
         if play_sound:
             self.audio.play(adapter.sound(), flip_t)
         return flip_t
@@ -573,8 +643,9 @@ class Run:
 
         :param phase: game-phase config (``backend``, ``game``, ``mode``,
             ``duration`` / ``n_episodes`` and ``advancing_outcomes``, ``fps``,
-            ``seed``, ``state_stride``, ``turn_based``, ``keys``,
-            ``outcome_duration``, …).
+            ``seed``, ``state_stride``, ``turn_based``, ``latched_keys``,
+            ``live_hud``,
+            ``keys``, ``outcome_duration``, …).
         :param index: phase index in the curriculum (for the manifest).
         :raises KeyboardInterrupt: if the subject quits mid-block.
         """
@@ -604,6 +675,24 @@ class Run:
         # for e.g. FrozenLake is action 0 = LEFT), so the agent "moves on its own"
         # and a single held key fires many times. turn_based fixes both.
         turn_based = bool(phase.get("turn_based", False))
+        # Real-time blocks poll HELD keys, so a press that starts and ends
+        # between two frames is never seen -- at a grid world's few frames per
+        # second that loses most taps. `latched_keys` lets a fresh keydown win
+        # instead, falling back to the held-key poll (so holding a key still
+        # repeats). Off by default: backends whose actions are key COMBINATIONS
+        # must keep polling, and this is exactly what they do today.
+        latched = bool(phase.get("latched_keys", False))
+        # A turn-based block draws a frame only when the subject presses, so
+        # the seconds its HUD shows stop between presses while the clock the
+        # block actually ends on does not. `live_hud` redraws the standing
+        # frame a few times a second through the wait, which changes nothing
+        # but the pixels: no step, no log row, no trigger, no sound. Off by
+        # default, so a block that has run this way keeps running this way.
+        live_hud = bool(phase.get("live_hud", False))
+        if live_hud and not turn_based:
+            raise ValueError(f'game phase {index}: "live_hud" is for turn_based '
+                             "blocks, whose wait is unbounded; a real-time block "
+                             "already redraws every frame")
         play_sound = phase.get("audio", True)
         if not isinstance(play_sound, bool):
             raise ValueError(f'game phase {index}: "audio" must be true or false, '
@@ -645,7 +734,9 @@ class Run:
             outcome = self._episode(
                 adapter, frames,
                 seed=base_seed + completed, episode_id=episode_id,
-                turn_based=turn_based, dt=dt, state_stride=state_stride,
+                turn_based=turn_based, latched=latched, live_hud=live_hud,
+                dt=dt,
+                state_stride=state_stride,
                 block_end=block_end, play_sound=play_sound, menu=menu,
                 outcome_duration=outcome_duration)
             # An episode's last sounds are still queued when it ends; drop them
@@ -660,7 +751,7 @@ class Run:
         user_quit = outcome == "quit"
 
         self.triggers.block_end()
-        extra = getattr(adapter, "block_extra", lambda: None)()
+        extra = adapter.block_extra()
         audio_log = self.audio.block_log(frames["audio_chunk"])
         if audio_log:
             frames["audio_onset"] = self.clock.from_perf(audio_log.pop("audio_onset"))

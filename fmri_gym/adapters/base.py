@@ -128,6 +128,31 @@ class EnvAdapter:
         self.last_reward, self.last_info = float(out[1]), out[4]
         return out
 
+    def autoplay(self, info: dict) -> Any | None:
+        """The action to step with while the env is ignoring input, or ``None``.
+
+        Some games have stretches the player cannot act in: crafter discards
+        the action while the player is asleep and forces ``sleep`` until they
+        wake. A real-time block steps through those on its own clock and
+        nobody notices. A ``turn_based`` block does not: it advances only on a
+        press, so it would ask the subject for presses the env throws away, and
+        the number of them is a property of the game rather than of the
+        decision. Returning an action here says "step with this and do not
+        wait", and the loop keeps doing so, at the phase's fps and logging
+        every frame, until this returns ``None`` again. The subject still sees
+        what happened, because every one of those steps is a drawn frame.
+
+        It is the action and not a flag so that the choice of what a
+        do-nothing step is stays with the backend that knows its space: these
+        spaces have no action that means "do nothing" everywhere. The default
+        is ``None``, which is every game that has no such state and every
+        real-time phase.
+
+        :param info: the info dict from the step just taken.
+        :return: the action to step with, or ``None`` to wait for the subject.
+        """
+        return None
+
     def hud(self, score: float, time_remaining: float) -> list[str] | None:
         """The status lines drawn above the frame every step, or ``None`` for none.
 
@@ -147,6 +172,26 @@ class EnvAdapter:
         :return: the lines, or ``None``.
         """
         return [f"{max(0, int(time_remaining))} s", f"Score: {score:g}"]
+
+    def overlay(self) -> tuple[list[str], float] | None:
+        """The lines drawn *on* the frame every step, or ``None`` for none.
+
+        :meth:`hud` is the session's strip above the frame, the same for every
+        game; this is the backend's own, drawn inside the picture at a place
+        only the game knows is empty -- a selection the game itself does not
+        render, a cue the subject has to read where they are already looking.
+        It costs game pixels, so the default is ``None`` and a backend that
+        returns lines should keep them short.
+
+        The float is where down the frame to centre them, as a fraction of its
+        height (0.5 = the middle). It is the backend's call because "where they
+        are already looking" is not always the middle: a game that draws its
+        own HUD into the bottom rows of its frame leaves the played part above
+        centre.
+
+        :return: ``(lines, y_frac)``, or ``None``.
+        """
+        return None
 
     def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
         """How the episode stands after its last step, as a name and a line for the subject.
@@ -201,6 +246,19 @@ class EnvAdapter:
         :raises NotImplementedError: if the backend has no in-memory savestate.
         """
         raise NotImplementedError(f"{self.name} env has no in-memory savestate")
+
+    def block_extra(self) -> dict | None:
+        """Arrays to merge into the block's npz once, beside the per-frame ones.
+
+        :meth:`capture` writes a row per frame; this is what the block needs
+        said once, and what a per-frame column cannot say about itself: the
+        sampling rate that makes logged audio playable, the names behind the
+        integers in a column. Called after the last step, so it may read the
+        env. Default is ``None`` -- nothing to add.
+
+        :return: a mapping of name to array-like, or ``None``.
+        """
+        return None
 
     def render(self) -> np.ndarray:
         """Return the current RGB frame ``(H, W, 3)`` uint8 for display.

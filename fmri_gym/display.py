@@ -43,6 +43,10 @@ BG_COLOR = (0, 0, 0)
 TEXT_COLOR = (220, 220, 220)
 FIX_COLOR = (255, 255, 255)
 HUD_COLOR = (235, 235, 235)
+# Text drawn ON a frame, where gray would read as part of the picture. Light
+# sky blue: bright over both dark and light art, and cool enough not to be
+# mistaken for the red a game may reserve.
+OVERLAY_COLOR = (150, 215, 255)
 
 
 class Display:
@@ -194,16 +198,24 @@ class Display:
             return
         time.sleep(max(0.0, min(poll, deadline - time.perf_counter())))
 
-    def draw_frame(self, rgb: np.ndarray, hud: list[str] | None = None) -> float:
+    def draw_frame(
+        self,
+        rgb: np.ndarray,
+        hud: list[str] | None = None,
+        overlay: tuple[list[str], float] | None = None,
+    ) -> float:
         """Blit an RGB frame, aspect-fit and centered with black pad.
 
         With a ``hud``, the frame is fit below a strip above it where the lines
         are drawn (see :meth:`_draw_hud`), so the text never covers a pixel the
-        subject is playing on.
+        subject is playing on. An ``overlay`` is the other trade, drawn over
+        the frame itself (see :meth:`_draw_overlay`).
 
         :param rgb: frame array shaped ``(H, W, 3)``.
         :param hud: status lines from the adapter's
             :meth:`~fmri_gym.adapters.base.EnvAdapter.hud`, or ``None`` for none.
+        :param overlay: ``(lines, y_frac)`` from the adapter's
+            :meth:`~fmri_gym.adapters.base.EnvAdapter.overlay`, or ``None``.
         :return: ``perf_counter`` of the flip that showed it.
         """
         self.canvas.fill(BG_COLOR)
@@ -228,6 +240,8 @@ class Display:
         self.canvas.blit(surf, rect.topleft)
         if rows:
             self._draw_hud(rows, rect)
+        if overlay:
+            self._draw_overlay(overlay, rect)
         return self._present()
 
     def _draw_hud(self, rows: list[list[pygame.Surface]], rect: pygame.Rect) -> None:
@@ -255,6 +269,40 @@ class Display:
             for surf in row:
                 self.canvas.blit(surf, (round(x), y))
                 x += surf.get_width() + gap
+
+    def _draw_overlay(
+        self, overlay: tuple[list[str], float], rect: pygame.Rect
+    ) -> None:
+        """Draw lines over the frame on a black backdrop, horizontally centered.
+
+        The counterpart of :meth:`_draw_hud`, and the opposite trade: the strip
+        is the right place for something the subject reads now and then, and
+        the wrong place for something they are acting on, which has to be where
+        they are already looking. Covering game pixels is the cost, so an
+        adapter should put a line here only while it is in use.
+
+        Drawn at display resolution over the scaled frame, not into the array,
+        so the text is not magnified by the same unfiltered scale as the art --
+        and so the frame the adapter logged stays the frame the engine made.
+
+        :param overlay: ``(lines, y_frac)``, where ``y_frac`` is the fraction
+            of the frame's height the lines are centered on (0.5 = middle).
+        :param rect: the rect the frame was blitted into.
+        """
+        lines, y_frac = overlay
+        surfs = [self.hud_font.render(line, True, OVERLAY_COLOR) for line in lines]
+        if not surfs:
+            return
+        total_h = sum(s.get_height() for s in surfs)
+        width = max(s.get_width() for s in surfs)
+        top = rect.top + int(rect.height * y_frac) - total_h // 2
+        backdrop = pygame.Rect(0, 0, width + 16, total_h + 10)
+        backdrop.center = (rect.centerx, top + total_h // 2)
+        self.canvas.fill(BG_COLOR, backdrop)
+        y = top
+        for surf in surfs:
+            self.canvas.blit(surf, surf.get_rect(midtop=(rect.centerx, y)))
+            y += surf.get_height()
 
     def _hud_rows(self, lines: list[str], width: int) -> list[list[pygame.Surface]]:
         """Render the HUD lines and pack them into rows no wider than the frame.
