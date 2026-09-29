@@ -54,8 +54,12 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY fmri_gym ./ /src
-# external/ (the vgdl / coom / baba_auto submodules) comes in with the repo;
-# run `git submodule update --init` before `docker build`.
+# external/ (the vgdl / coom / baba_auto submodules) comes in with the build context. An
+# uninitialized submodule copies as an empty dir, so check for the files the envs read
+# before the long pip step rather than failing there (baba_auto) or at run time (coom, vgdl).
+RUN test -d /src/external/vgdl/games -a -d /src/external/coom/COOM/env/scenarios \
+         -a -f /src/external/baba_auto/CMakeLists.txt \
+    || { echo "external/ submodules are not checked out: run 'git submodule update --init' before 'docker build'" >&2; exit 1; }
 RUN virtualenv /venv \
     && . /venv/bin/activate \
     && cd /src \
