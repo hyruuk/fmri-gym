@@ -5,6 +5,7 @@
     <outdir>/manifest.json                            the run: subject, curriculum, one entry per phase, rig
     <outdir>/block-NN_<backend>_<game>/events.jsonl   one JSON object per line, in order
     <outdir>/block-NN_<backend>_<game>/frames.h5      the rendered frames, when the phase keeps them
+    <outdir>/block-NN_<backend>_<game>/audio.h5       the queued PCM, when the block played any
 
 There is one :class:`Logger` per run and it writes all three. The manifest is
 rewritten (atomically) whenever a phase entry or a run-level field lands, so
@@ -25,6 +26,12 @@ other lines are the run's, verbatim (:mod:`fmri_gym.run`).
 so any one reads alone, and ``frame_index`` ``(N,)``, the ``frame`` of each
 row: every ``frame_stride``-th frame of the block (``0``: no frames at all).
 SWMR mode makes a flushed frame durable the way a flushed line is.
+
+``audio.h5`` holds ``samples``, every :meth:`Logger.log_audio` chunk
+concatenated, and ``chunk_len`` ``(n_chunks,)``, so a chunk's offset into
+``samples`` is a running sum of the ones before it. ``onset_chunk``/
+``onset_time`` and the ``delay_ms``/``resyncs``/``trimmed_samples`` attrs land
+at :meth:`Logger.close_block`, from :meth:`~.audio.Audio.block_log`.
 """
 
 from __future__ import annotations
@@ -47,6 +54,7 @@ FORMAT = "fmri-gym-log"
 VERSION = 1
 EVENTS_FILENAME = "events.jsonl"
 FRAMES_FILENAME = "frames.h5"
+AUDIO_FILENAME = "audio.h5"
 #: Seconds between flushes of a block's files to the OS (not every frame).
 FLUSH_INTERVAL = 1.0
 
@@ -158,12 +166,28 @@ class Logger:
                              "index": self.n_frames, "frame": np.array(frame)})
         self.n_frames += 1
 
+    def log_audio(self, sound: Any) -> None:
+        """Append one frame's queued PCM chunk to the block's ``audio.h5``.
+
+        :param sound: the chunk played this frame (``.pcm``, ``.sample_rate``),
+            or ``None`` for a frame that queued no sound.
+        """
+        if sound is None:
+            return
+        self._queue.put({"op": "audio", "block": self._block,
+                         "pcm": np.array(sound.pcm), "sample_rate": sound.sample_rate})
+
     def close_block(self, **summary: Any) -> None:
         """Append the ``block_end`` line and release the block's files.
 
-        :param summary: the line's fields (episode and frame counts, totals, …).
+        :param summary: the line's fields (episode and frame counts, totals,
+            …); ``audio`` (:meth:`~.audio.Audio.block_log`), if given, is
+            written to ``audio.h5`` instead of the line.
         """
+        audio = summary.pop("audio", None)
         self.log(type="block_end", **summary)
+        if audio:
+            self._queue.put({"op": "audio_summary", "block": self._block, "audio": audio})
         self._queue.put({"op": "close", "block": self._block})
         self._block = None
 
@@ -188,6 +212,7 @@ def _writer_main(q: mp.Queue) -> None:
     ``shutdown`` or, having drained the queue, when the parent is gone."""
     lines: dict[str, Any] = {}
     h5: dict[str, Any] = {}
+    audio: dict[str, Any] = {}
     parent = os.getppid()
     last_flush = time.monotonic()
 
@@ -196,6 +221,8 @@ def _writer_main(q: mp.Queue) -> None:
             fh.flush()
         for f in h5.values():
             f.flush()  # SWMR: this is what makes a written frame durable
+        for f in audio.values():
+            f.flush()
 
     def _open_h5(block: str, frame: np.ndarray) -> Any:
         """Sized from the first frame; SWMR mode must be set after every dataset exists."""
@@ -206,6 +233,18 @@ def _writer_main(q: mp.Queue) -> None:
                          compression="gzip", compression_opts=1)
         f.create_dataset("frame_index", shape=(0,), maxshape=(None,), dtype="int64",
                          chunks=(1024,))
+        f.swmr_mode = True
+        return f
+
+    def _open_audio_h5(block: str, pcm: np.ndarray, sample_rate: float) -> Any:
+        """Sized from the first chunk; SWMR mode must be set after every dataset exists."""
+        import h5py
+        f = h5py.File(os.path.join(block, AUDIO_FILENAME), "w", libver="latest")
+        f.create_dataset("samples", shape=(0, pcm.shape[1]), maxshape=(None, pcm.shape[1]),
+                         dtype=pcm.dtype, chunks=(4096, pcm.shape[1]))
+        f.create_dataset("chunk_len", shape=(0,), maxshape=(None,), dtype="int64",
+                         chunks=(1024,))
+        f.attrs["sample_rate"] = sample_rate
         f.swmr_mode = True
         return f
 
@@ -233,8 +272,28 @@ def _writer_main(q: mp.Queue) -> None:
                 n = ds.shape[0]
                 ds.resize(n + 1, axis=0)
                 ds[n] = value
+        elif op == "audio":
+            pcm = rec["pcm"]
+            if block not in audio:
+                audio[block] = _open_audio_h5(block, pcm, rec["sample_rate"])
+            samples, chunk_len = audio[block]["samples"], audio[block]["chunk_len"]
+            n = samples.shape[0]
+            samples.resize(n + len(pcm), axis=0)
+            samples[n:n + len(pcm)] = pcm
+            m = chunk_len.shape[0]
+            chunk_len.resize(m + 1, axis=0)
+            chunk_len[m] = len(pcm)
+        elif op == "audio_summary":
+            f = audio.get(block)
+            if f is not None:
+                a = rec["audio"]
+                f.attrs["delay_ms"] = a["delay_ms"]
+                f.attrs["resyncs"] = a["resyncs"]
+                f.attrs["trimmed_samples"] = a["trimmed_samples"]
+                f.create_dataset("onset_chunk", data=[o[0] for o in a["onsets"]], dtype="int64")
+                f.create_dataset("onset_time", data=[o[1] for o in a["onsets"]], dtype="float64")
         elif op == "close":
-            for handles in (lines, h5):
+            for handles in (lines, h5, audio):
                 fh = handles.pop(block, None)
                 if fh is not None:
                     fh.close()
@@ -242,7 +301,7 @@ def _writer_main(q: mp.Queue) -> None:
 
     def _finish() -> None:
         _flush()
-        for handles in (lines, h5):
+        for handles in (lines, h5, audio):
             for fh in handles.values():
                 fh.close()
 
@@ -338,3 +397,19 @@ def read_frame(block: str, frame: int) -> np.ndarray | None:
         if pos >= len(index) or index[pos] != frame:
             return None
         return f["frames"][pos]
+
+
+def read_audio(block: str) -> tuple[np.ndarray, float, np.ndarray]:
+    """A block's recorded audio.
+
+    :param block: the block's folder.
+    :return: ``(samples, sample_rate, chunk_offset)``: every queued chunk
+        concatenated, its sample rate, and each chunk's starting row in
+        ``samples`` (parallel to the block's per-frame ``audio_chunk``).
+    :raises FileNotFoundError: if the block queued no audio.
+    """
+    import h5py
+    with h5py.File(os.path.join(block, AUDIO_FILENAME), "r") as f:
+        chunk_len = f["chunk_len"][:]
+        chunk_offset = np.concatenate(([0], np.cumsum(chunk_len)[:-1]))
+        return f["samples"][:], f.attrs["sample_rate"], chunk_offset
