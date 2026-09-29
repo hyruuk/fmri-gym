@@ -195,10 +195,7 @@ class AIGameStoreEnv(gym.Env):
             self.close()
             raise RuntimeError(f"{self.game}: asked for level {self.level} but the game is in "
                                f"{state.get('gamePhase')!r} at level {_level(state)!r}")
-        # boot() already reseeds once the game is ready, but loadLevel() and this first
-        # tick can themselves consume a variable number of Math.random() calls (entity
-        # spawn jitter, a settling animation frame) before the episode is really
-        # underway -- reseed once more here, after everything above has run, so nothing
+        # Reseed once more here, after everything above has run, so nothing
         # before the agent's first observation can leave two "identical" episodes on
         # different points of the RNG stream.
         self._page.evaluate("() => window.__aigs.reseedRandom()")
@@ -258,17 +255,6 @@ class AIGameStoreEnv(gym.Env):
 
     def _patch_rng(self, route: Any) -> None:
         """Force game7's own vendored RNG module (``rng.js``) onto this episode's seed.
-
-        It is a same-origin ES module the game imports directly, not a global
-        like ``Math.random`` or p5's own PRNG -- lockstep.js's page-init script
-        cannot trap an import binding, so this rewrites the file in flight
-        instead: ``setSeed`` is made to ignore whatever literal the game passes
-        it (game7 hardcodes ``42`` on every restart, level and boss fight) and
-        always reseed from the episode's own seed. It also reseeds the shared
-        ``Math.random`` stream (``window.__aigs.reseedRandom``) at the same
-        moment, the same as lockstep.js's own p5/seedrandom traps do -- a game
-        that draws straight from ``Math.random`` alongside its own RNG would
-        otherwise drift out of sync with this reseed.
         """
         response = route.fetch()
         body = re.sub(r"export function setSeed\(newSeed\) \{.*?\}",
