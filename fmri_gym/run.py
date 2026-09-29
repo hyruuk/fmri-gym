@@ -523,7 +523,7 @@ class Run:
         # Paced from the flip, so a slow reset does not become a burst of
         # catch-up frames. The reset frame's sound is not played: it is not a
         # step's, and it would start the episode's sound off its flips.
-        flip_t0, _ = self._show(adapter, False, score, block_end)
+        flip_t0, _, _ = self._show(adapter, False, score, block_end)
         next_t = flip_t0 + dt
 
         ## Loop over frames within episode
@@ -551,7 +551,7 @@ class Run:
                 if choice != "resume":
                     outcome = choice
                     break
-                flip_t0, _ = self._show(adapter, False, score, block_end)
+                flip_t0, _, _ = self._show(adapter, False, score, block_end)
                 next_t = flip_t0 + dt
                 continue
             next_t += dt
@@ -574,7 +574,7 @@ class Run:
             fs = adapter.capture(observation, info, want_blob=save_state)
             # The frame trigger goes out on the flip that shows this frame.
             self.display.call_on_flip(self.triggers.frame)
-            flip_t, frame = self._show(adapter, play_sound, score, block_end)
+            flip_t, frame, sound = self._show(adapter, play_sound, score, block_end)
             # More than a frame behind (a stall): drop the debt, or it is repaid
             # as a burst of one-refresh frames. The frame of slack is what a
             # vsync-locked flip normally lands after its tick.
@@ -610,6 +610,7 @@ class Run:
                 # reached the DAC is in the block_end record's audio onsets.
                 fields["audio_chunk"] = self.audio.last_chunk
             self.logger.log_frame(fields, frame=frame, state=fs.blob)
+            self.logger.log_audio(sound)
             ep_frame += 1
 
         ## Final outcome
@@ -623,7 +624,9 @@ class Run:
             _wait_for_duration(self.display, outcome_duration)
         return end
 
-    def _show(self, adapter: EnvAdapter, play_sound: bool, score: float, block_end: float) -> tuple[float, Any]:
+    def _show(
+        self, adapter: EnvAdapter, play_sound: bool, score: float, block_end: float
+    ) -> tuple[float, Any, Any]:
         """Flip the adapter's frame with its HUD, then queue its sound against that flip.
 
         :param adapter: the env whose ``render`` / ``hud`` / ``overlay`` /
@@ -631,14 +634,16 @@ class Run:
         :param play_sound: pass the sound to the speakers.
         :param score: the episode's running score, for the HUD.
         :param block_end: ``perf_counter`` the block ends at, for the HUD.
-        :return: ``perf_counter`` of the flip, and the rendered frame.
+        :return: ``perf_counter`` of the flip, the rendered frame, and the
+            sound queued this frame (``None`` if ``play_sound`` is ``False``).
         """
         frame = adapter.render()
         hud = adapter.hud(score, block_end - time.perf_counter())
         flip_t = self.display.draw_frame(frame, hud, adapter.overlay())
+        sound = adapter.sound() if play_sound else None
         if play_sound:
-            self.audio.play(adapter.sound(), flip_t)
-        return flip_t, frame
+            self.audio.play(sound, flip_t)
+        return flip_t, frame, sound
 
     def _game(self, phase: dict, index: int) -> None:
         """Run a game block (one or more episodes) and save frame-level data.
