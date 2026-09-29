@@ -3,9 +3,15 @@
 Maps pygame keycodes to the upper-case NAMES a phase's ``keys`` are written in
 ("LEFT", "SPACE", "Z", "F1", "KP_ENTER", ...). One definition so every caller
 agrees, and so a config can be checked against it before the window opens.
+
+A key need not come from a keyboard: :mod:`fmri_gym.pad` registers a gamepad's
+buttons here, so a site whose response device is a controller presses the same
+NAMES as one whose device types.
 """
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 import pygame
 
@@ -111,6 +117,21 @@ _PYGAME_KEY_NAMES: dict[int, str] = {
 }
 #: Every name a phase's ``keys`` may use.
 KEY_NAMES: frozenset[str] = frozenset(_PYGAME_KEY_NAMES.values())
+#: The keycode to press for a NAME -- the map above, read the other way.
+KEYCODE_BY_NAME: dict[str, int] = {name: code for code, name in _PYGAME_KEY_NAMES.items()}
+
+#: Devices other than the keyboard that can hold a key down (:mod:`fmri_gym.pad`
+#: registers the gamepad here). Kept as a list of callables so this module stays
+#: the one place that answers "what is held", whatever is plugged in.
+_held_sources: list[Callable[[], frozenset[str]]] = []
+
+
+def register_held_source(source: Callable[[], frozenset[str]]) -> None:
+    """Add a device whose held keys count as held, alongside the keyboard's.
+
+    :param source: called each frame; returns the NAMES it is holding down.
+    """
+    _held_sources.append(source)
 
 
 def held_key_names() -> frozenset[str]:
@@ -119,7 +140,10 @@ def held_key_names() -> frozenset[str]:
     :return: frozenset of the pressed keys' names.
     """
     pressed = pygame.key.get_pressed()
-    return frozenset(name for code, name in _PYGAME_KEY_NAMES.items() if pressed[code])
+    names = {name for code, name in _PYGAME_KEY_NAMES.items() if pressed[code]}
+    for source in _held_sources:
+        names |= source()
+    return frozenset(names)
 
 
 def key_name(keycode: int) -> str | None:

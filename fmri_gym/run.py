@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 import pygame
 
-from . import bids
+from . import bids, pad
 from .adapters import get_adapter
 from .audio import Audio
 from .config import fold_cli_options
@@ -86,6 +86,7 @@ def _check_quit() -> bool:
 
     :return: ``True`` if the window was closed or ESC was pressed.
     """
+    pad.pump()          # a pad press arrives as the key it stands for
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             return True
@@ -124,6 +125,7 @@ def _poll_keys_until(
     while True:
         if menu is not None and menu.armed():
             return None, False
+        pad.pump()          # a pad press arrives as the key it stands for
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return None, True
@@ -156,6 +158,7 @@ def _wait_for_char(display: Display, char: str, dummy_trigger: bool = False) -> 
         time.sleep(0.05)
         return
     while True:
+        pad.pump()          # a pad press arrives as the key it stands for
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 raise KeyboardInterrupt
@@ -295,12 +298,15 @@ class Run:
                   "this is a test run, not a session", file=sys.stderr)
         audio = Audio(enabled=not args.no_audio)
         print(f"audio: {audio.status()}", file=sys.stderr)
+        pad_status = pad.init(not getattr(args, "no_pad", False))
+        print(f"pad: {pad_status}", file=sys.stderr)
         display = Display(size=(width, height), fullscreen=args.fullscreen,
                           vsync=not args.no_vsync, monitor=args.monitor)
         run = cls(args.subject, curriculum, display, out.folder, audio=audio,
                   triggers=triggers, dummy_trigger=args.dummy_trigger)
         run.logger.set_extra("run", {"label": out.label, "attempt": out.attempt})
         run.logger.set_extra("seeds", seeds)
+        run.logger.set_extra("pad", pad_status)   # which controller answered, and as what
         run.logger.set_extra("versions", {  # the banner fmri_gym hides said these
             "pygame": pygame.version.ver, "sdl": ".".join(map(str, pygame.get_sdl_version()))})
         return run
@@ -408,6 +414,7 @@ class Run:
                 self.display.draw_text(
                     f"{q}\n\nDisagree      Agree\n{scale}\n\n"
                     "(LEFT/RIGHT to rate, ENTER to confirm)")
+                pad.pump()          # a pad press arrives as the key it stands for
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         raise KeyboardInterrupt
