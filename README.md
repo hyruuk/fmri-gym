@@ -233,7 +233,7 @@ Phase fields: `game` (`"game1"`…`"game10"`, plus `/level<N>` to name the level
 
 ## Running Rush-Hour
 
-[Rush-Hour](https://github.com/chrplr/Rush-Hour) is a sliding-block puzzle written as a psychophysics experiment in Go, with its rules in a small engine binary that both an agent and a participant play through `rushhour-gym`. The `rushhour` backend drives the package's `RushHourHuman-v0` — the experiment program's own interface as an env: car selection on four buttons, its picture, its results columns in `info` — so the adapter is a keymap plus the fields to log. One game phase is one puzzle (`"puzzle": "p07"`); the program's ready screens, blank intervals and solved feedback are `message` phases the curriculum lists around each puzzle, so every puzzle is its own block in the manifest and its own `.npz`. Nothing to install beyond the `rushhour` extra: on first use the package downloads the engine of its matching release into `~/.cache/rushhour-gym/` (checksum-verified; Linux x86-64, macOS arm64, Windows x86-64). On a machine without network, run a config once while online or copy that directory; `RUSHHOUR_ENV_BIN` names a binary of your own.
+[Rush-Hour](https://github.com/chrplr/Rush-Hour) is a sliding-block puzzle written as a psychophysics experiment in Go, with its rules in a small engine binary that both an agent and a participant play through `rushhour-gym`. The `rushhour` backend drives the package's `RushHourHuman-v0` — the experiment program's own interface as an env: car selection on four buttons, its picture, its results columns in `info` — so the adapter is a keymap plus the fields to log. One game phase is one puzzle (`"puzzle": "p07"`); the program's ready screens, blank intervals and solved feedback are `message` phases the curriculum lists around each puzzle, so every puzzle is its own block in the manifest and its own log folder. Nothing to install beyond the `rushhour` extra: on first use the package downloads the engine of its matching release into `~/.cache/rushhour-gym/` (checksum-verified; Linux x86-64, macOS arm64, Windows x86-64). On a machine without network, run a config once while online or copy that directory; `RUSHHOUR_ENV_BIN` names a binary of your own.
 
 ```bash
 uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/dbp_games/rushhour__easy.json --ses 1 --run 1      # 5 min of random easy puzzles
@@ -286,7 +286,8 @@ Most games need only the last: a pip package already provides the env. Nothing a
 fmri_gym/
   run.py        # trigger, clock, curriculum loop, phases  — 100% engine-agnostic
   display.py        # pygame: fixed window, aspect-fit frame, fixation, text; vsync-locked flip + call_on_flip
-  logging.py        # manifest.json + one compressed .npz per game block
+  logging.py        # manifest.json + one crash-safe JSONL/HDF5 log per game block
+  replay.py         # replay an episode from a block's log; its frame fields as arrays
   menu.py           # the hold-a-key pause menu (reset / forfeit / resume), opt-in per game phase
   triggers.py       # run-start sync (wait/send/none) + MEG/EEG trigger codes over lsl/serial/parallel
   photodiode.py     # `python -m fmri_gym.photodiode`: flash a patch to measure the flip-to-photon offset
@@ -307,7 +308,7 @@ fmri_gym/
     rushhour.py     # Go engine via rushhour-gym; select+slide UI, rushui look, Rush-Hour's log columns; one puzzle per block
     stk.py          # SuperTuxKart via stk_gym: frames from the game's hidden window, held keys as the env's action
 fmri_play.py        # CLI entry point: a person in the scanner
-agents/             # CLI entry point: a policy, on the same config, seeds and npz schema
+agents/             # CLI entry point: a policy, on the same config, seeds and log schema
     policies.py     # what chooses the action when nobody is at the keyboard
     agent_play.py   # the block loop a policy needs: no window, no clock, no key queue
 configs/            # example curricula
@@ -414,13 +415,13 @@ They assume `sub-01` and a 1024x768 window, and take the subject's next free ses
                                 // copies it in), the manifest logs it
 
  "state_stride": 1,             // save a full savestate every K frames (see below)
+ "frame_stride": 1,             // save the rendered frame every K frames (0 = none)
  "state": "Level1",             // retro: named savestate/level (optional)
  "scenario": null,              // retro: scenario name (optional)
  "level": 0,                    // vgdl: level index; also uses "game","block_size"
  "keys": {"": 0, "LEFT": 0, "RIGHT": 1}, // REQUIRED: key -> env action, the whole map;
                                 //   "" is the action sent with no key held (see below)
  "save_pixels": false,          // also store lossless pixels, where the backend can
- "log_frames": false,           // crafter: store the displayed frame (zlib) every frame
  "show_score": false}           // crafter: draw the achievement count beside the frame
 ```
 
@@ -494,7 +495,7 @@ Which of these a rig needs varies: the scanner may type a key at every volume, o
 
 Leaving `sync.mode` or `backend` out defaults to `wait` / `null`, and says so: the experimenter screen, the console and the manifest all report it (`NOT SET in config: sync.mode, backend`), as they do for `--dummy-trigger`.
 
-What is sent: `task_start` when the clock anchors, `episode_start` at each reset, one code per frame (`"frame_every": N` to thin, `"on_frame": false` to drop), `task_stop` at the end. Codes never share bits, so two triggers on the same sample still decode: frames cycle 1–7 in the low 3 bits, `task_start`=8, `task_stop`=16, `episode_start`=32, `scanner_start`=64, and a lifecycle code is OR'd with the current frame code (all under `"codes"`; overlaps are refused). Every value sent is logged: per frame as `trigger` in the block `.npz`, lifecycle events with their `run_time` under `triggers` in `manifest.json`.
+What is sent: `task_start` when the clock anchors, `episode_start` at each reset, one code per frame (`"frame_every": N` to thin, `"on_frame": false` to drop), `task_stop` at the end. Codes never share bits, so two triggers on the same sample still decode: frames cycle 1–7 in the low 3 bits, `task_start`=8, `task_stop`=16, `episode_start`=32, `scanner_start`=64, and a lifecycle code is OR'd with the current frame code (all under `"codes"`; overlaps are refused). Every value sent is logged: per frame as `trigger` on the block's `frame` lines, lifecycle events with their `run_time` under `triggers` in `manifest.json`.
 
 ## Timing
 
@@ -559,53 +560,60 @@ Data is never overwritten. A run whose folder is already there writes to `..._02
 The names follow BIDS apart from that suffix, the contents not yet (no `_beh.tsv` / `_events.tsv`). Each folder holds:
 
 - **`manifest.json`** — subject, curriculum, trigger epoch, per-phase onsets/offsets (+ survey responses; onsets are flip times), the `display` actually opened (size, `vsync`, `refresh_rate`, driver), the `triggers` settings + lifecycle triggers sent (+ what the config left `defaulted`), the `audio` output (device, measured device delay, chosen delay), `dummy_trigger`, the `run` it is (label and `attempt`), the `seeds` (each game phase derived or pinned) and the `versions` of pygame and SDL.
-- **`block-NN_<backend>_<game>.npz`** — one per game block, uniform schema:
+- **`block-NN_<backend>_<game>/`** — one folder per game block, written as the block plays (so a crash loses at most the last second), holding:
+  - **`events.jsonl`** — one JSON object per line, in order; `type` says which:
 
-  | key | meaning |
-  |-----|---------|
-  | `actions`, `rewards`, `terminal`, `episode_id` | per frame |
-  | `run_time`, `wall_time` | seconds since this run's trigger (after the step); wall-clock Unix time |
-  | `flip_time` | seconds since trigger of the **flip that showed the frame** (its onset; vsync-locked when the display reports `vsync: true`) |
-  | `pacing_reset_time`, `pacing_reset_late` | flips that ended a stall of more than a frame, and how many seconds late each was: the frame schedule restarted there instead of catching up with a burst of short frames. Empty in a clean block; the manifest counts them per phase (`n_pacing_resets`). Why frames fall behind is open (issue #43) |
-  | `key_time`, `key_name`, `key_down` | every key press/release during the block, stamped on arrival (~1 ms), independent of the frame grid |
-  | `trigger` | the code sent on that frame's flip (only when a trigger backend is active) |
-  | `audio_onset` | seconds since trigger that the frame's sound reached the DAC, NaN if none (only when the block played sound; with `audio_delay_ms`, `audio_resyncs`, `audio_trimmed_samples`) |
-  | `states` | per-frame savestate blob (object array; `None` if engine has none) |
-  | `episode_seeds` | RNG seed per episode |
-  | `backend`, `game` | provenance |
-  | *backend vars* | `ram` (ale/retro), `info_*` (retro decoded score/lives/…), `obs` (gym), `screen_index` (ale, with `"save_pixels"`) |
+    | `type` | fields |
+    |--------|--------|
+    | `block_start` | first line: `format`, `version`, `subject`, `block_index`, `backend`, `game`, `phase` (the config), `base_seed` |
+    | `episode_start` | `episode_id`, `seed` |
+    | `frame` | `frame` (index in the block), `episode_id`, `ep_frame` (index in the episode), `action`, `reward`, `terminated`, `truncated`, `run_time` (seconds since the trigger, after the step), `flip_time` (of the **flip that showed the frame**: its onset; vsync-locked when the display reports `vsync: true`), `wall_time` (Unix), `variables` (the backend's: `ram` for ale/retro, `info_*` for retro, `obs` for gym, …), and when present `env_action` (an adapter's own reading of the keys, e.g. Rush Hour), `trigger` (the code sent on that flip), `audio_chunk` (the chunk this frame's sound was queued as, -1 none; in blocks that play sound), `state` (a savestate, zlib'd then base64, every `state_stride` frames) |
+    | `input_event` | `run_time`, `name`, `down`: every key press/release during the block, stamped on arrival (~1 ms), independent of the frame grid; the pause menu's included |
+    | `pacing_reset` | `flip_time`, `late`: a flip that ended a stall of more than a frame, and how many seconds late it was; the frame schedule restarted there instead of catching up with a burst of short frames (none in a clean block; why frames fall behind is open, issue #43) |
+    | `episode_end` | `episode_id`, `outcome` (`won`, `lost`, `terminated`, `truncated`, `playing` for the block's clock; `quit`, `reset`, `forfeit` for the subject's) , `terminated`, `truncated`, `score`, `n_pacing_resets` |
+    | `block_end` | last line: `n_episodes`, `n_frames`, `outcomes`, `n_pacing_resets`, `total_reward` (the manifest entry's summary), `audio` (when the block played sound: `onsets`, `[chunk, run_time]` when each chunk reached the DAC, so a frame's sound onset is the entry for its `audio_chunk` and `onset - flip_time` the audio delay achieved; `delay_ms`, `resyncs`, `trimmed_samples`), `extra` (the adapter's block extras, e.g. an ALE palette) |
+
+  - **`frames.h5`** — the rendered frames, `frames` `(N, H, W, C)` gzip'd one chunk per frame plus `frame_index` `(N,)`, the `frame` of each row: every `frame_stride`-th frame (default every one; `0` keeps none). `fmri_gym.logging.read_frames` / `read_frame` read them.
+
+  The manifest's phase entry carries the same summary and names the folder (`data_dir`).
 
 ### Reconstruction (all verified bit-exact)
 
-1. **Per-frame state** (ale, retro): `restore(states[i])` → exact frame `i`, no determinism assumption.
-2. **Seed + action replay** (any deterministic env, incl. gym): `episode_seeds`
-   + `actions` reproduce an episode frame-for-frame.
-3. **Stored pixels** (ale opt-in): `palette[screen_index]` *is* the RGB frame.
+1. **Per-frame state** (ale, retro): restore the `state` of a `frame` line → exact frame, no determinism assumption.
+2. **Seed + action replay** (any deterministic env, incl. gym): an episode's `seed` + its `action`s reproduce it frame-for-frame: `fmri_gym.replay.reconstruct_episode(block)`.
+3. **Stored pixels**: `frames.h5` *is* what was on screen, before the HUD.
 
 ```python
-import numpy as np, pickle, gymnasium as gym, ale_py, stable_retro as retro
+import base64, pickle, zlib, gymnasium as gym, ale_py, stable_retro as retro
+from fmri_gym.logging import read_events
+from fmri_gym.replay import frame_arrays, reconstruct_episode
 gym.register_envs(ale_py)
 
+block = "data/sub-01/ses-001/beh/sub-01_ses-001_task-pong_run-001/block-00_ale_Pong-v5"
+a = frame_arrays(block)                    # a["action"], a["reward"], a["ram"], ... one row per frame
+states = [zlib.decompress(base64.b64decode(e["state"])) if "state" in e else None
+          for e in read_events(block) if e["type"] == "frame"]
+
 # ALE: restore any frame's exact state
-d = np.load("block-00_ale_Pong-v5.npz", allow_pickle=True)
-env = gym.make(str(d["game"]), render_mode="rgb_array",
-               frameskip=1, repeat_action_probability=0.0); env.reset()
-env.unwrapped.restore_state(pickle.loads(d["states"][10]))
+env = gym.make("ALE/Pong-v5", render_mode="rgb_array", frameskip=1, repeat_action_probability=0.0); env.reset()
+env.unwrapped.restore_state(pickle.loads(states[10]))
 frame10 = env.unwrapped.ale.getScreenRGB()
 
 # retro: restore any frame's exact state
-d = np.load("block-01_retro_Airstriker-Genesis-v0.npz", allow_pickle=True)
-r = retro.make(str(d["game"]), render_mode="rgb_array"); r.reset()
-r.unwrapped.em.set_state(d["states"][10]); r.unwrapped.data.update_ram()
+r = retro.make("Airstriker-Genesis", render_mode="rgb_array"); r.reset()
+r.unwrapped.em.set_state(states[10]); r.unwrapped.data.update_ram()
+
+# any deterministic env: replay episode 0 from its seed and actions
+adapter, plan = reconstruct_episode(block, episode_id=0)
 ```
 
-> ⚠️ **Storage note & `state_stride`.** Per-frame savestates are cheap for ALE (~0.4 KB/frame) but large for retro consoles: a Genesis state is ~1 MB/frame. Set **`"state_stride": K`** on a game phase to snapshot a full savestate only every K frames (always including each episode's first frame, the replay anchor); frames between anchors stay reconstructable by restoring the last anchor and replaying the logged actions (retro/ALE/VGDL are deterministic). Measured on Airstriker-Genesis: a 1.5 s @60 fps block drops from **780 KB → 86 KB with `state_stride: 15`** (~9×). Analysis variables (RAM, `info_*`) are always logged every frame regardless of stride. ⚠️ **`"save_pixels": true`** stores the screen every frame. It's lossless (indexed palette; `palette[screen_index] == RGB`) and zlib-friendly (~0.25 KB/frame) — but unnecessary, since per-frame state already reconstructs pixels. Prints a loud warning when enabled.
+> ⚠️ **Storage note & `state_stride`.** Per-frame savestates are cheap for ALE (~0.4 KB/frame) but large for retro consoles: a Genesis state is ~1 MB/frame. Set **`"state_stride": K`** on a game phase to snapshot a full savestate only every K frames (always including each episode's first frame, the replay anchor); frames between anchors stay reconstructable by restoring the last anchor and replaying the logged actions (retro/ALE/VGDL are deterministic). Analysis variables (RAM, `info_*`) are always logged every frame regardless of stride. The rendered frames have their own **`"frame_stride"`**; ⚠️ **`"save_pixels": true`** (ale) additionally logs the indexed screen as a variable (`palette[screen_index] == RGB`), which `frames.h5` makes unnecessary. Prints a loud warning when enabled.
 
-> ⚠️ **Crafter replays only on a fork.** Every tenth step stock crafter rebalances creatures per chunk by iterating a Python *set* of objects, so which animal is despawned follows object `id()` and two runs of the same seed and the same action list diverge: terrain is identical, creatures are not. Measured 2026-09-28 on stock 1.8.3, replaying one episode's 225 actions in a second process that differed only in `PYTHONHASHSEED`: the two left each other at step 30, and the episode ended a step apart. Ordering that list by position is the whole fix, and it lives in [`chengfanbrain/crafter@deterministic`](https://github.com/chengfanbrain/crafter/tree/deterministic), which `gym/crafter/pyproject.toml` pins as a direct reference resolved to a commit in `uv.lock` (nothing to clone into `external/`). The same measurement on that build: a 750-frame block of 5 episodes replayed from `episode_seeds` + `actions` into every logged pixel and the whole logged symbolic state, 750 frames of 750, and all 32 savestate anchors restored and then played their episode out identically, which is what a model rollout from a subject's own state needs. Keep **`"log_frames": true`** on a crafter phase regardless: the displayed frame is zlib'd into `frame_zlib` every frame, and those pixels are the record that does not depend on whoever opens the block later having the fork installed. What that block cost at size 384 and 2.5 fps: a median frame is 7.4 KB, but crafter mixes per-pixel noise into the view at night, so its 107 night frames ran to 212 KB and the pixels came to 22.5 MB, 20.6 MB of a 22.5 MB npz; the 32 anchors pickle to 2.3 MB each, nearly all of it the observation space's constant bounds and the cached frame, and compress to 1.8 MB of that same file. Decode a frame with `np.frombuffer(zlib.decompress(blob.tobytes()), np.uint8).reshape(frame_shape)`. That night noise is drawn from the RNG the creatures use, so a `render()` outside the step loop would shift every later draw; nothing renders out of band, because `CrafterEnv` hands back the frame `step` already produced.
+> ⚠️ **Crafter replays only on a fork.** Every tenth step stock crafter rebalances creatures per chunk by iterating a Python *set* of objects, so which animal is despawned follows object `id()` and two runs of the same seed and the same action list diverge: terrain is identical, creatures are not. Measured 2026-09-28 on stock 1.8.3, replaying one episode's 225 actions in a second process that differed only in `PYTHONHASHSEED`: the two left each other at step 30, and the episode ended a step apart. Ordering that list by position is the whole fix, and it lives in [`chengfanbrain/crafter@deterministic`](https://github.com/chengfanbrain/crafter/tree/deterministic), which `gym/crafter/pyproject.toml` pins as a direct reference resolved to a commit in `uv.lock` (nothing to clone into `external/`). The same measurement on that build: a 750-frame block of 5 episodes replayed from `episode_seeds` + `actions` into every logged pixel and the whole logged symbolic state, 750 frames of 750, and all 32 savestate anchors restored and then played their episode out identically, which is what a model rollout from a subject's own state needs. The block's `frames.h5` keeps the displayed frames regardless, and those pixels are the record that does not depend on whoever opens the block later having the fork installed. What that block cost at size 384 and 2.5 fps, measured with per-frame zlib: a median frame is 7.4 KB, but crafter mixes per-pixel noise into the view at night, so its 107 night frames ran to 212 KB and the pixels came to 22.5 MB; the 32 anchors pickle to 2.3 MB each, nearly all of it the observation space's constant bounds and the cached frame, and compress to 1.8 MB. That night noise is drawn from the RNG the creatures use, so a `render()` outside the step loop would shift every later draw; nothing renders out of band, because `CrafterEnv` hands back the frame `step` already produced.
 
 ## Playing a block with a model
 
-`agents/agent_play.py` runs the same curriculum with a policy where `fmri_play.py` puts a person. It shares everything that defines the task (the config, the adapter, the episode seeds, the Logger and its npz schema) and none of the session loop, which exists for a scanner: trigger wait, fps pacing, a window, a key queue.
+`agents/agent_play.py` runs the same curriculum with a policy where `fmri_play.py` puts a person. It shares everything that defines the task (the config, the adapter, the episode seeds, the Logger and its log schema) and none of the session loop, which exists for a scanner: trigger wait, fps pacing, a window, a key queue.
 
 ```sh
 python agents/agent_play.py --curriculum configs/dbp_games/crafter__crafter_L4.json \
@@ -617,11 +625,11 @@ python agents/agent_play.py --curriculum configs/dbp_games/crafter__crafter_L4.j
 
 The key is read before the first frame rather than at the first request: a block whose every call came back 401 would otherwise run to the end and log a model that chose to stand still. A call that fails later costs one frame, recorded as a noop and counted in the phase log as `dropped_calls`, beside `invalid_replies` (a reply that named no key) and `skipped_frames` (a turn-based block, where pressing nothing steps nothing).
 
-The block npz carries the fields a human block carries, plus `policy` and `policy_model`, so one analysis reads both. Episode seeds are the block's own (`seed` + episode index), which is what makes this the same-worlds condition rather than a fresh sample of the game.
+The block's log carries the fields a human block carries, plus `policy` and `policy_model` in its `block_end` record and manifest entry, so one analysis reads both. Episode seeds are the block's own (`seed` + episode index), which is what makes this the same-worlds condition rather than a fresh sample of the game.
 
 A policy is given the frame the display would have shown, the key table the subject was taught, and the lines the subject could read beside the frame. Nothing else: a policy handed engine state is no longer playing the game the human played. Where a block's feedback is a sound, the harness turns on the adapter's `cue_overlay` so the same thing is said in text, a model having no ears. `--history` fixes how many recent frames and past keys a VLM policy sees, and it is the one asymmetry against a subject watching a continuous stream, so pin it and report it rather than tuning it against scores.
 
-Rolling a model out from a *human's* savestate anchor, and reading a VLM's forward pass over a human's frames, both consume these npz files from outside and are deliberately not part of this repo.
+Rolling a model out from a *human's* savestate anchor, and reading a VLM's forward pass over a human's frames, both consume these logs from outside and are deliberately not part of this repo.
 
 ## Migrating your game list
 

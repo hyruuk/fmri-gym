@@ -1,14 +1,41 @@
-"""One run's logging: a manifest.json + one compressed .npz per game block.
+"""One run's data, on disk as it happens.
 
-The logger is engine-agnostic: it consumes the standard FrameState objects the
-adapter produces, so the on-disk schema is identical across backends. Analysis
-code loads the same fields whether the block was Atari, Genesis, or CartPole.
+::
+
+    <outdir>/manifest.json                            the run: subject, curriculum, one entry per phase, rig
+    <outdir>/block-NN_<backend>_<game>/events.jsonl   one JSON object per line, in order
+    <outdir>/block-NN_<backend>_<game>/frames.h5      the rendered frames, when the phase keeps them
+
+There is one :class:`Logger` per run and it writes all three. The manifest is
+rewritten (atomically) whenever a phase entry or a run-level field lands, so
+it is current at every phase boundary. A block's lines and frames go through
+a queue to a writer process that owns the file handles, flushes on a timer
+and finishes on its own if the run dies: a crash mid-block loses at most the
+last flush interval, and a partial last line is skipped on read. One block is
+open at a time (a run plays its curriculum in order).
+
+Every line in ``events.jsonl`` has a ``type``. The logger writes the first
+and last itself -- ``block_start`` (``format``, ``version``, ``subject``,
+``block_index``, ``backend``, ``game``, ``phase``: the config, ``base_seed``)
+and ``block_end`` (whatever summary :meth:`Logger.close_block` is given) --
+and stamps each ``frame`` with its index in the block, also ``frame``. The
+other lines are the run's, verbatim (:mod:`fmri_gym.run`).
+
+``frames.h5`` holds ``frames`` ``(N, H, W, C)``, one gzip'd chunk per frame
+so any one reads alone, and ``frame_index`` ``(N,)``, the ``frame`` of each
+row: every ``frame_stride``-th frame of the block (``0``: no frames at all).
+SWMR mode makes a flushed frame durable the way a flushed line is.
 """
 
 from __future__ import annotations
 
+import base64
 import json
+import multiprocessing as mp
 import os
+import queue as queue_mod
+import time
+import zlib
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -16,161 +43,298 @@ import numpy as np
 if TYPE_CHECKING:
     from .run import Clock
 
+FORMAT = "fmri-gym-log"
+VERSION = 1
+EVENTS_FILENAME = "events.jsonl"
+FRAMES_FILENAME = "frames.h5"
+#: Seconds between flushes of a block's files to the OS (not every frame).
+FLUSH_INTERVAL = 1.0
+
 
 class Logger:
-    """Writes ``manifest.json`` and per-block compressed ``.npz`` files."""
+    """Writes one run's ``manifest.json`` and its per-block logs."""
 
-    def __init__(
-        self, outdir: str, subject: str, curriculum: list[dict], clock: Clock
-    ) -> None:
-        """Create the run's output directory and an empty manifest.
+    def __init__(self, outdir: str, subject: str, curriculum: list[dict], clock: Clock) -> None:
+        """Create the run's output directory, an empty manifest and the writer process.
 
-        :param outdir: directory for the manifest and game npz files.
-        :param subject: subject identifier stored in the manifest.
+        :param outdir: the run's folder.
+        :param subject: subject identifier stored in the manifest and each block.
         :param curriculum: full curriculum list stored in the manifest.
         :param clock: the run's clock (used for trigger epoch / perf times).
         """
         self.outdir = outdir
         self.clock = clock
         os.makedirs(outdir, exist_ok=True)
-        self.manifest = {
-            "subject": subject,
-            "curriculum": curriculum,
-            "start_epoch": None,
-            "phases": [],
+        self.manifest: dict = {
+            "subject": subject, "curriculum": curriculum, "start_epoch": None, "phases": [],
         }
+        self._block: str | None = None
+        #: frames recorded in the open block so far.
+        self.n_frames = 0
+        self._frame_stride = 1
+        # Unbounded queue: a full one would silently stall put(), the exact
+        # invisible data loss this exists to avoid.
+        self._queue: mp.Queue = mp.Queue()
+        self._process = mp.Process(target=_writer_main, args=(self._queue,), daemon=True)
+        self._process.start()
+
+    # -- the manifest --------------------------------------------------------
 
     def set_trigger_time(self) -> None:
         """Record the scanner-trigger wall and perf times on the manifest."""
         self.manifest["start_epoch"] = self.clock.t0_epoch
         self.manifest["trigger_perf"] = self.clock.t0_perf
+        self.save_manifest()
 
     def log_phase(self, entry: dict) -> None:
-        """Append one phase summary entry to the manifest.
+        """Append one phase summary entry to the manifest and write it out.
 
         :param entry: phase dict (``index``, ``type``, onset/offset, …).
         """
         self.manifest["phases"].append(entry)
+        self.save_manifest()
 
     def set_extra(self, key: str, value: Any) -> None:
-        """Store a run-level entry in the manifest (e.g. trigger settings).
+        """Store a run-level entry in the manifest (e.g. trigger settings) and write it out.
 
         :param key: top-level manifest key.
         :param value: JSON-serializable value.
         """
         self.manifest[key] = value
-
-    def save_game_block(
-        self,
-        block_index: int,
-        backend: str,
-        game: str,
-        frames: dict,
-        extra: dict | None = None,
-    ) -> str:
-        """Write one game block's per-frame arrays to a compressed ``.npz``.
-
-        ``frames`` holds parallel lists collected by the run's loop. Backend-
-        specific variables (ram, obs, screen_index, retro info vars, ...) are
-        stacked under their own keys. ``extra`` is a dict of block-level arrays
-        (e.g. an ALE palette) merged in verbatim.
-
-        :param block_index: zero-based curriculum index used in the filename.
-        :param backend: adapter name (e.g. ``"ale"``, ``"retro"``).
-        :param game: game id / path used in the filename and stored in the npz.
-        :param frames: parallel lists of per-frame fields from the run's loop.
-        :param extra: optional block-level arrays merged into the npz.
-        :return: absolute path of the written ``.npz`` file.
-        """
-        safe_game = game.split("/")[-1].replace(":", "_")
-        path = os.path.join(
-            self.outdir, f"block-{block_index:02d}_{backend}_{safe_game}.npz")
-        arrays = dict(
-            actions=_to_array(frames["action"]),
-            rewards=np.asarray(frames["reward"], dtype=np.float32),
-            terminated=np.asarray(frames["terminated"], dtype=bool),
-            truncated=np.asarray(frames["truncated"], dtype=bool),
-            episode_id=np.asarray(frames["episode_id"], dtype=np.int32),
-            run_time=np.asarray(frames["run_time"], dtype=np.float64),
-            # Run time of the flip that showed each frame (the onset).
-            flip_time=np.asarray(frames["flip_time"], dtype=np.float64),
-            wall_time=np.asarray(frames["wall_time"], dtype=np.float64),
-            # Opaque per-frame savestate blobs (object array of bytes|None).
-            states=np.array(frames["state_blob"], dtype=object),
-            episode_seeds=np.asarray(frames["episode_seeds"], dtype=np.int64),
-            # Per episode: its score (cumulative reward) and how it ended
-            # (EnvAdapter.outcome's names, or quit / reset / forfeit).
-            episode_score=np.asarray(frames["episode_score"], dtype=np.float64),
-            episode_outcome=np.asarray(frames["episode_outcome"], dtype=str),
-            backend=backend,
-            game=game,
-        )
-        # Per-frame trigger code sent to the recording device (0 = none);
-        # present only when a trigger backend is active.
-        if frames["trigger"]:
-            arrays["trigger"] = np.asarray(frames["trigger"], dtype=np.int16)
-        # Run time each frame's sound started at the DAC (NaN: the frame
-        # had none, or it never played); present only when the block had sound.
-        # audio_onset - flip_time is the audio delay actually achieved.
-        if len(frames["audio_onset"]):
-            arrays["audio_onset"] = np.asarray(frames["audio_onset"], dtype=np.float64)
-        # Flips that ended a stall of more than a frame, and how late each was;
-        # the frame schedule restarted there instead of catching up.
-        resets = np.asarray(frames["pacing_reset"], dtype=np.float64).reshape(-1, 2)
-        arrays["pacing_reset_time"], arrays["pacing_reset_late"] = resets[:, 0], resets[:, 1]
-        # Every key press/release during the block, stamped on arrival
-        # (~1 ms), independent of the frame grid.
-        events = frames["key_events"]
-        arrays["key_time"] = np.asarray([e[0] for e in events], dtype=np.float64)
-        arrays["key_name"] = np.asarray([e[1] for e in events], dtype=str)
-        arrays["key_down"] = np.asarray([e[2] for e in events], dtype=bool)
-        # Stack every named variable the adapter surfaced (ram, obs, ...).
-        for key, series in frames["variables"].items():
-            try:
-                arrays[key] = np.asarray(series)
-            except Exception:
-                arrays[key] = np.array(series, dtype=object)
-        if extra:
-            arrays.update(extra)
-        np.savez_compressed(path, **arrays)
-        return path
+        self.save_manifest()
 
     def save_manifest(self) -> str:
-        """Write ``manifest.json`` to the run's output directory.
+        """Write ``manifest.json`` atomically to the run's output directory.
 
         :return: absolute path of the written manifest file.
         """
         path = os.path.join(self.outdir, "manifest.json")
-        with open(path, "w") as f:
-            json.dump(self.manifest, f, indent=2, default=_json_default)
+        _atomic_write(path, json.dumps(self.manifest, indent=2, default=_json_default).encode())
         return path
 
+    # -- one game block ------------------------------------------------------
 
-def _to_array(actions: list) -> np.ndarray:
-    """Stack a list of actions into a numpy array.
+    def open_block(self, index: int, backend: str, game: str, phase: dict, base_seed: int) -> str:
+        """Start a block's log; its ``block_start`` line is queued at once.
 
-    Actions may be ints (Discrete), arrays (Box), or button lists (retro);
-    heterogeneous types fall back to an object array.
+        :param index: the phase's index in the curriculum (in the folder name).
+        :param backend: adapter name (in the folder name).
+        :param game: game id / path (its last path component in the folder name).
+        :param phase: the game-phase config; its ``frame_stride`` (1 by
+            default) says which rendered frames this block keeps.
+        :param base_seed: the phase's base seed.
+        :return: the block's folder name, for the manifest.
+        """
+        safe_game = game.split("/")[-1].replace(":", "_")
+        name = f"block-{index:02d}_{backend}_{safe_game}"
+        self._block = os.path.join(self.outdir, name)
+        self.n_frames = 0
+        self._frame_stride = int(phase.get("frame_stride", 1))
+        self.log(type="block_start", format=FORMAT, version=VERSION,
+                 subject=self.manifest["subject"], block_index=index, backend=backend,
+                 game=game, phase=phase, base_seed=base_seed)
+        return name
 
-    :param actions: list of per-frame actions.
-    :return: stacked numpy array (or object array on failure).
-    """
-    try:
-        return np.asarray(actions)
-    except Exception:
-        return np.array(actions, dtype=object)
+    def log(self, **record: Any) -> None:
+        """Append one line to the open block's ``events.jsonl``.
+
+        :param record: the line's fields; give it a ``type``.
+        """
+        self._queue.put({"op": "line", "block": self._block, "line": record})
+
+    def log_frame(self, fields: dict, frame: Any = None, state: bytes | None = None) -> None:
+        """Append one ``frame`` line, and the rendered frame when the stride says so.
+
+        :param fields: the line's fields, written verbatim.
+        :param frame: the rendered ``(H, W, C)`` array, or ``None``.
+        :param state: an opaque savestate, stored as ``state``: zlib'd, then
+            base64 (both done by the writer process, off the caller's loop).
+        """
+        line = {"type": "frame", "frame": self.n_frames, **fields}
+        self._queue.put({"op": "line", "block": self._block, "line": line, "state": state})
+        if frame is not None and self._frame_stride and self.n_frames % self._frame_stride == 0:
+            # Copied before queuing: some adapters (MiniHack) reuse their render buffer.
+            self._queue.put({"op": "frame", "block": self._block,
+                             "index": self.n_frames, "frame": np.array(frame)})
+        self.n_frames += 1
+
+    def close_block(self, **summary: Any) -> None:
+        """Append the ``block_end`` line and release the block's files.
+
+        :param summary: the line's fields (episode and frame counts, totals, …).
+        """
+        self.log(type="block_end", **summary)
+        self._queue.put({"op": "close", "block": self._block})
+        self._block = None
+
+    def close(self) -> None:
+        """Flush everything and stop the writer process. Safe to call more than once."""
+        if not self._process.is_alive():
+            return
+        self._queue.put({"op": "shutdown"})
+        self._process.join()
+
+
+# --------------------------------------------------------------------------- #
+# The writer process
+# --------------------------------------------------------------------------- #
+
+#: How long an orphaned writer waits for more queued records before giving up.
+_ORPHAN_GRACE = 1.0
+
+
+def _writer_main(q: mp.Queue) -> None:
+    """Consume queued ops, owning every file handle; flush on a timer; exit on
+    ``shutdown`` or, having drained the queue, when the parent is gone."""
+    lines: dict[str, Any] = {}
+    h5: dict[str, Any] = {}
+    parent = os.getppid()
+    last_flush = time.monotonic()
+
+    def _flush() -> None:
+        for fh in lines.values():
+            fh.flush()
+        for f in h5.values():
+            f.flush()  # SWMR: this is what makes a written frame durable
+
+    def _open_h5(block: str, frame: np.ndarray) -> Any:
+        """Sized from the first frame; SWMR mode must be set after every dataset exists."""
+        import h5py
+        f = h5py.File(os.path.join(block, FRAMES_FILENAME), "w", libver="latest")
+        f.create_dataset("frames", shape=(0, *frame.shape), maxshape=(None, *frame.shape),
+                         dtype=frame.dtype, chunks=(1, *frame.shape),
+                         compression="gzip", compression_opts=1)
+        f.create_dataset("frame_index", shape=(0,), maxshape=(None,), dtype="int64",
+                         chunks=(1024,))
+        f.swmr_mode = True
+        return f
+
+    def _handle(rec: dict) -> bool:
+        """Apply one op; True when it was ``shutdown``."""
+        op, block = rec["op"], rec.get("block")
+        if op == "shutdown":
+            return True
+        if op == "line":
+            if block not in lines:
+                os.makedirs(block, exist_ok=True)
+                lines[block] = open(os.path.join(block, EVENTS_FILENAME), "a")
+            line = rec["line"]
+            if rec.get("state") is not None:
+                # Savestates are large and mostly redundant (a crafter pickle is
+                # 2.3 MB, ~57 KB zlib'd), so they are compressed here, not in
+                # the game loop.
+                line["state"] = base64.b64encode(zlib.compress(rec["state"], 1)).decode("ascii")
+            lines[block].write(json.dumps(line, default=_json_default) + "\n")
+        elif op == "frame":
+            if block not in h5:
+                h5[block] = _open_h5(block, rec["frame"])
+            for name, value in (("frames", rec["frame"]), ("frame_index", rec["index"])):
+                ds = h5[block][name]
+                n = ds.shape[0]
+                ds.resize(n + 1, axis=0)
+                ds[n] = value
+        elif op == "close":
+            for handles in (lines, h5):
+                fh = handles.pop(block, None)
+                if fh is not None:
+                    fh.close()
+        return False
+
+    def _finish() -> None:
+        _flush()
+        for handles in (lines, h5):
+            for fh in handles.values():
+                fh.close()
+
+    while True:
+        wait = max(0.0, FLUSH_INTERVAL - (time.monotonic() - last_flush))
+        try:
+            rec = q.get(timeout=wait)
+        except queue_mod.Empty:
+            rec = None
+        if rec is not None:
+            if _handle(rec):
+                return _finish()
+        elif os.getppid() != parent:
+            # Orphaned: take what is still queued, then persist and leave.
+            while True:
+                try:
+                    rec = q.get(timeout=_ORPHAN_GRACE)
+                except queue_mod.Empty:
+                    break
+                if _handle(rec):
+                    break
+            return _finish()
+        if time.monotonic() - last_flush >= FLUSH_INTERVAL:
+            _flush()
+            last_flush = time.monotonic()
+
+
+def _atomic_write(path: str, data: bytes) -> None:
+    """tmp file + fsync + ``os.replace``, so a crash mid-write never corrupts ``path``."""
+    tmp = f"{path}.tmp"
+    with open(tmp, "wb") as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
 
 
 def _json_default(o: Any) -> Any:
-    """JSON serializer for numpy scalars/arrays used in the manifest.
-
-    :param o: object that the default ``json`` encoder could not handle.
-    :return: a JSON-serializable value.
-    """
-    if isinstance(o, (np.integer,)):
+    """JSON for numpy scalars and arrays; anything else as its ``str``."""
+    if isinstance(o, np.integer):
         return int(o)
-    if isinstance(o, (np.floating,)):
+    if isinstance(o, np.floating):
         return float(o)
     if isinstance(o, np.ndarray):
         return o.tolist()
     return str(o)
+
+
+# --------------------------------------------------------------------------- #
+# Reading a block back
+# --------------------------------------------------------------------------- #
+
+def read_events(block: str) -> list[dict]:
+    """Every line of a block's ``events.jsonl``, in order.
+
+    :param block: the block's folder.
+    :return: the records; a partial last line (a crash mid-write) is dropped, not raised.
+    """
+    events = []
+    with open(os.path.join(block, EVENTS_FILENAME)) as f:
+        for line in f:
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                break
+    return events
+
+
+def read_frames(block: str) -> tuple[np.ndarray, np.ndarray]:
+    """A block's recorded frames.
+
+    :param block: the block's folder.
+    :return: ``(frames, frame_index)``: ``(N, H, W, C)`` and, parallel, each
+        row's ``frame`` in the block (not contiguous if ``frame_stride`` > 1).
+    :raises FileNotFoundError: if the block kept no frames.
+    """
+    import h5py
+    with h5py.File(os.path.join(block, FRAMES_FILENAME), "r") as f:
+        return f["frames"][:], f["frame_index"][:]
+
+
+def read_frame(block: str, frame: int) -> np.ndarray | None:
+    """One recorded frame.
+
+    :param block: the block's folder.
+    :param frame: its ``frame`` index in the block.
+    :return: the ``(H, W, C)`` array, or ``None`` if that frame was not kept.
+    """
+    import h5py
+    with h5py.File(os.path.join(block, FRAMES_FILENAME), "r") as f:
+        index = f["frame_index"][:]
+        pos = int(np.searchsorted(index, frame))
+        if pos >= len(index) or index[pos] != frame:
+            return None
+        return f["frames"][pos]

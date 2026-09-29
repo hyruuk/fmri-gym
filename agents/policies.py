@@ -3,7 +3,7 @@
 The rig exists to compare humans against models on the same game. That needs the
 model's blocks logged exactly like the subject's, so everything except the choice
 of action is shared: same curriculum JSON, same EnvAdapter, same Logger, same
-npz schema. The policy is the one piece that differs, and it lives here rather
+log schema. The policy is the one piece that differs, and it lives here rather
 than in an adapter because it is not part of any game.
 
 Keep policies free of game knowledge. A policy sees the frame the display would
@@ -56,7 +56,7 @@ class RandomPolicy(Policy):
     """Uniform over every key the subject can press.
 
     Not a baseline anyone reports: this is the pipeline test. It exercises the
-    whole path (adapter, capture, savestates, npz) at full speed and with no
+    whole path (adapter, capture, savestates, log) at full speed and with no
     network, so a schema mismatch shows up before a single model token is spent.
 
     :param actions: the actions to draw from, usually a keymap's values.

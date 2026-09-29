@@ -43,13 +43,13 @@ Measured 2026-09-28, recording and replaying in two processes that differ only
 in ``PYTHONHASHSEED``. Stock 1.8.3 leaves its own trajectory at step 30 of a
 225-action episode and ends it a step early; on the fork, all 5 episodes of a
 750-frame block replayed from ``episode_seeds`` + ``actions`` into both the
-logged symbolic state and the logged pixels, bit for bit. ``log_frames`` stays
-on anyway: the stored frames are the record that does not depend on whoever
-opens the block later having the right build installed. Cost of that block at
-2.5 fps and size 384: 7.4 KB for a median daylit frame, but crafter mixes
-per-pixel noise into the view at night, so its 107 night frames ran to a median
-185 KB and 217 KB at the worst, 17.4 MB between them; the frames totalled
-22.5 MB, 20.6 MB of a 22.5 MB npz.
+logged symbolic state and the logged pixels, bit for bit. The block's
+``frames.h5`` keeps the displayed frames anyway: they are the record that does
+not depend on whoever opens the block later having the right build installed.
+Cost, measured with per-frame zlib at 2.5 fps and size 384: 7.4 KB for a median
+daylit frame, but crafter mixes per-pixel noise into the view at night, so its
+107 night frames ran to a median 185 KB and 217 KB at the worst, 17.4 MB between
+them; the frames totalled 22.5 MB.
 
 That night noise is drawn from ``world.random``, the same stream the creatures
 use, so a render outside the step loop would shift every later draw. Nothing
@@ -63,7 +63,7 @@ Crafter has no savestate API, but the whole env pickles, so ``capture`` returns
 that blob and ``restore`` loads it. At size 384 a state is 2.3 MB and ~3 ms
 either way, of which the game is 0.16 MB: the rest is the observation space's
 constant bounds and the frame ``render`` hands back, both of which zlib takes
-down to ~57 KB an anchor inside the npz. Storing one per frame would still be
+down to ~57 KB an anchor once compressed. Storing one per frame would still be
 1.7 GB raw a block, hence ``state_stride`` in the config (25 = one anchor every
 10 s at 2.5 fps, counted per episode). On the fork an anchor is a real branch
 point: all 32 in the measured block restored and then played their episode out
@@ -149,7 +149,6 @@ is still exactly the information the subject got.
 from __future__ import annotations
 
 import pickle
-import zlib
 from typing import Any
 
 import gymnasium as gym
@@ -321,7 +320,6 @@ class CrafterAdapter(EnvAdapter):
         # root, and `crafter_gym.import_crafter` is where that is dealt with.
         crafter = crafter_gym.import_crafter()
 
-        self._log_frames = bool(spec.get("log_frames", False))
         self._show_score = bool(spec.get("show_score", False))
         self._cues = bool(spec.get("cues", False))
         self._cue_overlay = bool(spec.get("cue_overlay", False))
@@ -509,7 +507,7 @@ class CrafterAdapter(EnvAdapter):
         ``sleeping`` (``_wake_up_when_hurt``), so the last autoplayed frame is
         the one with the zombie next to them and the health bar already down.
         A frame is logged for every one of these steps, with ``noop`` as its
-        action, so the npz and a replay see exactly what happened; the ``noop``
+        action, so the log and a replay see exactly what happened; the ``noop``
         also keeps a press made mid-sleep from moving the menu cursor, which
         is wrapper state the engine would not have discarded.
 
@@ -602,20 +600,12 @@ class CrafterAdapter(EnvAdapter):
             "sleeping": bool(info.get("sleeping", False)),
         }
         if self._menu_mode:
-            # What the engine was given, beside the button `actions` holds.
-            # run.py collects `info["env_action"]` into a frames key of its own,
-            # but save_game_block writes no such column today, so this is where
-            # it reaches the npz. Menu state is read after the press, so a cycle
-            # row names where the cursor landed, which is what the frame shows.
-            variables["env_action"] = info["env_action"]
+            # What the engine was given is `info["env_action"]`, which the run
+            # logs beside the button `action` holds. Menu state is read after
+            # the press, so a cycle row names where the cursor landed, which is
+            # what the frame shows.
             variables["menu_idx"] = info["menu_idx"]
             variables["menu_sel"] = info["menu_sel"]
-        if self._log_frames:
-            # Kept as uint8 rather than bytes: a list of bytes becomes a numpy
-            # "S" array, which strips the trailing NULs a zlib stream can end
-            # with. Decode with zlib.decompress -> frombuffer -> frame_shape.
-            packed = zlib.compress(np.asarray(obs).tobytes(), 6)
-            variables["frame_zlib"] = np.frombuffer(packed, np.uint8)
         blob = pickle.dumps(self.env, protocol=5) if want_blob else None
         return FrameState(blob=blob, variables=variables)
 
@@ -656,6 +646,4 @@ class CrafterAdapter(EnvAdapter):
         if self._menu_mode:
             # Decodes menu_idx, and is the order the subject cycles through.
             extra["menu_names"] = np.array(self.env.menu_names)
-        if self._log_frames:
-            extra["frame_shape"] = np.array(self.env.render().shape)
         return extra

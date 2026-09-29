@@ -222,17 +222,17 @@ class EnvAdapter:
             return "truncated", "Timeout"
         return "playing", "Still playing"
 
-    def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
+    def capture(self, observation: Any, info: dict, want_blob: bool = True) -> FrameState:
         """Return the :class:`FrameState` to log for the current frame.
 
-        Called once per step. ``obs``/``info`` are the latest :meth:`step`
+        Called once per step. ``observation``/``info`` are the latest :meth:`step`
         outputs so subclasses can fold observation-derived state in without
         re-querying. When ``want_blob`` is ``False`` the caller does not need
         the (often expensive) savestate this frame, so subclasses SHOULD skip
         computing ``blob`` and leave it ``None`` -- the cheap analysis
         variables should still be filled.
 
-        :param obs: observation from the latest step/reset.
+        :param observation: observation from the latest step/reset.
         :param info: info dict from the latest step/reset.
         :param want_blob: if ``False``, skip expensive savestate capture.
         :return: a :class:`FrameState` (default empty in the base class).
@@ -248,7 +248,7 @@ class EnvAdapter:
         raise NotImplementedError(f"{self.name} env has no in-memory savestate")
 
     def block_extra(self) -> dict | None:
-        """Arrays to merge into the block's npz once, beside the per-frame ones.
+        """What the block's log says once, in its ``block_end`` record's ``extra``.
 
         :meth:`capture` writes a row per frame; this is what the block needs
         said once, and what a per-frame column cannot say about itself: the
