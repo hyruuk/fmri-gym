@@ -1,6 +1,6 @@
 """Where a run's data goes, BIDS-style, and the numbers in its name.
 
-    data/sub-01/ses-001/beh/sub-01_ses-001_task-pong_run-001/      manifest.json, block-*.npz
+    data/sub-01/ses-001/beh/sub-01_ses-001_task-pong_run-001/      manifest.json, block-*/
     data/sub-01/ses-001/beh/sub-01_ses-001_task-pong_run-002/      the same task again
     data/sub-01/ses-001/beh/sub-01_ses-001_task-pong_run-002_02/   ... re-acquired
     data/sub-01/ses-001/beh/sub-01_ses-001_task-crafter_run-001/
@@ -23,7 +23,7 @@ script alone. No two runs -- of a participant, or of two participants --
 replay each other's episodes unless a phase pins its ``"seed"``.
 
 The names follow BIDS, apart from that attempt suffix; the contents do not yet
-(a manifest and ``.npz`` blocks in a folder per run, not ``_beh.tsv`` +
+(a manifest and a folder per block in a folder per run, not ``_beh.tsv`` +
 ``_events.tsv`` sidecars).
 """
 

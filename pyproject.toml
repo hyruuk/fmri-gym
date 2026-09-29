@@ -20,6 +20,7 @@ dependencies = [
     "pygame-ce",
     "sounddevice",
     "numpy",
+    "h5py",  # the rendered frames of a block recording
     "setuptools<81",  # minihack imports pkg_resources
 ]
 

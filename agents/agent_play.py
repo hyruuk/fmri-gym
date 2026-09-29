@@ -3,7 +3,7 @@
 The comparison the rig is built for needs a model to play the worlds the subject
 played and be logged the same way. So this shares everything that defines the
 task: the curriculum JSON, the EnvAdapter, the episode seeds, the Logger and its
-npz schema. It shares none of the run loop, which exists for a scanner: trigger
+log schema. It shares none of the run loop, which exists for a scanner: trigger
 wait, fps pacing, a pygame window, a key event queue, a pause menu. A model needs
 no window and no wall clock, and faking them would only slow the block to human
 speed.
@@ -23,7 +23,7 @@ from __future__ import annotations
 import argparse
 import os
 import time
-from collections import Counter, defaultdict
+from collections import Counter
 
 from policies import Policy, RandomPolicy, VLMPolicy
 
@@ -70,10 +70,10 @@ def build_policy(args, adapter) -> Policy:
     return VLMPolicy(keys, model=args.model, history=args.history, noop=noop)
 
 
-def play_episode(adapter, policy: Policy, frames: dict, clock: Clock, *,
+def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
                  seed: int, episode_id: int, state_stride: int, fps: float,
-                 turn_based: bool, max_frames: int) -> tuple[int, int]:
-    """Run one episode under ``policy``, appending to ``frames``.
+                 turn_based: bool, max_frames: int) -> tuple[dict, int]:
+    """Run one episode under ``policy``, logging every frame.
 
     Mirrors ``Run._episode`` field for field, minus everything that is about a
     person at a screen. Keeping the two in step by hand is the price of not
@@ -81,7 +81,7 @@ def play_episode(adapter, policy: Policy, frames: dict, clock: Clock, *,
 
     :param adapter: the block's adapter.
     :param policy: the policy choosing actions.
-    :param frames: mutable frame-log dict; lists are appended in place.
+    :param logger: the run's logger, with this block open.
     :param clock: the run's clock, for the same time columns humans get.
     :param seed: RNG seed for this episode's ``reset``.
     :param episode_id: index of this episode within the block.
@@ -91,11 +91,12 @@ def play_episode(adapter, policy: Policy, frames: dict, clock: Clock, *,
         by itself are not put to the policy either
         (:meth:`~fmri_gym.adapters.base.EnvAdapter.autoplay`).
     :param max_frames: stop the episode after this many frames.
-    :return: ``(frames stepped, frames the policy pressed nothing)``.
+    :return: the episode's ``episode_end`` record, as logged, and the number
+        of frames the policy pressed nothing on.
     """
-    frames["episode_seeds"].append(seed)
     policy.reset()
-    obs, info = adapter.reset(seed)
+    observation, info = adapter.reset(seed)
+    logger.log(type="episode_start", episode_id=episode_id, seed=seed)
 
     terminated = truncated = False
     score = 0.0                         # the episode's cumulative reward
@@ -124,47 +125,45 @@ def play_episode(adapter, policy: Policy, frames: dict, clock: Clock, *,
                 skipped += 1
                 continue
 
-        obs, reward, terminated, truncated, info = adapter.step(action)
+        observation, reward, terminated, truncated, info = adapter.step(action)
         auto = adapter.autoplay(info) if turn_based else None
         score += float(reward)
-        # Anchor a full savestate at episode start and every stride.
-        save_blob = (ep_frame % state_stride == 0)
+        # A savestate at the episode's first frame (the replay anchor), then every stride.
+        fs = adapter.capture(observation, info, want_blob=ep_frame % state_stride == 0)
+        fields = {
+            "episode_id": episode_id, "ep_frame": ep_frame, "action": action, "reward": reward,
+            "terminated": bool(terminated), "truncated": bool(truncated),
+            "run_time": clock.run_time(),
+            # A policy has no screen, so no frame of this block was ever flipped.
+            # NaN, not the step time: the human column is a measured photon onset,
+            # and nothing should be able to average the two together by accident.
+            "flip_time": float("nan"), "wall_time": clock.wall_time(),
+            "variables": fs.variables,
+        }
+        if isinstance(info, dict) and "env_action" in info:
+            fields["env_action"] = info["env_action"]
+        logger.log_frame(fields, frame=adapter.render(), state=fs.blob)
         ep_frame += 1
-        fs = adapter.capture(obs, info, want_blob=save_blob)
-
-        frames["action"].append(action)
-        frames["reward"].append(reward)
-        frames["terminated"].append(bool(terminated))
-        frames["truncated"].append(bool(truncated))
-        frames["episode_id"].append(episode_id)
-        frames["run_time"].append(clock.run_time())
-        # A policy has no screen, so no frame of this block was ever flipped.
-        # NaN, not the step time: the human column is a measured photon onset,
-        # and nothing should be able to average the two together by accident.
-        frames["flip_time"].append(float("nan"))
-        frames["wall_time"].append(clock.wall_time())
-        frames["state_blob"].append(fs.blob)
-        for k, v in fs.variables.items():
-            frames["variables"][k].append(v)
 
     # Same vocabulary the human blocks log, from the same method: "playing" is
     # the budget cutting the episode off, where a subject's block clock would.
     outcome, _ = adapter.outcome(terminated, truncated)
-    frames["episode_outcome"].append(outcome)
-    frames["episode_score"].append(score)
-    return ep_frame, skipped
+    end = {"episode_id": episode_id, "outcome": outcome, "terminated": bool(terminated),
+           "truncated": bool(truncated), "score": score, "n_pacing_resets": 0}
+    logger.log(type="episode_end", **end)
+    return end, skipped
 
 
 def play_block(phase: dict, index: int, args, logger: Logger,
                clock: Clock) -> str:
-    """Play every episode of one game block and write its npz.
+    """Play every episode of one game block and write its log.
 
     :param phase: the game-phase config, used exactly as a run uses it.
-    :param index: phase index in the curriculum (names the output file).
+    :param index: phase index in the curriculum (names the block's folder).
     :param args: parsed command-line arguments.
     :param logger: the run's logger writing the block.
     :param clock: the run's clock.
-    :return: path of the written npz.
+    :return: the block's folder name.
     """
     backend = phase.get("backend", "gym")
     base_seed = phase.get("seed", 1000 + index)
@@ -176,40 +175,39 @@ def play_block(phase: dict, index: int, args, logger: Logger,
     adapter = get_adapter(backend, {**phase, "cue_overlay": True})
     policy = build_policy(args, adapter)
 
-    frames = defaultdict(list)
-    frames["variables"] = defaultdict(list)
+    data_dir = logger.open_block(index, backend, phase["game"], phase, base_seed)
+    episodes: list[dict] = []           # each episode's episode_end record
     skipped = 0
     for episode_id in range(args.n_episodes):
-        n, n_skipped = play_episode(
-            adapter, policy, frames, clock, seed=base_seed + episode_id,
+        before = logger.n_frames
+        end, n_skipped = play_episode(
+            adapter, policy, logger, clock, seed=base_seed + episode_id,
             episode_id=episode_id, state_stride=state_stride,
             fps=phase["fps"], turn_based=bool(phase.get("turn_based", False)),
             max_frames=args.max_frames)
+        episodes.append(end)
         skipped += n_skipped
         print(f"  episode {episode_id} (seed {base_seed + episode_id}): "
-              f"{n} frames, {frames['episode_outcome'][-1]}, "
-              f"score {frames['episode_score'][-1]:g}")
+              f"{logger.n_frames - before} frames, {end['outcome']}, score {end['score']:g}")
 
-    extra = adapter.block_extra() or {}
-    # Which policy produced the block belongs in the block, not in a filename:
-    # a model npz and a human npz are otherwise indistinguishable by design.
-    extra["policy"] = args.policy
-    extra["policy_model"] = args.model if args.policy == "vlm" else ""
+    extra = adapter.block_extra()
     adapter.close()
-    path = logger.save_game_block(index, backend, phase["game"], frames,
-                                  extra=extra)
-    logger.log_phase({
-        "index": index, "type": "game", "backend": backend,
-        "game": phase["game"], "policy": args.policy,
-        "n_episodes": args.n_episodes, "n_frames": len(frames["action"]),
-        "outcomes": dict(Counter(frames["episode_outcome"])),
-        "total_reward": sum(float(r) for r in frames["reward"]),
+    summary = {
+        "n_episodes": len(episodes), "n_frames": logger.n_frames,
+        "outcomes": dict(Counter(e["outcome"] for e in episodes)),
+        "total_reward": sum(e["score"] for e in episodes),
+        # Which policy produced the block belongs in the block, not in a folder
+        # name: a model's log and a human's are otherwise alike by design.
+        "policy": args.policy, "policy_model": args.model if args.policy == "vlm" else "",
         # Three ways a model wastes a frame, kept apart: it named no key, it
         # named something that is not a key, or the call never came back.
         "skipped_frames": skipped, "invalid_replies": policy.invalid,
         "dropped_calls": policy.dropped,
-        "data_file": path.split("/")[-1]})
-    return path
+    }
+    logger.close_block(**summary, audio={}, extra=extra)
+    logger.log_phase({"index": index, "type": "game", "backend": backend,
+                      "game": phase["game"], **summary, "data_dir": data_dir})
+    return data_dir
 
 
 def main() -> None:
@@ -247,6 +245,7 @@ def main() -> None:
         print(f"block {index}: {phase.get('game')} via {args.policy}")
         print(" ->", play_block(phase, index, args, logger, clock))
     print("Manifest:", logger.save_manifest())
+    logger.close()
 
 
 if __name__ == "__main__":

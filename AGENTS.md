@@ -9,7 +9,8 @@ fmri_play.py                     CLI   parse the flags of one run, then play it 
 fmri_gym/run.py                  CORE  one run's experiment loop: trigger, phases, timing
 fmri_gym/display.py              CORE  one pygame window: frames, text, fixation
 fmri_gym/keys.py                 CORE  pygame keycode to key NAME ("LEFT", "SPACE")
-fmri_gym/logging.py              CORE  manifest.json + one .npz per game block
+fmri_gym/logging.py              CORE  manifest.json + one crash-safe JSONL/HDF5 log per game block
+fmri_gym/replay.py                     replay an episode from a block's log; frame fields as arrays
 fmri_gym/menu.py                 CORE  hold-a-key pause menu: reset / forfeit / resume (opt-in per phase)
 fmri_gym/adapters/base.py        CORE  EnvAdapter + FrameState: the seam
 fmri_gym/adapters/keymap.py      CORE  the phase's keys, one Keymap per action space
@@ -60,6 +61,7 @@ Before editing `run.py`, `display.py`, `keys.py`, `logging.py`, `base.py`, or `k
 - **Module docstring explains *why*.** Every file here opens with the reasoning a newcomer needs: why this backend and not COOM, why `pixel_crop` and not `pixel`, what is deliberately not supported. Keep doing that; it is the most valuable text in the repo.
 - **Docstrings on public methods** in the existing Sphinx style (`:param:`, `:return:`, `:raises:`). Short private helpers can get a one-liner.
 - **Comments explain the trap, not the code.** The good ones here record a fact you cannot see from the source: why MiniHack needs an explicit `seed(core=, disp=)`, why classic control tears down the shared pygame window.
+- **A docstring describes its own subject, not its callers.** Say what the class or function *is* and what it guarantees, in terms a reader who has only this file can check. A docstring that instead recites the order some other module calls the methods in ("construct after X is built, this one after each reset, that one once at the end") couples the two: either side can change and the text becomes a lie that nothing catches, and the reader still does not know what the thing holds. Document each method's own contract — what it opens, what it writes, what it flushes — and let the call sequence live in the caller, the one place it is actually visible.
 - **Describe the present, not the path to it.** Comments, docstrings, READMEs and config `_note`s state how things are, never what they replaced or what was considered: no "no longer", "instead of the old X", "there is no env var", "not submoduled". A reader who never saw the earlier iterations should not have to. The reasoning behind a change goes in the commit message; a rejected alternative is mentioned only when a reader would otherwise try it (a documented trap), and then as a fact, not a story.
 - **Paragraphs are single lines.** In Markdown, one paragraph, list item or quote is one line, however long: the viewer wraps it, and so does the editor's soft wrap. Only code blocks and tables have a layout of their own.
 - `from __future__ import annotations`, type hints on signatures, `_private` for helpers, lines under ~100 chars. Otherwise, code should be self-explanatory.
@@ -92,7 +94,7 @@ uv run fmri-play --subject sub-test --dummy-trigger --ses 1 --run 1 \
 ruff check fmri_gym fmri_play.py
 ```
 
-and confirm the block wrote a `.npz` whose `actions`, `rewards`, and `episode_seeds` look right. There is no test suite yet; a run against a real config is the test.
+and confirm the block's folder holds an `events.jsonl` whose `frame` lines (`action`, `reward`) and `episode_start` seeds look right (`fmri_gym.replay.frame_arrays`). There is no test suite yet; a run against a real config is the test.
 
 ## Things that are easy to get wrong
 

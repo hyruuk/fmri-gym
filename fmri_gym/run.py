@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import sys
 import time
-from collections import Counter, defaultdict
+from collections import Counter
 from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any
@@ -33,8 +33,8 @@ from .audio import Audio
 from .config import fold_cli_options
 from .display import Display, check_monitor
 from .keys import held_key_names, key_name
-from .logging import Logger
 from .menu import Menu
+from .logging import Logger
 from .triggers import Triggers
 
 if TYPE_CHECKING:
@@ -102,8 +102,8 @@ def _check_quit() -> bool:
 def _poll_keys_until(
     display: Display,
     deadline: float,
-    key_log: list,
     clock: Clock,
+    logger: Logger,
     key_to_action: dict | None = None,
     menu: Menu | None = None,
     latch: bool = False,
@@ -123,8 +123,8 @@ def _poll_keys_until(
 
     :param display: the display, idled between polls.
     :param deadline: ``perf_counter`` at which to stop waiting.
-    :param key_log: list receiving ``(run_time, key_name, is_down)``.
-    :param clock: the run's clock for the timestamps.
+    :param clock: the run's clock, for the log.
+    :param logger: the run's logger.
     :param key_to_action: turn-based or latched: map of single key NAMES to
         env actions.
     :param menu: the block's :class:`~.menu.Menu`, if the phase has one.
@@ -152,7 +152,7 @@ def _poll_keys_until(
             if name is None:
                 continue
             down = event.type == pygame.KEYDOWN
-            key_log.append((clock.run_time(), name, down))
+            logger.log(type="input_event", run_time=clock.run_time(), name=name, down=down)
             if down and key_to_action and name in key_to_action:
                 if not latch:
                     return key_to_action[name], False
@@ -265,7 +265,7 @@ class Run:
         :param subject: subject identifier used in log paths / manifest.
         :param curriculum: ordered list of phase dicts (``type``, timings, …).
         :param display: shared pygame display used by all phases.
-        :param outdir: the run's folder, for its manifest and game npz files.
+        :param outdir: the run's folder, for its manifest and block logs.
         :param audio: shared audio output used by all phases; one is created if
             omitted, and stays silent unless an adapter returns sound.
         :param triggers: shared trigger output (start sync + codes; see
@@ -333,10 +333,11 @@ class Run:
         return run
 
     def close(self) -> None:
-        """Close the window, the audio output and the trigger line."""
+        """Close the window, the audio output, the trigger line and the logger."""
         self.display.close()
         self.audio.close()
         self.triggers.close()
+        self.logger.close()
 
     def _trigger(self) -> None:
         """Wait for experimenter ready, sync with the scanner, start the clock.
@@ -454,7 +455,6 @@ class Run:
     def _episode(
         self,
         adapter: EnvAdapter,
-        frames: dict,
         *,
         seed: int,
         episode_id: int,
@@ -467,11 +467,10 @@ class Run:
         play_sound: bool,
         menu: Menu | None,
         outcome_duration: float,
-    ) -> str:
-        """Run one episode, appending frame data to ``frames``.
+    ) -> dict:
+        """Run one episode, logging every frame.
 
         :param adapter: wrapped env for reset/step/render/sound/capture.
-        :param frames: mutable frame-log dict; lists are appended in place.
         :param seed: RNG seed for this episode's ``reset``.
         :param episode_id: index of this episode within the game block.
         :param turn_based: if True, advance only on mapped keydowns.
@@ -479,32 +478,31 @@ class Run:
         :param live_hud: turn-based only: redraw the HUD while waiting for the
             press, so its clock is not the one the last press left behind.
         :param dt: target seconds per frame (``1 / fps``).
-        :param state_stride: save a full state blob every this many frames.
+        :param state_stride: record a full savestate every this many frames.
         :param block_end: ``perf_counter`` deadline for the game block.
         :param play_sound: pass the adapter's sound to the speakers (the
             phase's ``audio``); muting never changes what is logged.
         :param menu: the block's :class:`~.menu.Menu`, or ``None``.
         :param outcome_duration: seconds the final score and outcome are shown.
-        :return: the episode's outcome: one of the adapter's
-            (:meth:`~.adapters.base.EnvAdapter.outcome`: ``"won"``,
-            ``"lost"``, ``"terminated"``, ``"truncated"``, or ``"playing"``
-            when the block's clock cut it off), or ``"quit"`` for ESC /
-            window close, ``"reset"`` / ``"forfeit"`` for the subject's choice
-            in the menu. Also appended to ``frames["episode_outcome"]``, with
-            the score to ``frames["episode_score"]``.
+        :return: the episode's ``episode_end`` record, as recorded:
+            ``episode_id``, ``outcome`` (one of the adapter's,
+            :meth:`~.adapters.base.EnvAdapter.outcome`: ``"won"``, ``"lost"``,
+            ``"terminated"``, ``"truncated"``, or ``"playing"`` when the
+            block's clock cut it off; or ``"quit"`` for ESC / window close,
+            ``"reset"`` / ``"forfeit"`` for the subject's choice in the menu),
+            ``terminated``, ``truncated``, ``score`` and ``n_pacing_resets``.
         """
-        frames["episode_seeds"].append(seed)
         terminated = truncated = False
         outcome = ""
         score = 0.0                     # the episode's cumulative reward
+        n_pacing_resets = 0
         ep_frame = 0
         key_to_action = (adapter.keymap.turn_actions()
                          if turn_based or latched else None)
-        key_log = frames["key_events"]
 
         def redraw() -> float:
             """Present the frame again, for its HUD. Never steps, logs or triggers."""
-            return self._show(adapter, False, score, block_end)
+            return self._show(adapter, False, score, block_end)[0]
 
         # A turn-based wait is unbounded -- it ends at a press -- and the HUD
         # is drawn only by _show, so without this the block clock a subject
@@ -519,12 +517,14 @@ class Run:
         auto: Any = None
 
         ## Reset environment and show initial state
-        obs, info = adapter.reset(seed)
+        observation, info = adapter.reset(seed)
+        self.logger.log(type="episode_start", episode_id=episode_id, seed=seed)
         self.display.call_on_flip(self.triggers.episode_start)
         # Paced from the flip, so a slow reset does not become a burst of
         # catch-up frames. The reset frame's sound is not played: it is not a
         # step's, and it would start the episode's sound off its flips.
-        next_t = self._show(adapter, False, score, block_end) + dt
+        flip_t0, _ = self._show(adapter, False, score, block_end)
+        next_t = flip_t0 + dt
 
         ## Loop over frames within episode
         while not (terminated or truncated) and time.perf_counter() < block_end:
@@ -539,7 +539,7 @@ class Run:
             waits_for_press = turn_based and auto is None
             deadline = block_end if waits_for_press else next_t
             action, user_quit = _poll_keys_until(
-                self.display, deadline, key_log, self.clock,
+                self.display, deadline, self.clock, self.logger,
                 key_to_action if waits_for_press else None, menu,
                 latch=latched and not turn_based,
                 repaint=repaint if waits_for_press else None)
@@ -547,11 +547,12 @@ class Run:
                 outcome = "quit"
                 break
             if menu is not None and menu.pending:
-                choice = menu.run(self.display, key_log, self.clock.run_time)
+                choice = menu.run(self.display, self.clock.run_time, self.logger)
                 if choice != "resume":
                     outcome = choice
                     break
-                next_t = self._show(adapter, False, score, block_end) + dt
+                flip_t0, _ = self._show(adapter, False, score, block_end)
+                next_t = flip_t0 + dt
                 continue
             next_t += dt
             if waits_for_press and action is None:
@@ -563,17 +564,17 @@ class Run:
                 # one): the action is whatever is held down at the tick.
                 action = adapter.keymap.resolve(held_key_names())
 
-            obs, reward, terminated, truncated, info = adapter.step(action)
+            observation, reward, terminated, truncated, info = adapter.step(action)
             auto = adapter.autoplay(info) if turn_based else None
             t_step = self.clock.run_time()
             score += float(reward)
-            # Anchor a full savestate at episode start and every stride.
-            save_blob = (ep_frame % state_stride == 0)
-            ep_frame += 1
-            fs = adapter.capture(obs, info, want_blob=save_blob)
+            # A savestate at each episode's first frame (the replay anchor), then
+            # every stride; frames between are the anchor plus the logged actions.
+            save_state = ep_frame % state_stride == 0
+            fs = adapter.capture(observation, info, want_blob=save_state)
             # The frame trigger goes out on the flip that shows this frame.
             self.display.call_on_flip(self.triggers.frame)
-            flip_t = self._show(adapter, play_sound, score, block_end)
+            flip_t, frame = self._show(adapter, play_sound, score, block_end)
             # More than a frame behind (a stall): drop the debt, or it is repaid
             # as a burst of one-refresh frames. The frame of slack is what a
             # vsync-locked flip normally lands after its tick.
@@ -586,40 +587,43 @@ class Run:
                 # out instead of at fps.
                 next_t = flip_t + dt
             elif next_t + dt < flip_t:
-                late = flip_t - (next_t - dt)
-                frames["pacing_reset"].append((self.clock.from_perf(flip_t), late))
+                self.logger.log(type="pacing_reset", flip_time=self.clock.from_perf(flip_t),
+                                late=flip_t - (next_t - dt))
+                n_pacing_resets += 1
                 next_t = flip_t + dt
 
-            # Prefer env_action when an adapter translates UI meta-keys into a
-            # different logged action (e.g. Rush Hour select+move -> Discrete).
+            fields = {
+                "episode_id": episode_id, "ep_frame": ep_frame,
+                "action": action, "reward": reward,
+                "terminated": bool(terminated), "truncated": bool(truncated),
+                "run_time": t_step, "flip_time": self.clock.from_perf(flip_t),
+                "wall_time": self.clock.wall_time(), "variables": fs.variables,
+            }
+            # env_action: an adapter's own reading of the UI keys, when it differs
+            # from the action sent (e.g. Rush Hour select+move -> Discrete).
             if isinstance(info, dict) and "env_action" in info:
-                frames["env_action"].append(info["env_action"])
-            frames["action"].append(action)
-            frames["reward"].append(reward)
-            frames["terminated"].append(bool(terminated))
-            frames["truncated"].append(bool(truncated))
-            frames["episode_id"].append(episode_id)
-            frames["run_time"].append(t_step)
-            frames["flip_time"].append(self.clock.from_perf(flip_t))
-            frames["audio_chunk"].append(self.audio.last_chunk)
-            frames["wall_time"].append(self.clock.wall_time())
-            frames["state_blob"].append(fs.blob)
+                fields["env_action"] = info["env_action"]
             if self.triggers.enabled:
-                frames["trigger"].append(self.triggers.last_frame)
-            for k, v in fs.variables.items():
-                frames["variables"][k].append(v)
+                fields["trigger"] = self.triggers.last_frame
+            if play_sound:
+                # The chunk this frame's sound was queued as (-1: none); when it
+                # reached the DAC is in the block_end record's audio onsets.
+                fields["audio_chunk"] = self.audio.last_chunk
+            self.logger.log_frame(fields, frame=frame, state=fs.blob)
+            ep_frame += 1
 
         ## Final outcome
         outcome, message = _final_outcome(adapter, outcome, terminated, truncated)
+        end = {"episode_id": episode_id, "outcome": outcome, "terminated": bool(terminated),
+               "truncated": bool(truncated), "score": score, "n_pacing_resets": n_pacing_resets}
+        self.logger.log(type="episode_end", **end)
         if message and outcome_duration > 0:
             self.audio.stop()               # the episode's last sounds, still queued
             self.display.draw_text(f"Final score: {score:g}\n{message}")
             _wait_for_duration(self.display, outcome_duration)
-        frames["episode_outcome"].append(outcome)
-        frames["episode_score"].append(score)
-        return outcome
+        return end
 
-    def _show(self, adapter: EnvAdapter, play_sound: bool, score: float, block_end: float) -> float:
+    def _show(self, adapter: EnvAdapter, play_sound: bool, score: float, block_end: float) -> tuple[float, Any]:
         """Flip the adapter's frame with its HUD, then queue its sound against that flip.
 
         :param adapter: the env whose ``render`` / ``hud`` / ``overlay`` /
@@ -627,19 +631,20 @@ class Run:
         :param play_sound: pass the sound to the speakers.
         :param score: the episode's running score, for the HUD.
         :param block_end: ``perf_counter`` the block ends at, for the HUD.
-        :return: ``perf_counter`` of the flip.
+        :return: ``perf_counter`` of the flip, and the rendered frame.
         """
+        frame = adapter.render()
         hud = adapter.hud(score, block_end - time.perf_counter())
-        flip_t = self.display.draw_frame(adapter.render(), hud, adapter.overlay())
+        flip_t = self.display.draw_frame(frame, hud, adapter.overlay())
         if play_sound:
             self.audio.play(adapter.sound(), flip_t)
-        return flip_t
+        return flip_t, frame
 
     def _game(self, phase: dict, index: int) -> None:
         """Run a game block (one or more episodes) and save frame-level data.
 
         Creates the env via the phase's backend adapter, plays until duration /
-        episode count / quit, then writes an npz and a manifest phase entry.
+        episode count / quit, then writes its log and a manifest phase entry.
 
         :param phase: game-phase config (``backend``, ``game``, ``mode``,
             ``duration`` / ``n_episodes`` and ``advancing_outcomes``, ``fps``,
@@ -662,11 +667,8 @@ class Run:
         advancing = phase.get("advancing_outcomes")
         outcome_duration = float(phase.get("outcome_duration", 2.0))
         base_seed = phase.get("seed", 1000 + index)
-        # Save a full savestate every `state_stride` frames (and always at each
-        # episode's first frame, the replay anchor). 1 = every frame (default);
-        # larger values trade savestate density for disk -- important for retro,
-        # whose states are ~1 MB/frame. Between anchors, frames are still
-        # reconstructable by restoring the last anchor and replaying actions.
+        # 1 = a savestate every frame (default); larger trades savestate density
+        # for disk -- retro states are ~1 MB/frame.
         state_stride = max(1, int(phase.get("state_stride", 1)))
         cap = duration if mode == "duration" else phase.get("max_duration", 300.0)
         # Turn-based games (grid worlds: FrozenLake, CliffWalking, Taxi, ...) must
@@ -709,10 +711,7 @@ class Run:
             f"Loading {phase.get('text') or phase.get('game', 'game')} …")
         adapter = get_adapter(backend, phase)
         speed = {} if turn_based else self._speed(adapter, fps, index, phase["game"])
-
-        ## Frame logging
-        frames = defaultdict(list)
-        frames["variables"] = defaultdict(list)  # varname -> list, filled lazily
+        data_dir = self.logger.open_block(index, backend, phase["game"], phase, base_seed)
 
         ## Init loop over episodes
         locked = self.display.vsync and self.display.refresh_rate
@@ -723,7 +722,8 @@ class Run:
         block_end = block_start + cap
         # The hold-a-key pause menu (reset / forfeit / resume), if the phase has one.
         menu = Menu(phase["menu"], block_start) if "menu" in phase else None
-        episode_id = completed = 0
+        episodes: list[dict] = []       # each episode's episode_end record
+        completed = 0
         outcome = ""
 
         ## Loop over episodes within game block
@@ -731,18 +731,17 @@ class Run:
             ## Run one episode
             # Seeded by episodes played, so a restart from the menu replays
             # the very instance the subject gave up on (a start-over).
-            outcome = self._episode(
-                adapter, frames,
-                seed=base_seed + completed, episode_id=episode_id,
+            end = self._episode(
+                adapter, seed=base_seed + completed, episode_id=len(episodes),
                 turn_based=turn_based, latched=latched, live_hud=live_hud,
-                dt=dt,
-                state_stride=state_stride,
+                dt=dt, state_stride=state_stride,
                 block_end=block_end, play_sound=play_sound, menu=menu,
                 outcome_duration=outcome_duration)
+            episodes.append(end)
+            outcome = end["outcome"]
             # An episode's last sounds are still queued when it ends; drop them
             # so they do not play over the next episode or the next fixation.
             self.audio.stop()
-            episode_id += 1
             # An episode the subject restarted from the menu was not played; nor,
             # in a blocking block, one whose outcome does not advance.
             completed += outcome != "reset" and (advancing is None or outcome in advancing)
@@ -751,28 +750,28 @@ class Run:
         user_quit = outcome == "quit"
 
         self.triggers.block_end()
+        audio = self.audio.block_log()
+        if audio:
+            audio["onsets"] = [[chunk, self.clock.from_perf(t)] for chunk, t in audio["onsets"]]
         extra = adapter.block_extra()
-        audio_log = self.audio.block_log(frames["audio_chunk"])
-        if audio_log:
-            frames["audio_onset"] = self.clock.from_perf(audio_log.pop("audio_onset"))
-            extra = {**(extra if extra is not None else {}), **audio_log}
         adapter.close()
         # Some gym envs (classic-control) call pygame.display.quit() on close(),
         # which tears down our shared window; rebuild it if so.
         self.display.ensure()
-        path = self.logger.save_game_block(index, backend, phase["game"],
-                                           frames, extra=extra)
+        summary = {
+            "n_episodes": len(episodes), "n_frames": self.logger.n_frames,
+            # How the episodes ended, by outcome name (see EnvAdapter.outcome).
+            "outcomes": dict(Counter(e["outcome"] for e in episodes)),
+            "n_pacing_resets": sum(e["n_pacing_resets"] for e in episodes),
+            "total_reward": sum(e["score"] for e in episodes),
+        }
+        self.logger.close_block(**summary, audio=audio, extra=extra)
         self.logger.log_phase({
             "index": index, "type": "game", "backend": backend,
             "game": phase["game"], "mode": mode,
-            "onset": onset, "offset": self.clock.run_time(),
-            "n_episodes": episode_id, "n_frames": len(frames["action"]),
-            # How the episodes ended, by outcome name (see EnvAdapter.outcome).
-            "outcomes": dict(Counter(frames["episode_outcome"])),
+            "onset": onset, "offset": self.clock.run_time(), **summary,
             **({"advancing_outcomes": advancing} if advancing is not None else {}),
-            "n_pacing_resets": len(frames["pacing_reset"]),
-            "total_reward": sum(float(r) for r in frames["reward"]),
-            "data_file": path.split("/")[-1], **speed,
+            "data_dir": data_dir, **speed,
             **({"menu": menu.describe()} if menu else {}),
         })
         if user_quit:

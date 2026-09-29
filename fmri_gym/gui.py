@@ -189,6 +189,8 @@ _GAME_FIELDS = [
               "run, for designs that need identical stimuli (Pin copies the derived one)."),
     Field("state_stride", "state_stride", "int",
           tip="Save a full emulator savestate every K frames (1 = every frame)."),
+    Field("frame_stride", "frame_stride", "int",
+          tip="Save the rendered frame every K frames (1 = every frame, 0 = none)."),
     Field("text", "text", tip="Optional label shown on the loading screen instead of the env id."),
     Field("audio", "audio", "bool", default=True,
           tip="Play the game's sound in this block. Off mutes the speakers; audio the env "

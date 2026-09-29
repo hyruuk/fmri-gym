@@ -421,21 +421,17 @@ class Audio:
             self.stream.max_offset = self._max_offset
             self.stream.log = self._log
 
-    def block_log(self, chunks: list[int]) -> dict[str, Any]:
-        """The block's sound timing for its npz, or ``{}`` if it played none.
+    def block_log(self) -> dict[str, Any]:
+        """The block's sound timing for its log, or ``{}`` if it played none.
 
-        :param chunks: per frame, :attr:`last_chunk` after that frame's flip.
-        :return: ``audio_onset`` (``perf_counter`` each frame's sound started
-            playing; NaN if it had none, or it never played), ``audio_delay_ms``,
-            ``audio_resyncs`` and ``audio_trimmed_samples``.
+        :return: ``onsets``: ``(chunk, perf_counter)`` pairs, when each queued
+            chunk started playing (a chunk that never played has none);
+            ``delay_ms``, ``resyncs`` and ``trimmed_samples``.
         """
-        if max(chunks, default=-1) < 0:
+        if not self._queued:
             return {}
-        started = dict(self._log["onsets"])
-        return {"audio_onset": np.array([started.get(c, np.nan) for c in chunks]),
-                "audio_delay_ms": self.delay * 1000,
-                "audio_resyncs": self._log["resyncs"],
-                "audio_trimmed_samples": self._log["trimmed"]}
+        return {"onsets": list(self._log["onsets"]), "delay_ms": self.delay * 1000,
+                "resyncs": self._log["resyncs"], "trimmed_samples": self._log["trimmed"]}
 
     def _check_rate(self, sound: Sound) -> None:
         """Add one step's sound to the block's rate check; raise once it is off.

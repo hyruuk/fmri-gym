@@ -34,6 +34,7 @@ from .keys import held_key_names, key_name
 
 if TYPE_CHECKING:
     from .display import Display
+    from .logging import Logger
 
 OPTIONS = ("reset", "forfeit", "resume")
 _LABELS = {"reset": "Restart the level", "forfeit": "Give up this level", "resume": "Resume"}
@@ -116,13 +117,13 @@ class Menu:
         self.pending = True
         return True
 
-    def run(self, display: Display, key_log: list, run_time: Callable[[], float]) -> str:
+    def run(self, display: Display, run_time: Callable[[], float], logger: "Logger") -> str:
         """Show the pop-up until an option is confirmed, and return it.
 
         :param display: the display to draw on.
-        :param key_log: the block's ``(run_time, key_name, is_down)`` list; the
-            menu's own presses are logged like any other.
         :param run_time: the run clock, for the log.
+        :param logger: the run's logger; the menu's own presses are
+            logged like any other.
         :return: the chosen option, or ``"quit"`` on window close / ESC.
         """
         self.pending, self._held_since = False, None
@@ -140,7 +141,8 @@ class Menu:
                 name = key_name(event.key)
                 if name is None:
                     continue
-                key_log.append((run_time(), name, event.type == pygame.KEYDOWN))
+                logger.log(type="input_event", run_time=run_time(), name=name,
+                             down=event.type == pygame.KEYDOWN)
                 if event.type != pygame.KEYDOWN:
                     continue
                 if name == self.prev_key:

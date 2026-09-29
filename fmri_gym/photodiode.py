@@ -464,17 +464,19 @@ def _log_clicks(audio: Audio, chunks: list[int], clicked: list[int], arrays: dic
                 summary: dict, close: bool = True) -> None:
     """Log when each click reached the DAC, and on which flash; then close the output
     (``close``) or only stop it, when it is a run's and plays on."""
-    log = audio.block_log(chunks)
+    log = audio.block_log()
     if close:
         audio.close()
     else:
         audio.stop()
     summary["audio_out"] = audio.describe()
     if log and "flip_on" in arrays:
+        started = dict(log["onsets"])
+        dac = np.array([started.get(c, np.nan) for c in chunks])
         idx = np.asarray(clicked, dtype=int)
-        arrays["click_flash"], arrays["click_dac"] = idx, log["audio_onset"]
+        arrays["click_flash"], arrays["click_dac"] = idx, dac
         on = arrays["flip_on"][idx]
-        summary["click_dac_offset"] = summarize(log["audio_onset"] - on, on)
+        summary["click_dac_offset"] = summarize(dac - on, on)
 
 
 def _clicker(audio: Audio) -> tuple[Callable[[float], None], list[int], list[int]]:
