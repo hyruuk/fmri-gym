@@ -1,0 +1,10 @@
+[submodule "external/vgdl"]
+	path = external/vgdl
+	url = https://github.com/tomov/language_and_experience.git
+	branch = dbp
+[submodule "external/coom"]
+	path = external/coom
+	url = https://github.com/TTomilin/COOM.git
+[submodule "external/baba_auto"]
+	path = external/baba_auto
+	url = https://github.com/utilForever/baba-is-auto.git

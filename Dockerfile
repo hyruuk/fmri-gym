@@ -54,15 +54,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY fmri_gym ./ /src
-# external/: the vgdl / coom / baba_auto game repos at the commits the README pins.
-# Cloned in the builder (which has git) and carried into the runtime image with /src.
-RUN cd /src \
-    && git clone -q -b dbp https://github.com/tomov/language_and_experience.git external/vgdl \
-    && git -C external/vgdl checkout -q d70c3248c504992068c8fb318238f1c3fbe956bf \
-    && git clone -q https://github.com/TTomilin/COOM.git external/coom \
-    && git -C external/coom checkout -q 7929801176c6e2e036c7c1c7dd6ce9b84a9d1f3e \
-    && git clone -q https://github.com/utilForever/baba-is-auto.git external/baba_auto \
-    && git -C external/baba_auto checkout -q 24cefb48d47ae6a6f5c0d936310d8bceb9c4279d
+# external/ (the vgdl / coom / baba_auto submodules) comes in with the repo;
+# run `git submodule update --init` before `docker build`.
 RUN virtualenv /venv \
     && . /venv/bin/activate \
     && cd /src \

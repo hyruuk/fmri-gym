@@ -1,5 +1,4 @@
 Dockerfile
-# The image builds its own /venv and clones external/ at the pinned commits; data/ is sessions.
+# The image builds its own /venv; data/ is sessions. external/ (the submodules) is copied in.
 .venv/
-external/
 data/
