@@ -19,7 +19,7 @@ A proof-of-concept framework that turns games into neuroimaging tasks — fixed 
 | `baba`        | Baba Is AI: small generated rule-manipulation puzzles in the style of Baba Is You | baba-gym (`gym/baba/`) over baba-is-ai |
 | `baba_auto`   | Baba Is Auto: Baba Is You's original levels (`baba_is_you`, `out_of_reach`, …) under the full ruleset; a C++ engine compiled from a pinned checkout in `external/baba_auto` | baba-auto-gym (`gym/baba_auto/`) over utilForever/baba-is-auto |
 | `rushhour`    | Rush Hour sliding-block puzzle | `rushhour-gym` (PyPI; fetches its Go engine) |
-| `stk_gym`     | SuperTuxKart 3D racing: frames from the game's gym server, keys to its player controller (needs a real GL display) | [supertuxkart-gym](https://pypi.org/project/supertuxkart-gym/) (brings the game itself) |
+| `stk`         | SuperTuxKart 3D racing: frames from the game's gym server, keys to its player controller (needs a real GL display) | [supertuxkart-gym](https://pypi.org/project/supertuxkart-gym/) (brings the game itself) |
 
 > **All backends run in ONE env and ONE process.** Verified: a single session with ALE + retro + gym + VGDL blocks back-to-back, and each of Crafter / MiniHack in turn. VGDL originally required *old* `gym` + `numpy<2`, which conflicted with the numpy-2 backends; that's resolved by a fork whose VGDL source is ported to gymnasium ([tomov/language_and_experience @ dbp](https://github.com/tomov/language_and_experience/tree/dbp)). Adapters are imported lazily, so an env only needs the backends a curriculum actually uses. Same code, same curriculum schema, same output format everywhere.
 
@@ -44,7 +44,7 @@ pip install -e ".[dbp]"            # private default index? add --index-url http
 python fmri_play.py --subject sub-01 --dummy-trigger --curriculum configs/dbp_games/atari__pong.json --ses 1 --run 1
 ```
 
-Atari ROMs ship with `ale-py`. For the `retro` backend you must supply and import game ROMs once — see [Running stable-retro games](#running-stable-retro-games). For the `vgdl` backend see [Running VGDL games](#running-vgdl-games); for Rush Hour, [Running Rush-Hour](#running-rush-hour); for SuperTuxKart, [Running SuperTuxKart](#running-supertuxkart-stk_gym).
+Atari ROMs ship with `ale-py`. For the `retro` backend you must supply and import game ROMs once — see [Running stable-retro games](#running-stable-retro-games). For the `vgdl` backend see [Running VGDL games](#running-vgdl-games); for Rush Hour, [Running Rush-Hour](#running-rush-hour); for SuperTuxKart, [Running SuperTuxKart](#running-supertuxkart-stk).
 
 ## Quick start
 
@@ -113,7 +113,7 @@ Each is a minimal `message → fixation → game (300 s) → fixation` curriculu
 | `baba__` | 1 | make_win (rule-manipulation puzzle; other ids) |
 | `baba_auto__` | 12 | baba_is_you, out_of_reach, volcano, off_limits, grass_yard, pillar_yard, brick_wall, icy_waters, novice_locksmith, lock, affection, turns (the levels the baba-is-auto checkout ships; its other maps are rule-engine fixtures; `game` takes any map file) |
 | `rushhour__` | 1 | easy (sliding-block puzzle). `rushhour__complete.json` is the full self-paced session of Rush-Hour's own program, then the rest of the library: all 49 puzzles, the first 12 easiest-first and the other 37 in a fixed shuffled order, one game phase each, with ready screens and solved feedback as message phases |
-| `stk_gym__` | 1 | race (SuperTuxKart via its gym server; needs a real GL display) |
+| `stk__` | 5 | hacienda, cornfield_crossing, lighthouse, scotland, snowmountain (SuperTuxKart via its gym server: the race tracks its asset pack ships; needs a real GL display) |
 | `retro__` | 3 | tobutobugirldx, nomolos, anguna (need ROMs imported) |
 
 Each config carries `_game` / `_note` (per-game setup reminders). Games use `mode: "duration"` (300 s) so they auto-restart on game-over for continuous play; `ESC` quits. The `_note` flags class-specific requirements (VGDL repo, playwright, box2d-py, MuJoCo GL, ROM import).
@@ -255,14 +255,16 @@ uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/baba_auto__baba
 
 A phase's `game` is a map name under the checkout's `Resources/Maps` or a map file's path; `keys` index `Discrete(5)`: 0 = wait, 1 = up, 2 = down, 3 = left, 4 = right (turn-based). Each turn logs `play_state` (0 playing, 1 won, 2 lost) and the engine's `(16, H, W)` state tensor. No savestate: seed + action replay.
 
-## Running SuperTuxKart (`stk_gym`)
+## Running SuperTuxKart (`stk`)
 
-`supertuxkart-gym` is the current SuperTuxKart with a gym server built in (`--gym`), plus the `stk_gym` Python client that drives it. The `stk_gym` backend drives `stk_gym.StkEnv` with `render_mode="rgb_array"` and `action_mode="keys"`: the game renders into a window that is created hidden, every step brings the frame back and fmri-gym shows it; the held keys go to the game's own player controller, so steering ramps and skids latch as they do for a keyboard. Participant and model are in front of the same env object, and a block replays from `episode_seeds` + `actions`. The adapter is a keymap and the fields to log. (This replaced an earlier pystk2-gymnasium backend, which had no pixel obs and needed its own control mapping, so human and model play were not the same interface.)
+`supertuxkart-gym` is the current SuperTuxKart with a gym server built in (`--gym`), plus the `stk_gym` Python client that drives it. The backend is called `stk` and the client package `stk_gym`; the backend drives `stk_gym.StkEnv` with `render_mode="rgb_array"` and `action_mode="keys"`: the game renders into a window that is created hidden, every step brings the frame back and fmri-gym shows it; the held keys go to the game's own player controller, so steering ramps and skids latch as they do for a keyboard. Participant and model are in front of the same env object, and a block replays from `episode_seeds` + `actions`. The adapter is a keymap and the fields to log. (This replaced an earlier pystk2-gymnasium backend, which had no pixel obs and needed its own control mapping, so human and model play were not the same interface.)
 
 ```bash
-uv pip install "fmri-gym[stk_gym]"      # or: pip install supertuxkart-gym
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/dbp_games/stk_gym__race.json --ses 1 --run 1
+uv pip install "fmri-gym[stk]"      # or: pip install supertuxkart-gym
+uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/dbp_games/stk__hacienda.json --ses 1 --run 1
 ```
+
+There is one config per race track the asset pack ships with geometry — `stk__{hacienda,cornfield_crossing,lighthouse,scotland,snowmountain}.json`, 880–1330 m per lap, three laps, four karts. The pack's other track directories (`abyss`, `mines`, `zengarden`, … and the battle arenas and soccer fields) are metadata only: naming one kills the game process, so more tracks means a pack that carries them, not more configs. A track is fixed for the life of a process (`reset(options={"track": ...})` is refused by name), so race several by giving a curriculum one game phase per track.
 
 No checkout and no build: the wheel is pure Python and fetches the game with a trimmed asset pack (270 MiB, five tracks) from its GitHub release the first time an env is made, into `~/.cache/supertuxkart-gym`. It says so while it downloads, and never does it twice. The pack is tied to the package version, so a wheel and its engine cannot drift apart: upgrading `supertuxkart-gym` is the whole update procedure. Linux x86_64 only for now; on anything else it says which platform it has no pack for.
 
@@ -303,7 +305,7 @@ fmri_gym/
     coom.py         # COOM via coom-gym: Discrete(12) actions, game variables and PCM logged
     baba_auto.py    # Baba Is Auto (Baba Is You's levels on baba-is-auto) via baba-auto-gym: Discrete(5) turns, play_state + state tensor logged
     rushhour.py     # Go engine via rushhour-gym; select+slide UI, rushui look, Rush-Hour's log columns; one puzzle per block
-    stk_gym.py      # SuperTuxKart via stk_gym: frames from the game's hidden window, held keys as the env's action
+    stk.py          # SuperTuxKart via stk_gym: frames from the game's hidden window, held keys as the env's action
 fmri_play.py        # CLI entry point: a person in the scanner
 agents/             # CLI entry point: a policy, on the same config, seeds and npz schema
     policies.py     # what chooses the action when nobody is at the keyboard
@@ -428,7 +430,7 @@ Every game phase states its whole keyboard map. **There is no default**: which k
 
 - The key is a name from `fmri_gym/keys.py` (`UP`, `DOWN`, `LEFT`, `RIGHT`, `SPACE`, `RETURN`, `LSHIFT`, `A`–`Z`, `0`–`9`, `F1`–`F12`, `KP0`–`KP9`, …); a name not in that table is refused, since it could never be pressed. Join keys with `+` for a combo (`"UP+SPACE"`).
 - The action is what the env's `step` takes, as JSON, and the rule is the env's action space (`fmri_gym/adapters/keymap.py`, one class per space):
-  - **`MultiBinary`** (retro, vizdoom, stk_gym, aigamestore): the value is the **index of the button** the key holds down; every held key sets its bit, so keys combine as on a controller, and nothing held is every button up. An index outside the space is refused when the env is built, and so is a `""` entry (nothing held already means no button).
+  - **`MultiBinary`** (retro, vizdoom, stk, aigamestore): the value is the **index of the button** the key holds down; every held key sets its bit, so keys combine as on a controller, and nothing held is every button up. An index outside the space is refused when the env is built, and so is a `""` entry (nothing held already means no button).
   - **`Discrete`** (ale, coom, vgdl, crafter, minihack, baba, rushhour, gym) or **`Box`** (gym): the value is the action itself, an index or a list (`"LEFT": [-1.0, 0.0]`). The most specific combo whose keys are all held wins (`"UP+SPACE"` over `"UP"`), and the **`""`** entry is what a frame with no key held sends. `""` is required unless the phase is `turn_based`, where nothing is sent between presses: these spaces have no action that means "do nothing" everywhere (FrozenLake's 0 is LEFT, MiniHack's is "move N"). A value outside the space is refused when the env is built.
   - Any other action space is refused when the env is built.
 

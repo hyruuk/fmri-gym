@@ -648,7 +648,7 @@ rushhour = [
 shimmy = [
     { name = "shimmy" },
 ]
-stk-gym = [
+stk = [
     { name = "supertuxkart-gym" },
 ]
 tilematch = [
@@ -675,7 +675,7 @@ requires-dist = [
     { name = "coom-gym", marker = "extra == 'coom'", editable = "gym/coom" },
     { name = "crafter-gym", marker = "extra == 'crafter'", editable = "gym/crafter" },
     { name = "fmri-gym", extras = ["dbp", "ale", "retro", "nethack", "vgdl", "baba-auto", "box2d", "mujoco", "shimmy", "tilematch", "triggers", "gui"], marker = "extra == 'all'" },
-    { name = "fmri-gym", extras = ["vizdoom", "coom", "aigamestore", "crafter", "rushhour", "baba", "minihack", "stk-gym"], marker = "extra == 'dbp'" },
+    { name = "fmri-gym", extras = ["vizdoom", "coom", "aigamestore", "crafter", "rushhour", "baba", "minihack", "stk"], marker = "extra == 'dbp'" },
     { name = "gymnasium" },
     { name = "gymnasium", extras = ["box2d"], marker = "extra == 'box2d'" },
     { name = "gymnasium", extras = ["mujoco"], marker = "extra == 'mujoco'" },
@@ -694,12 +694,12 @@ requires-dist = [
     { name = "shimmy", marker = "extra == 'shimmy'" },
     { name = "sounddevice" },
     { name = "stable-retro", marker = "extra == 'retro'" },
-    { name = "supertuxkart-gym", marker = "extra == 'stk-gym'", specifier = ">=0.1.3" },
+    { name = "supertuxkart-gym", marker = "extra == 'stk'", specifier = ">=0.1.3" },
     { name = "tile-match-gym", marker = "extra == 'tilematch'" },
     { name = "vgdl-gym", marker = "extra == 'vgdl'", editable = "gym/vgdl" },
     { name = "vizdoom", marker = "extra == 'vizdoom'" },
 ]
-provides-extras = ["ale", "retro", "crafter", "baba", "baba-auto", "vgdl", "minihack", "nethack", "aigamestore", "vizdoom", "coom", "rushhour", "stk-gym", "box2d", "mujoco", "shimmy", "tilematch", "triggers", "gui", "dbp", "all"]
+provides-extras = ["ale", "retro", "crafter", "baba", "baba-auto", "vgdl", "minihack", "nethack", "aigamestore", "vizdoom", "coom", "rushhour", "stk", "box2d", "mujoco", "shimmy", "tilematch", "triggers", "gui", "dbp", "all"]
 
 [[package]]
 name = "fonttools"

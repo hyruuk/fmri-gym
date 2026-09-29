@@ -39,9 +39,9 @@ def get_adapter(backend: str, spec: dict) -> EnvAdapter:
     if backend == "minihack":
         from .minihack import MiniHackAdapter
         return MiniHackAdapter(spec)
-    if backend in ("stk_gym", "stk-gym"):
-        from .stk_gym import STKGymAdapter
-        return STKGymAdapter(spec)
+    if backend == "stk":
+        from .stk import STKAdapter
+        return STKAdapter(spec)
     if backend == "rushhour":
         from .rushhour import RushHourAdapter
         return RushHourAdapter(spec)
