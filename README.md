@@ -27,6 +27,8 @@ A proof-of-concept framework that turns games into neuroimaging tasks — fixed 
 
 See [Machine requirements](MACHINE_REQUIREMENTS.md) for minimum and recommended hardware, and the [local test log](docs/local-testing/2026-09-14.md) for measurements and their scope.
 
+Clone with `--recursive`: the vgdl / coom / baba_auto game repos are git submodules under `external/` (see [External checkouts](#external-checkouts-external)). In a clone made without it, run `git submodule update --init` once.
+
 With [uv](https://docs.astral.sh/uv/):
 
 ```bash
@@ -147,31 +149,21 @@ The `configs/dbp_games/retro__{tobutobugirldx,nomolos,anguna}.json` configs need
 
 ## External checkouts (`external/`)
 
-Three backends read their game files from a checkout of the game's own repo: `vgdl` (game, level and sprite files), `coom` (`conf.cfg`/`.wad` scenarios) and `baba_auto` (the C++ sources of `pyBaba`, plus maps and sprites). The checkout lives at `external/<backend>` (gitignored), at a pinned commit, so every session plays the same tree. Clone the ones you play:
+Three backends read their game files from a checkout of the game's own repo: `vgdl` (game, level and sprite files), `coom` (`conf.cfg`/`.wad` scenarios) and `baba_auto` (the C++ sources of `pyBaba`, plus maps and sprites). The checkout is a git submodule at `external/<backend>`, pinned to a commit, so every session plays the same tree; `git clone --recursive` (or `git submodule update --init`) fetches all three:
 
-| backend | clone into `external/<backend>` at | commit |
+| backend | submodule `external/<backend>` of | commit |
 |---|---|---|
 | `vgdl` | [tomov/language_and_experience](https://github.com/tomov/language_and_experience) `dbp` | `d70c3248c504992068c8fb318238f1c3fbe956bf` |
 | `coom` | [TTomilin/COOM](https://github.com/TTomilin/COOM) | `7929801176c6e2e036c7c1c7dd6ce9b84a9d1f3e` |
 | `baba_auto` | [utilForever/baba-is-auto](https://github.com/utilForever/baba-is-auto) | `24cefb48d47ae6a6f5c0d936310d8bceb9c4279d` |
 
-```bash
-git clone https://github.com/TTomilin/COOM.git external/coom
-git -C external/coom checkout 7929801176c6e2e036c7c1c7dd6ce9b84a9d1f3e
-```
-
-The env reads `external/<backend>` by default; a phase's `"repo"` field names another checkout for that block. To bump a pin, edit this table and check the new commit out (for `baba_auto`, also `uv sync --reinstall-package baba-auto-gym`: the compiled engine is tied to the checkout it was built from).
+The env reads `external/<backend>` by default; a phase's `"repo"` field names another checkout for that block. To bump a pin, check the new commit out in the submodule, commit the submodule and this table together (for `baba_auto`, also `uv sync --reinstall-package baba-auto-gym`: the compiled engine is tied to the checkout it was built from).
 
 ## Running VGDL games
 
 The `vgdl` backend drives the VGDL games from a gymnasium-ported fork: **[tomov/language_and_experience @ dbp](https://github.com/tomov/language_and_experience/tree/dbp)**. Because it runs under gymnasium + numpy 2, no separate env is needed — the same `fmri-gym` env works.
 
-1. Clone the fork at its pinned commit (the `dbp` branch has the gymnasium port; see [External checkouts](#external-checkouts-external)):
-
-   ```bash
-   git clone -b dbp https://github.com/tomov/language_and_experience.git external/vgdl
-   git -C external/vgdl checkout d70c3248c504992068c8fb318238f1c3fbe956bf
-   ```
+1. The fork is the `external/vgdl` submodule, at its pinned commit on the `dbp` branch, which has the gymnasium port (see [External checkouts](#external-checkouts-external)).
 
 2. Install the `vgdl` extra -- **`vgdl-gym`** (`gym/vgdl/`), the standard Gymnasium env over the fork's `VGDLEnv` (a game name and level in, `reset(seed=)`, an offscreen `render()`; it puts the checkout on `sys.path`) -- and run a VGDL curriculum:
 
@@ -188,11 +180,9 @@ VGDL blocks log a symbolic per-cell object grid (`symbolic_state`) and collision
 
 The `coom` backend plays [TTomilin/COOM](https://github.com/TTomilin/COOM)'s own continual-RL Doom scenarios (`pitfall`, `chainsaw`, `hide_and_seek`, `health_gathering`, `arms_dealer`, `parkour`, `raise_the_roof`, `run_and_gun`, `floor_is_lava`) -- distinct from the stock ViZDoom scenarios the `vizdoom` backend already covers (DeadlyCorridor, DefendCenter, ...).
 
-COOM's own Python package pins `gymnasium==0.28.1`, which conflicts with minihack's `gymnasium==1.2` pin in this shared env, so **the COOM package is never installed or imported**. The gym env is **`coom-gym`** (`gym/coom/`, the `coom` extra; also in `dbp`), which drives `vizdoom.DoomGame` on the scenario files of a COOM checkout at its pinned commit (see [External checkouts](#external-checkouts-external)):
+COOM's own Python package pins `gymnasium==0.28.1`, which conflicts with minihack's `gymnasium==1.2` pin in this shared env, so **the COOM package is never installed or imported**. The gym env is **`coom-gym`** (`gym/coom/`, the `coom` extra; also in `dbp`), which drives `vizdoom.DoomGame` on the scenario files of a COOM checkout at its pinned commit (the `external/coom` submodule; see [External checkouts](#external-checkouts-external)):
 
 ```bash
-git clone https://github.com/TTomilin/COOM.git external/coom
-git -C external/coom checkout 7929801176c6e2e036c7c1c7dd6ce9b84a9d1f3e
 uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/coom__pitfall.json --ses 1 --run 1
 ```
 
@@ -247,8 +237,6 @@ Controls, phase fields and the logged columns are documented in the configs' `_n
 [utilForever/baba-is-auto](https://github.com/utilForever/baba-is-auto) is a C++ simulator of Baba Is You with the game's real ruleset and the original levels' maps (`baba_is_you`, `out_of_reach`, `off_limits`, ...), where the `baba` backend plays baba-is-ai's small generated puzzles. Its Python module exposes only the `Game`, so the Gymnasium env is **`baba-auto-gym`** (`gym/baba_auto/`, the `baba_auto` extra), one `baba_auto__<level>.json` per level the checkout ships. Installing the extra compiles the engine from the pinned checkout (see [External checkouts](#external-checkouts-external); a C++17 compiler and `python3-dev` are needed; about 30 s), and the env reads the maps and the GUI's sprites from the same checkout:
 
 ```bash
-git clone https://github.com/utilForever/baba-is-auto.git external/baba_auto
-git -C external/baba_auto checkout 24cefb48d47ae6a6f5c0d936310d8bceb9c4279d
 uv sync --extra dbp --extra baba_auto
 uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/baba_auto__baba_is_you.json --ses 1 --run 1
 ```
@@ -276,7 +264,7 @@ A game reaches the scanner through up to three layers, each its own directory:
 
 | | holds | needed when |
 |---|---|---|
-| `external/<backend>` | the game's own repo, at a pinned commit (gitignored) | its files or sources are read from a checkout (VGDL, COOM, Baba Is Auto) |
+| `external/<backend>` | the game's own repo, a submodule pinned to a commit | its files or sources are read from a checkout (VGDL, COOM, Baba Is Auto) |
 | `gym/<game>` | a small package with a `gymnasium.Env` for the game | the game ships no Gymnasium env, or a rough one |
 | `fmri_gym/adapters/<backend>.py` | the fMRI adapter: build the env, map keys, log frames | always, one per engine |
 
@@ -319,7 +307,7 @@ gym/                # Gymnasium envs for games that ship none, or a rough one: o
     baba_auto/      # baba_auto_gym: over baba-is-auto's pyBaba (C++, built from the baba-is-auto checkout)
     crafter/        # crafter_gym: the same for crafter.Env, with reset(seed=)
     vgdl/           # vgdl_gym: a standard env over the language_and_experience fork's VGDLEnv
-external/           # (gitignored) the vgdl / coom / baba_auto game repos, cloned at the commits pinned above
+external/           # the vgdl / coom / baba_auto game repos, submodules at the commits pinned above
 ```
 
 The loop (`run.py`) only ever calls the adapter — never `env.unwrapped`, an emulator, or an engine module. Each engine-specific concern lives behind **`EnvAdapter`**:

@@ -48,8 +48,7 @@ _REWARD = {pyBaba.PlayState.WON: 200.0, pyBaba.PlayState.LOST: -100.0}
 
 #: fmri-gym's ``external/baba_auto``; this file is ``gym/baba_auto/baba_auto_gym/env.py``.
 _DEFAULT_REPO = Path(__file__).resolve().parents[3] / "external" / "baba_auto"
-_CLONE = ("git clone https://github.com/utilForever/baba-is-auto.git external/baba_auto && "
-          "git -C external/baba_auto checkout <commit>  (the README pins the commit)")
+_CLONE = "git submodule update --init external/baba_auto  (a submodule of fmri-gym)"
 
 
 def _repo(repo: str | None) -> Path:

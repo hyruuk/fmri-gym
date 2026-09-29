@@ -47,8 +47,7 @@ _ACTIONS = _actions()
 
 #: fmri-gym's ``external/coom``; this file is ``gym/coom/coom_gym/env.py``.
 _DEFAULT_REPO = Path(__file__).resolve().parents[3] / "external" / "coom"
-_CLONE = ("git clone https://github.com/TTomilin/COOM.git external/coom && "
-          "git -C external/coom checkout <commit>  (the README pins the commit)")
+_CLONE = "git submodule update --init external/coom  (a submodule of fmri-gym)"
 
 
 def _configure_audio(game: Any, *, enabled: bool, efx: bool) -> None:

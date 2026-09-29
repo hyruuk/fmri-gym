@@ -26,8 +26,7 @@ from setuptools.command.build_ext import build_ext
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_REPO = HERE.parents[1] / "external" / "baba_auto"
-CLONE = ("git clone https://github.com/utilForever/baba-is-auto.git external/baba_auto && "
-         "git -C external/baba_auto checkout <commit>  (the README pins the commit)")
+CLONE = "git submodule update --init external/baba_auto  (a submodule of fmri-gym)"
 
 
 class CMakeBuild(build_ext):

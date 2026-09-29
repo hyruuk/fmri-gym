@@ -15,7 +15,7 @@ uv run fmri-play --help                         # check: prints usage
 
 That installs every game below into `.venv/`; `uv run fmri-play ...` then plays one. Without [uv](https://docs.astral.sh/uv/): `pip install -e ".[dbp]"` in a venv of your own, and `python fmri_play.py` in place of `fmri-play`.
 
-COOM, Baba Is Auto and VGDL read their game files from a checkout of the game's own repo. Each of their sections below starts with the `git clone` into `external/<backend>` and the `git checkout` of the commit the README pins ("External checkouts"); do it once, for the games you play. On an offline scanner PC, clone while online or copy `external/` over.
+COOM, Baba Is Auto and VGDL read their game files from a checkout of the game's own repo, a git submodule at `external/<backend>` pinned to a commit (README "External checkouts"). `git clone --recursive` fetches them; in a clone made without it, run `git submodule update --init` once. On an offline scanner PC, fetch them while online or copy `external/` over.
 
 Rush Hour needs no extra step: `rushhour-gym` comes from PyPI, and on first use it downloads the matching `rushhour-env` engine from the Rush-Hour GitHub release into `~/.cache/rushhour-gym/` (checksum-verified; Linux x86-64, macOS arm64, Windows x86-64). On an offline scanner PC, run any Rush Hour config once while online, or copy that cache directory over; `RUSHHOUR_ENV_BIN` can also point at a binary you placed yourself (from a release archive, or `go build -o rushhour-env ./cmd/rushhour-env` in a Rush-Hour checkout).
 
@@ -87,12 +87,7 @@ Controls: arrows move/turn, Z/X strafe, SPACE shoots — but each scenario only 
 
 ### COOM
 
-COOM's own Doom scenarios (not the stock ViZDoom ones above). The env ships here as `coom-gym` (`gym/coom/`, part of the `dbp` extra) and reads the scenario files from the COOM checkout at its pinned commit (README "External checkouts"):
-
-```bash
-git clone https://github.com/TTomilin/COOM.git external/coom
-git -C external/coom checkout 7929801176c6e2e036c7c1c7dd6ce9b84a9d1f3e
-```
+COOM's own Doom scenarios (not the stock ViZDoom ones above). The env ships here as `coom-gym` (`gym/coom/`, part of the `dbp` extra) and reads the scenario files from the COOM checkout at its pinned commit (the `external/coom` submodule; README "External checkouts").
 
 ```bash
 uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/coom__pitfall.json --ses 1 --run 1          # cross a corridor of randomized pits
@@ -140,8 +135,6 @@ uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/baba__make_win.
 The engine is C++, compiled when the extra installs from the checkout at its pinned commit (README "External checkouts"; a C++17 compiler and `python3-dev` are needed; about 30 s):
 
 ```bash
-git clone https://github.com/utilForever/baba-is-auto.git external/baba_auto
-git -C external/baba_auto checkout 24cefb48d47ae6a6f5c0d936310d8bceb9c4279d
 uv sync --extra dbp --extra baba_auto
 uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/baba_auto__baba_is_you.json --ses 1 --run 1
 ```
@@ -153,8 +146,6 @@ uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/baba_auto__baba
 Ten small arcade games from a gymnasium-ported fork, at its pinned commit (README "External checkouts"). The `vgdl` extra is separate from `dbp`:
 
 ```bash
-git clone -b dbp https://github.com/tomov/language_and_experience.git external/vgdl
-git -C external/vgdl checkout d70c3248c504992068c8fb318238f1c3fbe956bf
 uv sync --extra dbp --extra vgdl
 uv run fmri-play --subject sub-01 --curriculum configs/demo_vgdl_all.json --ses 1 --run 1   # all ten, 15 s each
 ```
