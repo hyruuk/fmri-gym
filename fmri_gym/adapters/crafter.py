@@ -620,6 +620,11 @@ class CrafterAdapter(EnvAdapter):
         :param blob: bytes previously returned as :attr:`FrameState.blob`.
         """
         self.env = pickle.loads(blob)
+
+        self._unlocked = set()
+        for name, count in self._game._player.achievements.items():
+            if count > 0:
+                self._unlocked.add(name)
         # The restored frame is one nobody pressed a button to reach.
         self._cue = ""
         self._outcome = _NO_OUTCOME
