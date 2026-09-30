@@ -195,9 +195,7 @@ class AIGameStoreEnv(gym.Env):
             self.close()
             raise RuntimeError(f"{self.game}: asked for level {self.level} but the game is in "
                                f"{state.get('gamePhase')!r} at level {_level(state)!r}")
-        # Reseed once more here, after everything above has run, so nothing
-        # before the agent's first observation can leave two "identical" episodes on
-        # different points of the RNG stream.
+
         self._page.evaluate("() => window.__aigs.reseedRandom()")
         self._score = float(state.get("score", 0.0))
         self._ended = 0
