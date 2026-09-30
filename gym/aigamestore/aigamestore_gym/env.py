@@ -47,6 +47,7 @@ import contextlib
 import functools
 import http.server
 import io
+import re
 import socketserver
 import threading
 import urllib.parse
@@ -159,6 +160,7 @@ class AIGameStoreEnv(gym.Env):
             **({"channel": browser_channel} if browser_channel else {}))
         self._page = self._browser.new_page(viewport={"width": 900, "height": 700})
         self._page.add_init_script(path=str(_LOCKSTEP_JS))
+        self._page.route("**/rng.js", self._patch_rng)
 
         self._frame: np.ndarray | None = None
         self._score = 0.0
@@ -193,6 +195,8 @@ class AIGameStoreEnv(gym.Env):
             self.close()
             raise RuntimeError(f"{self.game}: asked for level {self.level} but the game is in "
                                f"{state.get('gamePhase')!r} at level {_level(state)!r}")
+
+        self._page.evaluate("() => window.__aigs.reseedRandom()")
         self._score = float(state.get("score", 0.0))
         self._ended = 0
         return frame, {"state": state}
@@ -243,8 +247,19 @@ class AIGameStoreEnv(gym.Env):
 
     def _load(self, seed: int) -> None:
         """Navigate to the game with ``seed`` and tick it up to its START screen."""
+        self._seed = seed          # read by _patch_rng, which the coming navigation triggers
         self._page.goto(f"{self._url}&seed={seed}")
         self._page.evaluate("n => window.__aigs.boot(n)", _BOOT_FRAMES)
+
+    def _patch_rng(self, route: Any) -> None:
+        """Force game7's own vendored RNG module (``rng.js``) onto this episode's seed.
+        """
+        response = route.fetch()
+        body = re.sub(r"export function setSeed\(newSeed\) \{.*?\}",
+                       f"export function setSeed(newSeed) {{ seed = {self._seed}; "
+                       f"state = {self._seed}; window.__aigs.reseedRandom(); }}",
+                       response.text(), count=1, flags=re.DOTALL)
+        route.fulfill(response=response, body=body)
 
     def _step(self, names: list[str], frames: int) -> tuple[np.ndarray, dict]:
         """Hold exactly ``names``, tick ``frames``, and read canvas + state."""

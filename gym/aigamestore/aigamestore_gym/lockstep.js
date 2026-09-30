@@ -62,7 +62,8 @@
 
   // ---- randomness --------------------------------------------------------
   // mulberry32: small, fast, good enough to replay a game.
-  let state = (Number(new URLSearchParams(location.search).get("seed")) || 1) >>> 0;
+  const envSeed = (Number(new URLSearchParams(location.search).get("seed")) || 1) >>> 0;
+  let state = envSeed;
   Math.random = () => {
     state = (state + 0x6D2B79F5) >>> 0;
     let t = state;
@@ -70,6 +71,31 @@
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+
+  function reseedRandom() { state = envSeed; }
+
+  Object.defineProperty(window, "p5", {
+    configurable: true,
+    get() { return undefined; },
+    set(realP5) {
+      const original = realP5.prototype.randomSeed;
+      realP5.prototype.randomSeed = function () { reseedRandom(); return original.call(this, envSeed); };
+      Object.defineProperty(window, "p5", { value: realP5, writable: true, configurable: true });
+    },
+  });
+  Object.defineProperty(Math, "seedrandom", {
+    configurable: true,
+    get() { return undefined; },
+    set(original) {
+      function seedrandom(_seed, ...rest) {
+        reseedRandom();
+        return new.target
+          ? Reflect.construct(original, [envSeed, ...rest], new.target)
+          : original.call(this, envSeed, ...rest);
+      }
+      Object.defineProperty(Math, "seedrandom", { value: seedrandom, writable: true, configurable: true });
+    },
+  });
 
   // ---- keyboard ----------------------------------------------------------
   // The keys the ten games listen for (they switch on e.keyCode), by the
@@ -126,7 +152,9 @@
       for (let i = 0; i < maxFrames && !ready(); i++) tick();
       if (!ready()) throw new Error(`game did not come up within ${maxFrames} frames: `
         + `no <canvas>, or no window.getGameState() with a gamePhase`);
+      reseedRandom();
     },
+    reseedRandom,
     step(names, frames) {
       const want = new Set(names);
       for (const n of held) if (!want.has(n)) sendKey("keyup", n);
