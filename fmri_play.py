@@ -65,6 +65,10 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--no-vsync", action="store_true",
                    help="do not lock flips to the monitor refresh (default: try to)")
     p.add_argument("--dummy-trigger", action="store_true")
+    p.add_argument("--no-pad", action="store_true",
+                   help="ignore a plugged-in game controller. By default one is read and its "
+                   "controls press the keys in fmri_gym/pad.py (face buttons WASD, shoulders "
+                   "Q/E, stick arrows), so a phase's `keys` map those as if they were typed")
     p.add_argument("--no-audio", action="store_true", help="mute game audio in every block (the curriculum saved "
                    "in the manifest shows \"audio\": false)")
     return p
