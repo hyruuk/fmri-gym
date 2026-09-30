@@ -25,7 +25,7 @@ A proof-of-concept framework that turns games into neuroimaging tasks — fixed 
 
 ## Install
 
-See [Machine requirements](MACHINE_REQUIREMENTS.md) for minimum and recommended hardware, and the [local test log](docs/local-testing/2026-09-14.md) for measurements and their scope.
+See [Machine requirements](docs/MACHINE_REQUIREMENTS.md) for minimum and recommended hardware, and the [local test log](docs/local-testing/2026-09-14.md) for measurements and their scope.
 
 Clone with `--recursive`: the vgdl / coom / baba_auto game repos are git submodules under `external/` (see [External checkouts](#external-checkouts-external)). In a clone made without it, run `git submodule update --init` once.
 

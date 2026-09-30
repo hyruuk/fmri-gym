@@ -66,7 +66,7 @@ triggers = ["pylsl", "pyserial", "pyparallel"]
 # without the WebEngine/3D add-ons, which would triple the download.
 gui = ["PySide6-Essentials>=6.6"]
 
-# The DBP picks (DBP_FINAL_LIST.md). Not installable from an index and
+# The DBP picks (docs/DBP_FINAL_LIST.md). Not installable from an index and
 # therefore not listed: craftium (prebuilt wheel on its GitHub releases) and
 # the VGDL games (a repo checkout on PYTHONPATH; see README "Running VGDL games").
 dbp = [
