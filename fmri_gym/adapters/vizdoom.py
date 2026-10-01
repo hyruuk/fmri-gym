@@ -92,6 +92,9 @@ class VizDoomAdapter(EnvAdapter):
             return _KeyboardOnlyAction(env)
         return env
 
+    def warm_up(self) -> None:
+        self.reset(0)
+
     def render(self) -> np.ndarray:
         return np.asarray(self.env.render())
 
