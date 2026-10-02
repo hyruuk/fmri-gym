@@ -49,6 +49,8 @@ def reconstruct_episode(
         from .adapters import get_adapter
         start = read_events(block)[0]
         adapter = get_adapter(start["backend"], start["phase"])
+    if plan["episode_id"] != 0:
+        getattr(adapter, "warm_up", lambda: None)()
     adapter.reset(plan["seed"])
     for action in plan["actions"]:
         adapter.step(action)
