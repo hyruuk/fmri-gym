@@ -5,7 +5,10 @@ gymnasium 0.28, so the env never imports it: it drives ``vizdoom.DoomGame``
 against a checkout's scenario assets (``conf.cfg`` + ``<task>.wad`` under
 ``<repo>/COOM/env/scenarios/<scenario>/``, from the phase ``repo`` field or
 ``COOM_REPO``).  This adapter builds one env per block and logs its sound,
-game variables, and every object/label/sector ``coom_gym`` turns on.
+game variables, and every object and label ``coom_gym`` turns on. The level's
+sector geometry is logged once per episode, on its first frame: a level has
+over a thousand sectors, and writing them on every frame costs more than the
+frame budget at 35 fps.
 
 A phase's ``keys`` are the env's Discrete(12) indices (turn x move x execute;
 see ``coom_gym``): 0 = noop, 1 = execute, 2 = forward, 3 = forward + execute,
@@ -35,6 +38,7 @@ from .base import EnvAdapter, FrameState, Sound
 class COOMAdapter(EnvAdapter):
     name: str = "coom"
     _game: Any
+    _sectors_pending: bool = False
 
     def _make(self, spec: dict) -> gym.Env:
         """Build one COOM scenario env for this block.
@@ -63,6 +67,11 @@ class COOMAdapter(EnvAdapter):
         self._game = env.game
         return env
 
+    def reset(self, seed: int | None) -> tuple[Any, dict]:
+        out = super().reset(seed)
+        self._sectors_pending = True
+        return out
+
     def sound(self) -> Sound | None:
         """Return this tic's native PCM, or None for disabled/terminal audio."""
         if not self._game.is_audio_buffer_enabled():
@@ -88,7 +97,9 @@ class COOMAdapter(EnvAdapter):
         variables["number"] = state.number if state is not None else -1
         variables["objects"] = _objects(state)
         variables["labels"] = _labels(state)
-        variables["sectors"] = _sectors(state)
+        if self._sectors_pending and state is not None:
+            variables["sectors"] = _sectors(state)
+            self._sectors_pending = False
         if self._game.is_audio_buffer_enabled():
             variables["audio_valid"] = state is not None
             variables["audio"] = (state.audio_buffer.copy() if state is not None else
@@ -105,8 +116,8 @@ class COOMAdapter(EnvAdapter):
                 "audio_efx": self.spec.get("env_kwargs", {}).get("audio_efx", False)}
 
 
-_OBJECT_FIELDS = ("id", "name", "category", "position_x", "position_y", "position_z",
-                   "angle", "pitch", "roll", "velocity_x", "velocity_y", "velocity_z", "sector_id")
+_OBJECT_FIELDS = ("id", "name", "position_x", "position_y", "position_z",
+                   "angle", "pitch", "roll", "velocity_x", "velocity_y", "velocity_z")
 _LABEL_FIELDS = ("object_id", "object_name", "object_category", "x", "y", "width", "height",
                   "value", "object_position_x", "object_position_y", "object_position_z")
 _LINE_FIELDS = ("x1", "y1", "x2", "y2", "is_blocking")
@@ -127,6 +138,6 @@ def _labels(state: Any) -> list[dict]:
 def _sectors(state: Any) -> list[dict]:
     if state is None or state.sectors is None:
         return []
-    return [{"id": s.id, "floor_height": s.floor_height, "ceiling_height": s.ceiling_height,
+    return [{"floor_height": s.floor_height, "ceiling_height": s.ceiling_height,
              "lines": [{f: getattr(ln, f) for f in _LINE_FIELDS} for ln in s.lines]}
             for s in state.sectors]
