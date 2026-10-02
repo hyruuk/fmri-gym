@@ -40,7 +40,7 @@ class MiniHackAdapter(EnvAdapter):
                               (self._pixel_key, "glyphs", "blstats", "message")))
         if self._pixel_key not in keys:
             keys = (self._pixel_key,) + keys
-        env = gym.make(spec["game"], observation_keys=keys)
+        env = gym.make(spec["game"], observation_keys=keys, fix_moon_phase=True)
         self._last = None
         return env
 
