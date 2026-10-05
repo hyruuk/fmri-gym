@@ -30,6 +30,7 @@ import json
 import os
 import shlex
 import signal
+import tempfile
 from dataclasses import asdict
 from typing import Any, Callable, Iterator, Sequence
 
@@ -283,12 +284,15 @@ class _KeyTable(QtWidgets.QTableWidget):
             self.add_row(key, gui.format_action(action))
         self.setCurrentCell(-1, -1)
 
-    def get(self) -> dict:
+    def get(self, close_edit: bool = True) -> dict:
         """The bindings; a blank key is the no-key action, and an empty row is ignored.
 
+        :param close_edit: first close a cell still being typed in, keeping its text
+            (``False``: leave it open, and read the cell as it was before).
         :raises ValueError: if a key has no action.
         """
-        self.setCurrentCell(-1, -1)  # closes a cell still being typed in, keeping its text
+        if close_edit:
+            self.setCurrentCell(-1, -1)
         out = {}
         for row in range(self.rowCount()):
             key, action = (self.item(row, col).text().strip() for col in (0, 1))
@@ -335,6 +339,10 @@ class _Editor(QtWidgets.QMainWindow):
         # ... those created here: named at once (so the list and the script can show them) but
         # not on disk until Save, which asks where they go.
         self.new: set[str] = set()
+        # What Save need not write: each opened config as the forms first read it back (from
+        # its file, or as created), and the session script as written then. None: not on disk.
+        self.baseline: dict[str, dict | None] = {}
+        self.script_baseline: str | None = None
         self.phases: list[dict] = []    # the selected run's curriculum
         self.notes: dict = {}           # top-level keys the editor does not own (e.g. "_note")
         self.edit_index: int | None = None
@@ -345,7 +353,7 @@ class _Editor(QtWidgets.QMainWindow):
         # text view is stored back only when edited, so an untouched one changes nothing.
         self._session_view, self._run_view = _LIST, _PHASES
         self._script_shown = self._json_shown = ""
-        self.setWindowTitle("fmri-gym config")
+        self.setWindowTitle("fmri-gym config[*]")  # [*]: where Qt marks unsaved edits
         self.resize(1250, 850)
         self._build_menu()
         bottom = self._build_bottom()  # first: the Launch tab labels its Run button
@@ -365,6 +373,18 @@ class _Editor(QtWidgets.QMainWindow):
         if unreadable:
             self._set_status("game lists: skipped config(s) that do not load: "
                              + ", ".join(unreadable))
+        # Edits reach the model only when a view is left, so the mark polls the forms too.
+        self._modified_poll = QtCore.QTimer(self)
+        self._modified_poll.timeout.connect(lambda: self.setWindowModified(self._modified()))
+        self._modified_poll.start(500)
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:  # noqa: N802 -- Qt's name
+        """Closing with unsaved edits asks first; Play has saved (or need not) before it closes."""
+        if self.to_run is None and not self._may_replace():
+            event.ignore()
+            return
+        self._modified_poll.stop()
+        event.accept()
 
     # -- construction ------------------------------------------------------
 
@@ -568,7 +588,8 @@ class _Editor(QtWidgets.QMainWindow):
         return pick
 
     def _pick_session(self, path: str | None) -> None:
-        if path is None:
+        if path is None or not self._may_replace():
+            self._sync_session_pick()
             return
         try:
             self.open_session(path)
@@ -582,6 +603,8 @@ class _Editor(QtWidgets.QMainWindow):
             return
         if self._is_session():
             self._add_config(path)
+            return
+        if not self._may_replace():
             return
         try:
             self.open_config(cfg.load_config(path), path)
@@ -749,13 +772,20 @@ class _Editor(QtWidgets.QMainWindow):
         self.launch_form.set_choices("size", fits)
         box.setEditText(self._window_size)
 
-    def _launch_values(self) -> dict:
+    def _launch_values(self, sync: bool = True) -> dict:
         """The launch flags. ``--size`` is the window's, also while fullscreen shows the monitor's.
 
+        :param sync: remember a size being typed, and refill the size row (``False``: read
+            the size alone, for the unsaved-edits poll, which must not disturb typing).
         :raises ValueError: if the subject is blank or the size malformed (gui.launch_values).
         """
-        self._sync_size()  # remembers a size being typed
-        form = self.launch_form.get() | {"size": self._window_size}
+        if sync:
+            self._sync_size()  # remembers a size being typed
+            size = self._window_size
+        else:
+            box = self.launch_form.widgets["size"]
+            size = box.currentText().strip() if box.isEnabled() else self._window_size
+        form = self.launch_form.get() | {"size": size}
         return gui.launch_values(form) | {"monitor": self.monitor_pick.currentData()}
 
     # -- model <-> widgets -------------------------------------------------
@@ -767,9 +797,9 @@ class _Editor(QtWidgets.QMainWindow):
             self.configs = {}
             path = self._provisional_path(config)
             self.new = {path}
-        self.session_path = None
+        self.session_path, self.script_baseline = None, None
         self.steps = [{"config": path, "skip": False}]
-        self.configs, self.opened = {path: config}, set()
+        self.configs, self.opened, self.baseline = {path: config}, set(), {}
         self._show_step(0)
         self._refresh_views()
 
@@ -786,10 +816,14 @@ class _Editor(QtWidgets.QMainWindow):
         # Every config now, so a missing one is named here and not at some later click.
         configs = {s["config"]: cfg.load_config(s["config"]) for s in steps if "config" in s}
         self.session_path, self.steps = path, steps
-        self.configs, self.opened, self.new = configs, set(), set()
+        self.configs, self.opened, self.new, self.baseline = configs, set(), set(), {}
         if launch is not None:
             self._set_launch(launch)
         self._show_step(0)
+        try:  # as the editor writes it: a script only reformatted here is not an edit
+            self.script_baseline = self._session_text()
+        except ValueError:
+            self.script_baseline = None  # flags it cannot write yet: Save will ask for them
         self._refresh_views()
 
     def _show_config(self, config: dict) -> None:
@@ -815,6 +849,80 @@ class _Editor(QtWidgets.QMainWindow):
         self._commit()
         return {**copy.deepcopy(self.notes), "triggers": self._current_triggers(),
                 "curriculum": copy.deepcopy(self.phases)}
+
+    def _live_config(self) -> dict:
+        """:meth:`collect` without storing anything, nor closing a key cell being typed in.
+
+        :raises ValueError: naming the offending field.
+        """
+        phases = copy.deepcopy(self.phases)
+        phase = self._form_phase()
+        if phase is not None:
+            phases[self.edit_index] = phase
+        if self.ctl_index is not None and self.ctl_index < len(phases):
+            keys = self.key_table.get(close_edit=False)
+            if keys:
+                phases[self.ctl_index]["keys"] = keys
+            else:
+                phases[self.ctl_index].pop("keys", None)
+        return {**copy.deepcopy(self.notes), "triggers": self._current_triggers(),
+                "curriculum": phases}
+
+    def _seed_baseline(self, path: str) -> None:
+        """Take the config just shown, as the forms read it back, as what Save need not write.
+
+        Read back rather than from the file: the forms add trigger defaults and
+        keep their own key order, and a file only reformatted is not an edit.
+        """
+        try:
+            config = self.collect()
+        except ValueError:
+            self.baseline[path] = None  # a value the forms do not take back: Save writes it
+            return
+        self.configs[path] = config
+        self.baseline[path] = copy.deepcopy(config)
+
+    def _modified(self) -> bool:
+        """Whether something shown differs from what was opened or saved -- in the model or
+        still in a form. A new config left as created is not an edit (Play plays it as is)."""
+        step = self.steps[self.step_index]
+        if "command" in step and self.command.text().strip() != step["command"]:
+            return True
+        shown = {s["config"] for s in self.steps if "config" in s} & self.opened
+        for path in shown:
+            if path == step.get("config"):
+                if self._run_view == _JSON and self.json_text.toPlainText() != self._json_shown:
+                    return True
+                try:
+                    config = self._live_config()
+                except ValueError:
+                    return True  # a field half typed is an edit under way
+            else:
+                config = self.configs[path]
+            if config != self.baseline.get(path):
+                return True
+        if not self._is_session():
+            return False
+        if self._session_view == _SCRIPT and self.script_text.toPlainText() != self._script_shown:
+            return True
+        try:
+            return gui.write_session(self.steps, self._launch_values(sync=False)) \
+                != self.script_baseline
+        except ValueError:
+            return True
+
+    def _may_replace(self) -> bool:
+        """Before what is shown is closed or replaced: ``True`` if nothing is unsaved, or once
+        the user saved it or chose to discard it."""
+        if not self._modified():
+            return True
+        buttons = QtWidgets.QMessageBox.StandardButton
+        answer = QtWidgets.QMessageBox.question(
+            self, "fmri-gym config", "Save the changes first? Otherwise they are lost.",
+            buttons.Save | buttons.Discard | buttons.Cancel, buttons.Save)
+        if answer == buttons.Save:
+            return self._save()
+        return answer == buttons.Discard
 
     def _set_status(self, text: str = "") -> None:
         step = self.steps[self.step_index]
@@ -1019,6 +1127,8 @@ class _Editor(QtWidgets.QMainWindow):
         self.skip_box.blockSignals(False)
         if not is_command:
             self._show_config(self.configs[step["config"]])
+            if step["config"] not in self.baseline:  # shown for the first time
+                self._seed_baseline(step["config"])
             self.opened.add(step["config"])
             self.ctl_run.setText(f"run {index + 1}: {self._where(step)}")
         self._refresh_run_list()
@@ -1323,8 +1433,19 @@ class _Editor(QtWidgets.QMainWindow):
         body.addWidget(self.extra_text)
 
     def _commit_phase(self) -> None:
-        if self.edit_index is None or self.phase_form is None:
+        new = self._form_phase()
+        if new is None:
             return
+        self.phases[self.edit_index] = new
+        self.phase_list.item(self.edit_index).setText(gui.phase_label(self.edit_index, new))
+
+    def _form_phase(self) -> dict | None:
+        """The phase being edited, as its form shows it (``None``: no phase is).
+
+        :raises ValueError: naming the offending field.
+        """
+        if self.edit_index is None or self.phase_form is None:
+            return None
         old = self.phases[self.edit_index]
         new = {"type": old["type"], **self.phase_form.get()}
         if "keys" in old:
@@ -1338,9 +1459,7 @@ class _Editor(QtWidgets.QMainWindow):
                 raise ValueError("extra (JSON): must be a JSON object")
             new.update(extra)
         # The file's key order first, so a saved file diffs only where it was edited.
-        new = {k: new[k] for k in old if k in new} | new
-        self.phases[self.edit_index] = new
-        self.phase_list.item(self.edit_index).setText(gui.phase_label(self.edit_index, new))
+        return {k: new[k] for k in old if k in new} | new
 
     def _add_phase(self, kind: str) -> None:
         templates = {"fixation": {"type": "fixation", "duration": 2.0},
@@ -1564,13 +1683,14 @@ class _Editor(QtWidgets.QMainWindow):
     # -- file / run ----------------------------------------------------------
 
     def _new(self) -> None:
-        self.open_config(cfg.new_config(), None)
+        if self._may_replace():
+            self.open_config(cfg.new_config(), None)
 
     def _open(self) -> None:
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, "Open a config or a session", "configs",
             "Configs and sessions (*.json *.sh);;All files (*)")
-        if not path:
+        if not path or not self._may_replace():
             return
         path = os.path.relpath(path)
         try:
@@ -1596,6 +1716,8 @@ class _Editor(QtWidgets.QMainWindow):
             if old in marks:
                 marks.discard(old)
                 marks.add(new)
+        if old in self.baseline:
+            self.baseline[new] = self.baseline.pop(old)
 
     def _place_new_configs(self) -> bool:
         """Ask where each new config goes (its name so far suggested); ``False`` if cancelled."""
@@ -1611,12 +1733,15 @@ class _Editor(QtWidgets.QMainWindow):
                 self._error(str(exc))
                 return False
             self.new.discard(chosen)
+            self.baseline[chosen] = None  # not on disk yet, edited or not: Save writes it
         return True
 
     def _save(self) -> bool:
-        """Write the configs shown here and, for a session, its script.
+        """Write what changed since it was opened or saved: the configs shown here and, for a
+        session, its script. A new config is asked where it goes, edited or not.
 
-        :return: ``False`` if nothing was written (a bad field, a cancelled dialog, an error).
+        :return: ``False`` if not all of it was written (a bad field, a cancelled dialog, an
+            error); ``True`` also when there was nothing to write.
         """
         if not self._commit_session() or not self._place_new_configs():
             return False
@@ -1628,7 +1753,10 @@ class _Editor(QtWidgets.QMainWindow):
             return False
         if script is not None and self.session_path is None and not self._ask_session_path():
             return False
-        paths = sorted({s["config"] for s in self.steps if "config" in s} & self.opened)
+        paths = sorted(p for p in {s["config"] for s in self.steps if "config" in s} & self.opened
+                       if self.configs[p] != self.baseline.get(p))
+        if script == self.script_baseline:
+            script = None  # the script on disk already says this
         try:
             for path in paths:
                 cfg.save_config(self.configs[path], path)
@@ -1639,9 +1767,15 @@ class _Editor(QtWidgets.QMainWindow):
         except (OSError, ValueError) as exc:
             self._error(str(exc))
             return False
+        for path in paths:
+            self.baseline[path] = copy.deepcopy(self.configs[path])
+        if script is not None:
+            self.script_baseline = script
         self._show_step(self.step_index)  # new configs are files now: names and marks change
         self._refresh_views()
-        self._set_status("saved " + ", ".join(paths + [self.session_path] * (script is not None)))
+        written = paths + [self.session_path] * (script is not None)
+        self._set_status("saved " + ", ".join(written) if written
+                         else "nothing to save: no change since it was opened or saved")
         return True
 
     def _session_text(self) -> str:
@@ -1654,6 +1788,7 @@ class _Editor(QtWidgets.QMainWindow):
         if not path:
             return False
         self.session_path = os.path.relpath(path if path.endswith(".sh") else path + ".sh")
+        self.script_baseline = None  # a new file: Save writes it
         return True
 
     def _save_as(self) -> bool:
@@ -1672,6 +1807,7 @@ class _Editor(QtWidgets.QMainWindow):
             self._error(str(exc))
             return False
         self.new.discard(chosen)  # placed: Save need not ask again
+        self.baseline[chosen] = None  # but writes it, edited or not
         return self._save()
 
     def _pick_data_root(self) -> None:
@@ -1726,23 +1862,46 @@ class _Editor(QtWidgets.QMainWindow):
 
         Both kinds play files on disk -- a session its script, a lone run its
         config -- so what was edited here is saved first, a new config being
-        asked for a name. ``fmri-edit`` then becomes that command.
+        asked for a name (unless it is played as created: see :meth:`_play_path`).
+        ``fmri-edit`` then becomes that command.
         """
         launch = self._checked_launch()
         if launch is None:
             return
-        if not self._save():
-            return
         if self._is_session():
+            if not self._save():
+                return
             self.to_run = ["sh", self.session_path]
         else:
+            path = self._play_path()
+            if path is None:
+                return
             # fmri-play states its numbers; a blank --ses is the next free one,
             # resolved here, as the script's SES= line resolves it for a session.
             ses = launch["ses"] or bids.next_session(launch["data_root"],
                                                      bids.subject_label(launch["subject"]))
-            self.to_run = gui.play_command(self.steps[self.step_index]["config"], launch,
-                                           f"{ses:03d}", gui.run_number(self.steps, 0))
+            self.to_run = gui.play_command(path, launch, f"{ses:03d}",
+                                           gui.run_number(self.steps, 0))
         self.close()
+
+    def _play_path(self) -> str | None:
+        """The file a lone run plays: its own, saved first (``None`` if that did not happen).
+
+        A new config left as created is not worth a name: it is played from a
+        copy in a fresh temporary folder, under the name it has here, since the
+        file's name is the run's task label (``ale.json`` -> ``task-ale``).
+        """
+        path = self.steps[self.step_index]["config"]
+        if path in self.new and self.configs[path] == self.baseline.get(path):
+            try:
+                copy_path = os.path.join(tempfile.mkdtemp(prefix="fmri-gym-"),
+                                         os.path.basename(path))
+                cfg.save_config(self.configs[path], copy_path)
+            except OSError as exc:
+                self._error(f"cannot write the config to play: {exc}")
+                return None
+            return copy_path
+        return path if self._save() else None
 
     def _error(self, text: str) -> None:
         QtWidgets.QMessageBox.critical(self, "fmri-gym config", text)
