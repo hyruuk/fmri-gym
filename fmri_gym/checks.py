@@ -721,7 +721,7 @@ _CHECKS: dict[str, Callable[..., None]] = {
 
 
 # ---------------------------------------------------------------------------
-# Config checks (the editor's Check and fmri_play's start-up)
+# Config checks (the editor's Config check and fmri_play's start-up)
 # ---------------------------------------------------------------------------
 
 

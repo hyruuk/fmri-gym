@@ -131,7 +131,7 @@ def validate_config(config: dict) -> list[str]:
     """Problems that would stop ``fmri_play`` before the first phase.
 
     Cheap checks only (no env is built, no port opened), for the editor's
-    Check: the required game fields and the triggers section.
+    Config check: the required game fields and the triggers section.
 
     :param config: a config dict of the right shape.
     :return: human-readable problems, empty when the config looks runnable.
@@ -258,7 +258,7 @@ def trigger_problems(section: dict | None) -> list[str]:
     """What :class:`~fmri_gym.triggers.TriggerSettings` refuses, as text.
 
     The port is the one check added here: the settings accept a missing port
-    and the backend refuses it on opening, which the editor's Check never does.
+    and the backend refuses it on opening, which the editor's Config check never does.
 
     :param section: the ``triggers`` section, or ``None``.
     :return: at most one problem (the first the settings raise).

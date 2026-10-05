@@ -79,7 +79,8 @@ def _parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = _parser().parse_args()
     config = load_config(args.curriculum)
-    problems = validate_config(config)  # the editor's Check, so a file edited by hand gets it too
+    # the editor's Config check, so a file edited by hand gets it too
+    problems = validate_config(config)
     if problems:
         raise ValueError(f"{args.curriculum}: " + "; ".join(problems))
 

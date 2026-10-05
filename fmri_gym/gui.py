@@ -614,6 +614,51 @@ def describe_triggers(section: dict) -> str:
     return "\n".join(lines)
 
 
+def describe_curriculum(curriculum: list[dict]) -> str:
+    """What a run will show, phase by phase, in plain lines, and how long it lasts.
+
+    Reads the fields as :mod:`fmri_gym.run` does, defaults included.
+    """
+    lines, fixed, open_ended = [], 0.0, False
+    for i, p in enumerate(curriculum, start=1):
+        kind, duration = p["type"], p.get("duration")
+        if kind == "fixation":
+            duration = p.get("duration", 2.0)
+            what = f"fixation cross, {duration:g} s"
+        elif kind == "message":
+            text = p.get("text", "")
+            text = " ".join(" ".join(text if isinstance(text, list) else [text]).split())
+            text = text if len(text) <= 40 else text[:39] + "…"
+            key = {" ": "SPACE", "any": "any key"}.get(p.get("key", " "), repr(p.get("key")))
+            until = f"{duration:g} s" if duration is not None else f"until {key}"
+            what = f"message {text!r}, {until}"
+        elif kind == "survey":
+            what = f"survey, {len(p.get('questions', []))} question(s), until answered"
+        elif kind == "game":
+            keys = [k for k in p.get("keys", {}) if k]
+            keys = (", ".join(keys[:8]) + f" (+{len(keys) - 8} more)" * (len(keys) > 8)) or "none"
+            if p.get("mode", "duration") == "duration":
+                duration = p.get("duration", 30.0)
+                length = f"{duration:g} s"
+            else:
+                duration = None
+                length = (f"{p.get('n_episodes', 1)} episode(s), "
+                          f"at most {p.get('max_duration', 300.0):g} s")
+            what = (f"game {p.get('game')} ({p.get('backend', 'gym')}), {length} "
+                    f"at {p.get('fps')} fps; keys: {keys}")
+        else:
+            what = f"rig check: {kind.removeprefix('check_')}"
+            duration = None
+        lines.append(f"  {i}. {what}")
+        if duration is None:
+            open_ended = True
+        else:
+            fixed += duration
+    total = (f"{fixed:g} s" if not open_ended else
+             f"{fixed:g} s plus the phases that wait" if fixed else "set by the phases that wait")
+    return "\n".join(lines + [f"  Length: {total}."])
+
+
 # ---------------------------------------------------------------------------
 # Session scripts (the .sh the Session manager edits; config.py has the .json)
 # ---------------------------------------------------------------------------

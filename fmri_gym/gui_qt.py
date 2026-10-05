@@ -424,7 +424,10 @@ class _Editor(QtWidgets.QMainWindow):
         rig_button = _button("Rig check", self._rig_check)
         rig_button.setToolTip("Measure the launch's rig: the display, frame pacing, triggers, the "
                               "participant's device, photodiode and audio. Filed under sub-rig.")
-        for w in (self.rig_status, rig_button, _button("Check", self._check), self.play_button):
+        config_button = _button("Config check", self._config_check)
+        config_button.setToolTip("Look through every run's settings for mistakes that would "
+                                 "stop the session.")
+        for w in (self.rig_status, rig_button, config_button, self.play_button):
             bar.addWidget(w)
         return bar
 
@@ -1798,6 +1801,55 @@ class _Editor(QtWidgets.QMainWindow):
             problems = self._problems()
         self._set_status("; ".join(problems) if problems else "looks runnable")
         return problems
+
+    def _config_check(self) -> None:
+        """The Config check button: what will play, with what settings, and what is wrong."""
+        problems = self._check()
+        report = [f"PROBLEMS ({len(problems)}), to fix before playing:"]
+        report += [f"  • {p}" for p in problems] or ["  none"]
+        try:
+            launch = self._launch_values()
+        except ValueError as exc:
+            launch = None
+            report.append(f"  • {exc}")
+        if launch is not None:
+            ses = launch["ses"] or "next free"
+            report += ["", "LAUNCH", f"  subject {launch['subject']}, session {ses}"]
+            report += [f"  {flag.replace('_', '-')}" for flag in gui.SWITCHES if launch[flag]]
+            name, site = self._launch_rig()
+            if site:
+                settings = rig_file.settings(site)
+                monitor, monitors = settings["screen"]["monitor"], list_monitors()
+                screen = (monitor_label(monitor, monitors[monitor]) if monitor < len(monitors)
+                          else f"{monitor} (not on this machine)")
+                report += [f"  rig {name}: data in {settings['data_root']}/",
+                           f"  monitor {screen}, " + ("fullscreen" if settings["screen"]["fullscreen"]
+                                                     else f"window {settings['screen']['size']}")]
+                report += [f"  {what} off" for what in ("pad", "audio") if not settings[what]]
+            else:
+                report.append("  no rig: see the problems above")
+        for i, step in enumerate(self.steps, start=1):
+            report += ["", f"RUN {i}: {self._where(step)}" + "  (SKIPPED)" * step["skip"]]
+            if "command" in step:
+                report.append(f"  $ {step['command']}")
+                continue
+            config = self.configs[step["config"]]
+            report.append(gui.describe_curriculum(config["curriculum"]))
+            try:
+                report += ["  " + line for line in
+                           gui.describe_triggers(config.get("triggers")).splitlines()]
+            except (TypeError, ValueError, TriggerError):
+                report.append("  Triggers: see the problems above.")
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Config check")
+        text = QtWidgets.QPlainTextEdit("\n".join(report))
+        text.setReadOnly(True)
+        text.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
+        layout = QtWidgets.QVBoxLayout(dialog)
+        layout.addWidget(text)
+        layout.addLayout(_row(_button("Close", dialog.accept)))
+        dialog.resize(760, 520)
+        dialog.exec()
 
     def _problems(self) -> list[str]:
         """What would stop the session, line by line (see :func:`fmri_gym.config.validate_config`)."""
