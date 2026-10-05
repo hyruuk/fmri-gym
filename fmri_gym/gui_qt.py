@@ -865,14 +865,17 @@ class _Editor(QtWidgets.QMainWindow):
         """
         phases = copy.deepcopy(self.phases)
         phase = self._form_phase()
+        ctl_index = self.ctl_index
         if phase is not None:
             phases[self.edit_index] = phase
-        if self.ctl_index is not None and self.ctl_index < len(phases):
+            if ctl_index == self.edit_index and phase.get("keys") != self.phases[ctl_index].get("keys"):
+                ctl_index = None  # a new game's keys replace the table's, as _commit_phase does
+        if ctl_index is not None and ctl_index < len(phases):
             keys = self.key_table.get(close_edit=False)
             if keys:
-                phases[self.ctl_index]["keys"] = keys
+                phases[ctl_index]["keys"] = keys
             else:
-                phases[self.ctl_index].pop("keys", None)
+                phases[ctl_index].pop("keys", None)
         return {**copy.deepcopy(self.notes), "triggers": self._current_triggers(),
                 "curriculum": phases}
 
@@ -1426,11 +1429,10 @@ class _Editor(QtWidgets.QMainWindow):
 
     def _add_game_extras(self, body: QtWidgets.QVBoxLayout, phase: dict, extra: dict) -> None:
         """Under a game phase's form: its ``keys`` (read-only here) and the other fields as JSON."""
-        keys = ", ".join(f"{k}={gui.format_action(v)}" for k, v in phase.get("keys", {}).items())
-        label = QtWidgets.QLabel(f"keys: {keys or 'NONE (required)'}   (edit on the Controls tab)")
-        label.setObjectName("hint")
-        label.setWordWrap(True)
-        body.addWidget(label)
+        self.keys_label = QtWidgets.QLabel(_keys_text(phase))
+        self.keys_label.setObjectName("hint")
+        self.keys_label.setWordWrap(True)
+        body.addWidget(self.keys_label)
         body.addWidget(QtWidgets.QLabel("extra (JSON)"))
         self.extra_text = QtWidgets.QPlainTextEdit(json.dumps(extra, indent=1) if extra else "{}")
         self.extra_text.setFont(_mono())
@@ -1444,7 +1446,15 @@ class _Editor(QtWidgets.QMainWindow):
         new = self._form_phase()
         if new is None:
             return
+        old = self.phases[self.edit_index]
         self.phases[self.edit_index] = new
+        if new["type"] == "game" and new.get("keys") != old.get("keys"):
+            # The game changed and brought its own keys (see _form_phase): show them.
+            _, extra = gui.split_phase(new, gui.PHASE_FIELDS["game"])
+            self.phase_form.write("turn_based", bool(new.get("turn_based", False)))
+            self.extra_text.setPlainText(json.dumps(extra, indent=1) if extra else "{}")
+            self.keys_label.setText(_keys_text(new))
+            self.ctl_index = None  # the Controls tab reloads the new keys
         self.phase_list.item(self.edit_index).setText(gui.phase_label(self.edit_index, new))
 
     def _form_phase(self) -> dict | None:
@@ -1456,8 +1466,7 @@ class _Editor(QtWidgets.QMainWindow):
             return None
         old = self.phases[self.edit_index]
         new = {"type": old["type"], **self.phase_form.get()}
-        if "keys" in old:
-            new["keys"] = old["keys"]
+        extra = {}
         if self.extra_text is not None:
             try:
                 extra = json.loads(self.extra_text.toPlainText() or "{}")
@@ -1465,7 +1474,21 @@ class _Editor(QtWidgets.QMainWindow):
                 raise ValueError(f"extra (JSON): not valid JSON ({exc})") from exc
             if not isinstance(extra, dict):
                 raise ValueError("extra (JSON): must be a JSON object")
-            new.update(extra)
+        if (new.get("backend"), new.get("game")) == (old.get("backend"), old.get("game")):
+            if "keys" in old:
+                new["keys"] = old["keys"]
+        elif new["type"] == "game":
+            # Keys are the game's own action indices, and some fit only with its other
+            # fields (turn_based, vizdoom's env_kwargs): take them all from a config that
+            # plays this game. With none, the old game's keys go and Check asks for new ones.
+            found = self._curated_phase()
+            if found is not None:
+                new["keys"] = copy.deepcopy(found[1]["keys"])
+                new.pop("turn_based", None)
+                if "turn_based" in found[1]:
+                    new["turn_based"] = found[1]["turn_based"]
+                extra = copy.deepcopy(gui.split_phase(found[1], gui.PHASE_FIELDS["game"])[1])
+        new.update(extra)
         # The file's key order first, so a saved file diffs only where it was edited.
         return {k: new[k] for k in old if k in new} | new
 
@@ -2411,6 +2434,12 @@ def choose_triggers(path: str) -> dict | None:
     if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
         return None
     return dialog.section()
+
+
+def _keys_text(phase: dict) -> str:
+    """The game form's line naming the phase's ``keys``, which the Controls tab edits."""
+    keys = ", ".join(f"{k}={gui.format_action(v)}" for k, v in phase.get("keys", {}).items())
+    return f"keys: {keys or 'NONE (required)'}   (edit on the Controls tab)"
 
 
 def _trigger_defaults() -> dict:
