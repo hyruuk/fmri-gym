@@ -1,8 +1,9 @@
 """The rig check: measure the rig with the very window, trigger line and audio a run opens.
 
 A rig check is a run like any other (``configs/rig-check.json``): the editor
-edits its triggers and its controls as it does any config's, ``fmri-play``
-plays it -- first in a session, or on its own -- and it writes a run folder.
+edits its triggers as it does any config's, ``fmri-play`` plays it -- first in
+a session, or on its own from the editor's Rig check button, with the tests
+picked -- and it writes a run folder.
 Its curriculum holds check phases where a game run holds games:
 
 * ``check_display`` -- are flips locked to the refresh; missed refreshes.
@@ -1313,10 +1314,6 @@ def _fill_rig(name: str | None) -> dict | None:
         values = {"rig": name}
     saved = fill_rig(values)
     reread_rig()
-    kept = {k: values[k] for k in _RIG_KEYS if k in values}
-    if saved is not None and kept.keys() - saved.keys():  # a form without them keeps them
-        saved = {**saved, **kept}
-        _write_json(str(rig_file.path(saved["rig"])), saved)
     return saved
 
 

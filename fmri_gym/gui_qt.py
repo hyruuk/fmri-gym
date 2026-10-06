@@ -368,6 +368,8 @@ class _Editor(QtWidgets.QMainWindow):
         layout.addLayout(bottom)
         self.setCentralWidget(body)
         self.tabs.currentChanged.connect(lambda _index: self._on_tab_change())
+        self.launch_form.widgets["rig"].currentTextChanged.connect(lambda _t: self._refresh_rig())
+        self._refresh_rig()
         self.curated, unreadable = gui.curated_games()
         if session is None:
             self.open_config(config, path)
@@ -417,7 +419,12 @@ class _Editor(QtWidgets.QMainWindow):
         self.play_button.setObjectName("run")
         bar = _row(_button("New", self._new), _button("Open...", self._open),
                    _button("Save", self._save), _button("Save As...", self._save_as))
-        for w in (_button("Check", self._check), self.play_button):
+        self.rig_status = QtWidgets.QLabel()
+        self.rig_status.setObjectName("hint")
+        rig_button = _button("Rig check", self._rig_check)
+        rig_button.setToolTip("Measure the launch's rig: the display, frame pacing, triggers, the "
+                              "participant's device, photodiode and audio. Filed under sub-rig.")
+        for w in (self.rig_status, rig_button, _button("Check", self._check), self.play_button):
             bar.addWidget(w)
         return bar
 
@@ -642,6 +649,13 @@ class _Editor(QtWidgets.QMainWindow):
             _button("Press a key...", self._capture_key),
             _button("Remove binding", self.key_table.remove_selected),
             _button("Check with the engine", self._check_keys)))
+        self.rig_text = QtWidgets.QLabel()
+        self.rig_text.setObjectName("hint")
+        self.rig_text.setWordWrap(True)
+        edit = _button("Edit rig...", self._edit_rig)
+        edit.setToolTip("The launch's rig file: the rig, and which typed key is which rig key on "
+                        "the participant's device. It is the rig's, not this config's.")
+        layout.addLayout(_row(self.rig_text, edit))
         self.check_text = QtWidgets.QPlainTextEdit()
         self.check_text.setReadOnly(True)
         self.check_text.setFont(_mono())
@@ -728,12 +742,56 @@ class _Editor(QtWidgets.QMainWindow):
             values = rig_file.load(name) if name in rig_file.names() else {"rig": name or ""}
         except ValueError:
             values = {"rig": name}
-        saved = fill_rig(values)
+        saved = fill_rig(values, self)
         if saved is None:
             return
         reread_rig()
         self.launch_form.set_choices("rig", rig_file.names())
         self.launch_form.write("rig", saved["rig"])
+        self._refresh_rig()
+
+    def _launch_rig(self) -> tuple[str | None, dict]:
+        """The launch's rig (:func:`fmri_gym.rig.choose`) and its file; ``(None, {})`` when
+        there is none to pick, or ``(name, {})`` when its file is unreadable."""
+        try:
+            name = rig_file.choose(self.launch_form.get().get("rig"))
+        except ValueError:
+            return None, {}
+        try:
+            return name, rig_file.load(name)
+        except ValueError:
+            return name, {}
+
+    def _refresh_rig(self) -> None:
+        """Say what the launch's rig maps (Controls), and when it last passed a rig check."""
+        name, site = self._launch_rig()
+        typed = {k: v for k, v in site.get("keys", {}).items()}
+        mapped = ", ".join(f"{k}={v}" for k, v in typed.items()) or "none besides the keyboard's"
+        self.rig_text.setText(
+            f"rig {name}: the controller presses the rig keys itself; typed keys {mapped}; the "
+            f"device has {' '.join(rig_file.controls(site))}" if site else
+            "no rig picked on the Launch tab (or its file is unreadable): Edit rig... makes one")
+        if not site.get("site") or not site.get("rig"):
+            several = name is None and len(rig_file.names()) > 1
+            self.rig_status.setText("rig check: no rig picked" if several
+                                    else "rig check: no rig file yet")
+            self.rig_status.setToolTip("pick one on the Launch tab" if several
+                                       else "a rig gets its file from its first rig check")
+            return
+        root = rig_file.settings(site)["data_root"]
+        row = gui.last_rig_check(root, site["site"], site["rig"])
+        if row is None:
+            self.rig_status.setText("rig check: never passed")
+            self.rig_status.setToolTip(f"no passing check of {site['site']}/{site['rig']} in "
+                                       f"{os.path.join(root, 'rigchecks.tsv')}")
+            return
+        skipped = [k.removesuffix("_status") for k, v in row.items()
+                   if k.endswith("_status") and v == "not run"]
+        self.rig_status.setText(f"rig check: passed {row.get('date', '')[:10]}"
+                                + (" (some tests not run)" if skipped else ""))
+        self.rig_status.setToolTip(f"{row.get('task')} {row.get('label')}"
+                                   + (f"; not run: {', '.join(skipped)}" if skipped else
+                                      "; every test run"))
 
     # -- model <-> widgets -------------------------------------------------
 
@@ -1527,9 +1585,15 @@ class _Editor(QtWidgets.QMainWindow):
         if problems:
             self.check_text.setPlainText("\n".join(problems))
             return
+        site = self._launch_rig()[1]
         if self._ctl_is_check():
-            self.check_text.setPlainText("the keys to test read fine")
+            asked = phase.get("keys") or {c: c for c in rig_file.controls(site)}
+            self.check_text.setPlainText("the check asks for " + ", ".join(asked))
             return
+        missing = sorted({k for combo in phase["keys"] for k in combo.split("+") if k}
+                         - set(rig_file.controls(site)))
+        lacking = (f"\nthe launch's rig has no {', '.join(missing)} on its device: those "
+                   "entries cannot be pressed there" if missing else "")
         self.check_text.setPlainText(f"loading {phase.get('game')}...")
         QtWidgets.QApplication.processEvents()
         try:
@@ -1541,7 +1605,7 @@ class _Editor(QtWidgets.QMainWindow):
                 "game at its real speed" if native is not None else
                 "no rate of its own: fps is yours to pick (30 suits most)")
         self.check_text.setPlainText(f"{phase.get('backend')} {phase.get('game')}: the keys fit "
-                                     f"its action space.\n{rate}")
+                                     f"its action space.\n{rate}{lacking}")
 
     # -- triggers tab ------------------------------------------------------
 
@@ -1796,6 +1860,122 @@ class _Editor(QtWidgets.QMainWindow):
                                            gui.run_number(self.steps, 0))
         self.close()
 
+    # -- rig check -----------------------------------------------------------
+
+    def _rig_check(self) -> None:
+        """Rig check: pick the check and its tests, then become the fmri-play that runs them.
+
+        The check is played from a copy holding the tests picked, under the
+        template's name (its task label: rigcheck, rigchecklong), for sub-rig in
+        its next free session, on the launch's rig; the rig file and the
+        template's triggers are asked for first when there are none, as
+        fmri-play would.
+        """
+        if not self._may_replace():
+            return
+        kind = self._ask_rig_check_kind()
+        if kind is None:
+            return
+        template = os.path.join(gui.CONFIGS_DIR, gui.RIG_CHECKS[kind])
+        try:
+            config = cfg.load_config(template)
+        except (OSError, ValueError) as exc:
+            self._error(f"cannot open the rig check: {exc}")
+            return
+        picked = self._ask_rig_tests(config)
+        if not picked:
+            return
+        try:
+            launch = self._launch_values()
+        except ValueError as exc:
+            self.tabs.setCurrentWidget(self.launch_page)
+            self._error(str(exc))
+            return
+        if not self._rig_file_ready() or not self._rig_triggers_ready(config, template):
+            return
+        config["curriculum"] = [p for i, p in enumerate(config["curriculum"])
+                                if not p["type"].startswith("check_") or i in picked]
+        try:
+            path = os.path.join(tempfile.mkdtemp(prefix="fmri-gym-"), os.path.basename(template))
+            cfg.save_config(config, path)
+        except OSError as exc:
+            self._error(f"cannot write the rig check to play: {exc}")
+            return
+        launch = {**self._launch_values(), "subject": "sub-rig"}  # the rig the form picked
+        ses = bids.next_session(gui.data_root(launch), "sub-rig")
+        self.to_run = gui.play_command(path, launch, f"{ses:03d}", 1)
+        self.close()
+
+    def _ask_rig_check_kind(self) -> str | None:
+        """``"short"`` or ``"long"``, or ``None`` if cancelled."""
+        box = QtWidgets.QMessageBox(self)
+        box.setWindowTitle("Rig check")
+        box.setText("Which rig check?")
+        box.setInformativeText("Long: about 25 minutes, once per rig and after any hardware, "
+                               "driver or OS change; it makes the rig's file. Short: under a "
+                               "minute, before a session when you want one.")
+        long = box.addButton("Long", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+        short = box.addButton("Short", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+        box.addButton(QtWidgets.QMessageBox.StandardButton.Cancel)
+        box.setDefaultButton(long)
+        box.exec()
+        return {short: "short", long: "long"}.get(box.clickedButton())
+
+    def _ask_rig_tests(self, config: dict) -> set[int]:
+        """The check phases to run, by index in ``config``'s curriculum (empty: cancelled)."""
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Rig check: tests")
+        layout = QtWidgets.QVBoxLayout(dialog)
+        layout.addWidget(QtWidgets.QLabel("The tests to run, in this order:"))
+        boxes = {}
+        for i, phase in enumerate(config["curriculum"]):
+            if phase["type"].startswith("check_"):
+                boxes[i] = QtWidgets.QCheckBox(gui.CHECK_LABELS.get(phase["type"], phase["type"]))
+                boxes[i].setChecked(True)
+                layout.addWidget(boxes[i])
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok
+                                             | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
+        buttons.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setText("Start")
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        def none_picked() -> None:
+            buttons.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setEnabled(
+                any(b.isChecked() for b in boxes.values()))
+        for box in boxes.values():
+            box.toggled.connect(lambda _on: none_picked())
+        if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return set()
+        return {i for i, box in boxes.items() if box.isChecked()}
+
+    def _rig_file_ready(self) -> bool:
+        """The launch's rig has a valid file, or the form has just made it and the Launch tab
+        picked it (``False``: cancelled)."""
+        from . import checks  # the rig file's rules; checks.py is not the editor's to import
+        name, values = self._launch_rig()
+        if values and not checks.rig_problems(values) and values.get("rig") == name:
+            return True
+        self._edit_rig()
+        name, values = self._launch_rig()
+        if not values or checks.rig_problems(values):
+            self._set_status("rig check: cancelled -- it needs the rig's file")
+            return False
+        return True
+
+    def _rig_triggers_ready(self, config: dict, template: str) -> bool:
+        """A template with ``"triggers": null`` gets this rig's, saved in it (as fmri-play would)."""
+        if config.get("triggers") is not None:
+            return True
+        section = choose_triggers(template)
+        if section is None:
+            self._set_status("rig check: cancelled -- it needs the session's trigger settings")
+            return False
+        on_disk = cfg.load_config(template)
+        on_disk["triggers"] = config["triggers"] = section
+        cfg.save_config(on_disk, template)
+        return True
+
     @staticmethod
     def _data_root(launch: dict) -> str:
         """The launch's rig's data root; a rig check with no rig yet files where a new rig does."""
@@ -1830,17 +2010,27 @@ class _Editor(QtWidgets.QMainWindow):
 _RIG_INTRO = ("Describe this rig once; every rig check copies it into its results, so the "
               "checks of all sites can be pooled and compared. Software cannot see these: "
               "say what is plugged in.")
+_RIG_KEYS_INTRO = ("Games are played with the rig keys, the controller's buttons. The "
+                   "controller presses them itself, and a keyboard with its arrows, a b x y "
+                   "and the shifts (LT, RT). A device that types other keys -- a button box "
+                   "sending 1 2 3 4 -- needs each key's rig key here. Tick the rig keys the "
+                   "participant's device has: the rig check asks for each.")
 _RIG_RUNS = ("What every run played on this rig uses, whatever its config: the window, the "
              "controller, the sound and where the data goes.")
 
 
 class _RigForm(QtWidgets.QDialog):
-    def __init__(self, values: dict) -> None:
-        super().__init__()
+    def __init__(self, values: dict, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
         self.setWindowTitle(f"Rig file: {rig_file.folder()}/<rig>.json")
-        self.setMinimumWidth(640)
+        self.setMinimumWidth(1100)
         self.fields: dict[str, QtWidgets.QWidget] = {}
-        layout = QtWidgets.QVBoxLayout(self)
+        outer = QtWidgets.QVBoxLayout(self)
+        columns = QtWidgets.QHBoxLayout()
+        outer.addLayout(columns)
+        layout = QtWidgets.QVBoxLayout()
+        columns.addLayout(layout, 3)
+        columns.addWidget(self._keys_group(values), 2)
         intro = QtWidgets.QLabel(_RIG_INTRO)
         intro.setWordWrap(True)
         layout.addWidget(intro)
@@ -1858,13 +2048,74 @@ class _RigForm(QtWidgets.QDialog):
         self.problems = QtWidgets.QLabel()
         self.problems.setWordWrap(True)
         self.problems.setStyleSheet("color: #c0392b")
-        layout.addWidget(self.problems)
+        outer.addWidget(self.problems)
         buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Save
                                              | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         self.save = buttons.button(QtWidgets.QDialogButtonBox.StandardButton.Save)
-        layout.addWidget(buttons)
+        outer.addWidget(buttons)
+        self._check()
+
+    def _keys_group(self, values: dict) -> QtWidgets.QGroupBox:
+        """The participant's device: its typed keys' rig keys, and the rig keys it has."""
+        box = QtWidgets.QGroupBox("The participant's keys")
+        layout = QtWidgets.QVBoxLayout(box)
+        intro = QtWidgets.QLabel(_RIG_KEYS_INTRO)
+        intro.setWordWrap(True)
+        intro.setObjectName("hint")
+        layout.addWidget(intro)
+        self.device = QtWidgets.QComboBox()
+        self.device.addItems(list(gui.DEVICE_PRESETS))
+        self.device.setPlaceholderText("a device...")
+        self.device.setCurrentIndex(-1)
+        layout.addLayout(_row(QtWidgets.QLabel("device"), self.device,
+                              _button("Use", self._use_device)))
+        self.controls: dict[str, QtWidgets.QCheckBox] = {}
+        grid = QtWidgets.QGridLayout()
+        has = set(rig_file.controls(values))
+        for i, name in enumerate(rig_file.CONTROLS):
+            self.controls[name] = QtWidgets.QCheckBox(name)
+            self.controls[name].setChecked(name in has)
+            self.controls[name].toggled.connect(lambda _on: self._check())
+            grid.addWidget(self.controls[name], i // 5, i % 5)
+        layout.addLayout(grid)
+        self.typed = QtWidgets.QTableWidget(0, 2)
+        self.typed.setHorizontalHeaderLabels(["typed key   e.g. 1", "rig key   e.g. LEFT"])
+        self.typed.horizontalHeader().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeMode.Stretch)
+        self.typed.verticalHeader().hide()
+        self.typed.itemChanged.connect(lambda _item: self._check())
+        for key, name in (values.get("keys") or {}).items():
+            self._add_typed(str(key), str(name))
+        layout.addWidget(self.typed, 1)
+        layout.addLayout(_row(_button("Press a key...", self._press_typed),
+                              _button("Remove", lambda: self.typed.removeRow(
+                                  self.typed.currentRow()))))
+        return box
+
+    def _add_typed(self, key: str = "", name: str = "") -> None:
+        row = self.typed.rowCount()
+        self.typed.insertRow(row)
+        self.typed.setItem(row, 0, QtWidgets.QTableWidgetItem(key))
+        self.typed.setItem(row, 1, QtWidgets.QTableWidgetItem(name))
+        self.typed.setCurrentCell(row, 1)
+
+    def _press_typed(self) -> None:
+        dialog = _KeyCapture(self)
+        dialog.exec()
+        if dialog.name is not None:
+            self._add_typed(dialog.name)
+
+    def _use_device(self) -> None:
+        if self.device.currentIndex() < 0:
+            return
+        preset = gui.DEVICE_PRESETS[self.device.currentText()]
+        self.typed.setRowCount(0)
+        for key, name in preset["keys"].items():
+            self._add_typed(key, name)
+        for name, box in self.controls.items():
+            box.setChecked(name in preset["controls"])
         self._check()
 
     def _field(self, key: str, value: str, example: str) -> QtWidgets.QWidget:
@@ -1954,7 +2205,8 @@ class _RigForm(QtWidgets.QDialog):
 
     @property
     def rig(self) -> dict[str, Any]:
-        """The values as typed, trimmed."""
+        """The values as typed, trimmed; typed keys lower-cased (pygame's names), rig keys
+        upper-cased, rows left blank dropped."""
         out: dict[str, Any] = {}
         for key, w in self.fields.items():
             text = (w.currentText() if isinstance(w, QtWidgets.QComboBox)
@@ -1968,6 +2220,11 @@ class _RigForm(QtWidgets.QDialog):
         out["pad"] = self.checks["pad"].isChecked()
         out["audio"] = self.checks["audio"].isChecked()
         out["data_root"] = self.data_root.text().strip()
+        cells = ((self.typed.item(r, 0), self.typed.item(r, 1))
+                 for r in range(self.typed.rowCount()))
+        pairs = [(k.text().strip().lower(), v.text().strip().upper()) for k, v in cells if k and v]
+        out["keys"] = {k: v for k, v in pairs if k or v}
+        out["controls"] = [name for name, box in self.controls.items() if box.isChecked()]
         return out
 
     def accept(self) -> None:
@@ -1976,14 +2233,14 @@ class _RigForm(QtWidgets.QDialog):
             super().accept()
 
     def _check(self) -> None:
-        if not hasattr(self, "data_root"):
+        if not hasattr(self, "save"):
             return  # still being built
         problems = self._problems(self.rig)
         self.problems.setText("\n".join(f"• {p}" for p in problems))
         self.save.setEnabled(not problems)
 
 
-def fill_rig(values: dict) -> dict[str, Any] | None:
+def fill_rig(values: dict, parent: QtWidgets.QWidget | None = None) -> dict[str, Any] | None:
     """A rig file (:mod:`fmri_gym.rig`), filled in a form instead of by hand; on Save,
     written as the file of the rig it names (``rigs/<rig>.json``).
 
@@ -1992,11 +2249,12 @@ def fill_rig(values: dict) -> dict[str, Any] | None:
     loaded file is held to, so the form cannot save a file the check would refuse.
 
     :param values: what is known so far (an invalid file's content, or only its name).
+    :param parent: the window it opens over, if any.
     :return: the rig written, or ``None`` if the form was cancelled.
     """
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(["fmri-gym"])
     app.setStyle("Fusion")
-    form = _RigForm(values)
+    form = _RigForm(values, parent)
     if form.exec() != QtWidgets.QDialog.DialogCode.Accepted:
         return None
     rig = form.rig

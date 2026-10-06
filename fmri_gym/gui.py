@@ -5,12 +5,14 @@ Session manager has two panels. Session design is the session's lines
 command; add, repeat, remove, reorder, skip -- as a list or as the script
 itself. Run design is the selected run's config (:mod:`fmri_gym.config`), as a
 phase list with one form per phase type or as its JSON. Two more tabs edit
-that config: Controls (the ``keys`` remap of a game phase,
-with the backend's defaults on request), Triggers (the start sync, the
+that config: Controls (a game phase's ``keys``, rig keys -> actions, and what
+the launch's rig file maps), Triggers (the start sync, the
 backend and the codes, with fMRI/MEG/EEG presets, a check and a live test). The
 last tab, Launch, holds the command-line flags
-of this one launch (subject, window, test switches): they are never saved to
-the file. File > New / Open / Save / Save As.
+of this one launch (subject, session, rig, test switch): they are never saved to
+the file. File > New / Open / Save / Save As. Rig check, beside Play, plays the
+rig check (:mod:`fmri_gym.checks`) with the tests picked, and says when the
+launch's rig last passed one.
 
 A lone config is a session of one run with no script. Save writes the configs
 shown here and, for several lines, the session script; Play saves and then
@@ -33,6 +35,7 @@ dialog and the file read alike.
 from __future__ import annotations
 
 import argparse
+import csv
 import glob
 import json
 import os
@@ -406,6 +409,51 @@ def window_sizes(width: int, height: int) -> list[str]:
     """The window sizes to offer on a ``width`` x ``height`` monitor, its own size last."""
     fits = [f"{w}x{h}" for w, h in WINDOW_SIZES if w <= width and h <= height]
     return [*fits, f"{width}x{height}"] if f"{width}x{height}" not in fits else fits
+
+
+#: The rig checks, quick and long (:mod:`fmri_gym.checks`): the Rig check button's templates.
+RIG_CHECKS = {"short": "rig-check.json", "long": "rig-check-long.json"}
+#: What each check phase tests, as the Rig check button lists them.
+CHECK_LABELS = {
+    "check_display": "Display: flips locked to the refresh, missed refreshes",
+    "check_frames": "Frames: a test pattern played at each rate and load, frames late or lost",
+    "check_triggers": "Triggers: the outputs found, every code sent, the scanner's pulses",
+    "check_controls": "Controls: each rig key pressed on the participant's device",
+    "check_photodiode": "Photodiode and audio: flip to photon, flip to sound",
+}
+#: Response devices, for the rig form: which typed key is which rig key, and the rig keys
+#: the device has. Typed keys are named as pygame names them (:mod:`fmri_gym.keys`).
+DEVICE_PRESETS: dict[str, dict[str, Any]] = {
+    "Current Designs 932 controller": {"keys": {}, "controls": list(rig.CONTROLS)},
+    "Keyboard": {"keys": {}, "controls": list(rig.CONTROLS)},
+    "Button box (1 2 3 4 5)": {"keys": {"1": "LEFT", "2": "DOWN", "3": "UP", "4": "RIGHT",
+                                        "5": "A"},
+                               "controls": ["LEFT", "DOWN", "UP", "RIGHT", "A"]},
+    "Current Designs fORP, HID KEY 12345 (1 2 3 4)": {
+        "keys": {"1": "LEFT", "2": "DOWN", "3": "UP", "4": "RIGHT"},
+        "controls": ["LEFT", "DOWN", "UP", "RIGHT"]},
+    "Current Designs fORP, HID KEY BYGRT (b y g r)": {
+        "keys": {"b": "LEFT", "y": "DOWN", "g": "UP", "r": "RIGHT"},
+        "controls": ["LEFT", "DOWN", "UP", "RIGHT"]},
+}
+
+
+def last_rig_check(data_root: str, site: str, rig: str) -> dict | None:
+    """This rig's latest passing check filed under ``data_root`` (its ``rigchecks.tsv`` row).
+
+    :param data_root: the BIDS tree the checks were filed in.
+    :param site: the rig file's ``site``.
+    :param rig: the rig file's ``rig``.
+    :return: the row (``date``, ``<test>_status`` ...), or ``None`` if none passed.
+    """
+    try:
+        with open(os.path.join(data_root, "rigchecks.tsv"), newline="") as f:
+            rows = list(csv.DictReader(f, delimiter="\t"))
+    except OSError:
+        return None
+    passed = [r for r in rows
+              if r.get("status") == "pass" and r.get("site") == site and r.get("rig") == rig]
+    return max(passed, key=lambda r: r.get("date", ""), default=None)
 
 
 def launch_values(form: dict) -> dict:
