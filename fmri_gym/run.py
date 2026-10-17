@@ -289,17 +289,21 @@ def _final_outcome(
     return outcome, message
 
 
-def _resume_position(args: Any, curriculum: list[dict]) -> dict | None:
+def _resume_position(
+    data_root: str, subject: str, config_path: str, curriculum: list[dict]
+) -> dict | None:
     """Where ``--resume`` starts: the subject's last position in this config, checked against it.
 
-    :param args: ``fmri_play``'s parsed flags (``data_root``, ``subject``, ``curriculum``).
+    :param data_root: the BIDS tree's root.
+    :param subject: ``sub-<label>``.
+    :param config_path: the config file; its name is the task label.
     :param curriculum: the config's phases.
     :return: :func:`~fmri_gym.bids.last_position`, or ``None`` (said on stderr)
         when no earlier run of this config got past its opening phases.
     :raises ValueError: if that run played the config to its end, or its
         last game phase differs in this config by more than :data:`RESUMABLE_CHANGES`.
     """
-    position = bids.last_position(args.data_root, args.subject, args.curriculum)
+    position = bids.last_position(data_root, subject, config_path)
     if position is None:
         print("resume: no earlier run of this config got past its opening phases; starting "
               "at the beginning", file=sys.stderr)
@@ -404,7 +408,9 @@ class Run:
             print(f"{out.label} already has data: this is attempt {out.attempt} at it, and "
                   "writes beside the others", file=sys.stderr)
         print(f"output: {out.folder}", file=sys.stderr)
-        resume = _resume_position(args, curriculum) if args.resume else None
+        resume = None
+        if args.resume:
+            resume = _resume_position(args.data_root, args.subject, args.curriculum, curriculum)
         seeds = bids.fold_seeds(curriculum, out.label)
         check_monitor(args.monitor)
         fold_cli_options(curriculum, args)
@@ -904,9 +910,9 @@ class Run:
         user_quit = (outcome == "quit")
         # Stopped before the block's own end (its clock, its episodes, a
         # forfeit) -- by the run's clock or ESC -- so a later run can carry it on.
-        cut = user_quit or (self._time_up() and time.perf_counter() < own_end
-                            and outcome != "forfeit"
-                            and not (mode == "episode" and num_completed_episodes >= n_episodes))
+        block_did_not_finish = user_quit or (
+            self._time_up() and time.perf_counter() < own_end and outcome != "forfeit"
+            and not (mode == "episode" and num_completed_episodes >= n_episodes))
 
         self.triggers.block_end()
 
@@ -921,7 +927,8 @@ class Run:
             "n_pacing_resets": sum(e["n_pacing_resets"] for e in episodes),
             "total_reward": sum(e["score"] for e in episodes),
             "block_time_elapsed": block_time_elapsed + time.perf_counter() - block_start,
-            "num_completed_episodes": num_completed_episodes, "cut": cut,
+            "num_completed_episodes": num_completed_episodes,
+            "block_did_not_finish": block_did_not_finish,
         }
         self.logger.close_block(**summary, audio=audio_log, extra=block_extra)
         self.logger.log_phase({

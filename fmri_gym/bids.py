@@ -164,10 +164,10 @@ def last_position(root: str, subject: str, config_path: str) -> dict | None:
     """Where the subject's latest run of this config (in any session) stopped.
 
     The latest run is the last one to start that played something besides
-    its ``include_on_resume`` opening phases. A game block it cut off (``cut``
-    in its ``block_end`` line) is carried on: its index, the seconds it has
-    played, the episodes counted toward it and, if an episode was still
-    going, the savestate it stopped in. Otherwise the next run picks up after
+    its ``include_on_resume`` opening phases. A game block it stopped
+    (``block_did_not_finish`` in its ``block_end`` line) is carried on: its
+    index, the seconds it has played, the episodes counted toward it and, if
+    an episode was still going, the savestate it stopped in. Otherwise the next run picks up after
     the last game block played, or at the last other phase shown, played
     again from its beginning (unless it was the curriculum's last).
 
@@ -207,7 +207,7 @@ def last_position(root: str, subject: str, config_path: str) -> dict | None:
         return {**position, "index": last["index"] + final}
     events = read_events(os.path.join(folder, last["data_dir"]))
     end = events[-1]
-    if not end["cut"]:
+    if not end["block_did_not_finish"]:
         return {**position, "index": last["index"] + 1}
     episode_ends = [e for e in events if e["type"] == "episode_end"]
     state = (end["extra"] or {}).get("state")
