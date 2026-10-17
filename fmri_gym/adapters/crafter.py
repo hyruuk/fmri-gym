@@ -351,7 +351,7 @@ class CrafterAdapter(EnvAdapter):
         """The ``crafter.Env`` itself, past the Gymnasium env and any wrapper."""
         return self.env.unwrapped.game
 
-    def reset(self, seed: int | None) -> tuple[Any, dict]:
+    def reset(self, seed: int) -> tuple[Any, dict]:
         """Start an episode on a world determined by ``seed`` alone.
 
         :param seed: episode seed, from the run's fold of the design.

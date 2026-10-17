@@ -10,10 +10,13 @@ the game look tiny. Set the phase field "full_screen": true to display the whole
 Discrete(8), indices 0..7), which a phase's ``keys`` index; some tasks append
 more (Eat: 29 = eat). Play ``turn_based``: there is no no-op (0 is "move N").
 
-No savestate API -> reconstruction is via seed + action replay (deterministic
-under reset(seed=)). The full obs dict (glyphs, blstats, message, ...) is the
-analysis state; we log the compact non-pixel fields and keep the pixel frame
-for display only.
+NLE has no savestate API and its game lives in a NetHack library loaded per
+env, out of Python's reach, so the savestate is ``replay_state_gym.ReplayState``'s:
+the seed and the actions since, restored by replay. That is exact only because
+``minihack_levels.NLESeeding`` seeds NetHack's own RNGs on every reset and refuses one
+where that did not take. The full obs dict (glyphs, blstats, message, ...) is
+the analysis state; we log the compact non-pixel fields and keep the pixel
+frame for display only.
 
 Requires `pkg_resources` (install setuptools<81) as minihack imports it.
 """
@@ -33,6 +36,8 @@ class MiniHackAdapter(EnvAdapter):
 
     def _make(self, spec: dict) -> gym.Env:
         import minihack  # noqa: F401  (registers MiniHack-* env ids)
+        from minihack_levels import NLESeeding
+        from replay_state_gym import ReplayState
         # Prefer the agent-centered square crop for display; the full terminal
         # ("pixel") only looks good with "full_screen": true.
         self._pixel_key = "pixel" if spec.get("full_screen") else "pixel_crop"
@@ -42,15 +47,10 @@ class MiniHackAdapter(EnvAdapter):
             keys = (self._pixel_key,) + keys
         env = gym.make(spec["game"], observation_keys=keys, fix_moon_phase=True)
         self._last = None
-        return env
+        return ReplayState(NLESeeding(env))
 
-    def reset(self, seed: int | None) -> tuple[Any, dict]:
-        # Explicitly seed NetHack's core and dispersion RNGs for reproducible
-        # action replay. This avoids relying solely on Gymnasium's reset seed,
-        # whose propagation to NLE/NetHack is version-dependent.
-        if seed is not None:
-            self.env.unwrapped.seed(core=seed, disp=seed, reseed=False)
-        obs, info = self.env.reset(seed=seed)
+    def reset(self, seed: int) -> tuple[Any, dict]:
+        obs, info = super().reset(seed)
         self._last = obs
         return obs, info
 
@@ -78,4 +78,10 @@ class MiniHackAdapter(EnvAdapter):
                     continue
                 variables[k] = np.asarray(v).copy()
         variables.update(info or {})
-        return FrameState(blob=None, variables=variables)
+        return FrameState(variables=variables)
+
+    def restore(self, blob: bytes) -> None:
+        self._last, _ = self.env.set_state(blob)
+
+    def block_extra(self) -> dict:
+        return {"state": self.env.get_state()}

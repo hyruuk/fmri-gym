@@ -340,7 +340,9 @@ def _atomic_write(path: str, data: bytes) -> None:
 
 
 def _json_default(o: Any) -> Any:
-    """JSON for numpy scalars and arrays; anything else as its ``str``."""
+    """JSON for numpy scalars and arrays, bytes as a savestate is (zlib, base64); else ``str``."""
+    if isinstance(o, bytes):
+        return base64.b64encode(zlib.compress(o, 1)).decode("ascii")
     if isinstance(o, np.integer):
         return int(o)
     if isinstance(o, np.floating):

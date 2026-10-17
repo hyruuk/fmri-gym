@@ -104,15 +104,18 @@ class EnvAdapter:
         """
         raise NotImplementedError
 
-    def reset(self, seed: int | None) -> tuple[Any, dict]:
+    def reset(self, seed: int) -> tuple[Any, dict]:
         """Reset the env for a new episode.
 
         Subclasses may use ``self.spec`` for per-episode setup (e.g. retro
         load_state).
 
-        :param seed: RNG seed for this episode, or ``None``.
+        :param seed: RNG seed for this episode.
         :return: ``(obs, info)`` from ``env.reset``.
+        :raises ValueError: ``seed`` is ``None`` (an episode is replayed from its seed).
         """
+        if seed is None:
+            raise ValueError("an episode needs a seed")
         return self.env.reset(seed=seed)
 
     def step(self, action: Any) -> tuple[Any, float, bool, bool, dict]:
@@ -253,10 +256,12 @@ class EnvAdapter:
         :meth:`capture` writes a row per frame; this is what the block needs
         said once, and what a per-frame column cannot say about itself: the
         sampling rate that makes logged audio playable, the names behind the
-        integers in a column. Called after the last step, so it may read the
-        env. Default is ``None`` -- nothing to add.
+        integers in a column, the state the block ended in (``"state"``: bytes
+        :meth:`restore` takes, which the log stores as a frame's ``state`` is).
+        Called after the last step, so it may read the env. Default is
+        ``None`` -- nothing to add.
 
-        :return: a mapping of name to array-like, or ``None``.
+        :return: a mapping of name to array-like (or bytes), or ``None``.
         """
         return None
 

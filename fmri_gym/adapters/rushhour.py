@@ -30,6 +30,14 @@ Other phase fields passed to the env: ``movable_only`` (default true) and
 package's own lookup). A ``game`` other than ``RushHourHuman-v0`` (say
 ``RushHour-Easy-v0``, ``Discrete(32)``) has no keymap a participant can use
 and is refused. Use ``turn_based: true``: a move is a key press.
+
+The env's own trial pacing (``paced``: a ready screen and a blank interval
+timed on the wall clock, on by default with ``puzzle_indices``) is always off
+here: the curriculum paces the trials, and a wall-clock gate between a press
+and a move would make the block depend on when the presses came, not only on
+which. The game is then a pure function of puzzle and presses, so the
+savestate is ``replay_state_gym.ReplayState``'s: the seed and the presses
+since, restored by replay through the Go engine at tens of µs a move.
 """
 
 from __future__ import annotations
@@ -49,13 +57,14 @@ class RushHourAdapter(EnvAdapter):
 
     def _make(self, spec: dict) -> gym.Env:
         import rushhour_gym  # noqa: F401  (registers RushHour*-v0)
+        from replay_state_gym import ReplayState
         game = spec.get("game", _ENV_ID)
         if game != _ENV_ID:
             raise ValueError(
                 f"rushhour backend: game must be {_ENV_ID!r} (a person's interface), "
                 f"not {game!r}; the agent ids have no keymap a participant can use")
         kwargs = {k: spec[k] for k in _ENV_KWARGS if k in spec}
-        return gym.make(_ENV_ID, render_mode="rgb_array", **kwargs)
+        return ReplayState(gym.make(_ENV_ID, render_mode="rgb_array", paced=False, **kwargs))
 
     def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
         # The engine ends an episode only when the red car is out.
@@ -71,4 +80,10 @@ class RushHourAdapter(EnvAdapter):
         for k, v in info.items():
             if k not in ("t_ms", "trial_ms"):
                 variables[k] = v
-        return FrameState(blob=None, variables=variables)
+        return FrameState(variables=variables)
+
+    def restore(self, blob: bytes) -> None:
+        self.env.set_state(blob)
+
+    def block_extra(self) -> dict:
+        return {"state": self.env.get_state()}

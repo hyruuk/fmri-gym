@@ -36,12 +36,16 @@ def reconstruction_plan(block: str, episode_id: int | None = None) -> dict:
 
 def reconstruct_episode(
     block: str, episode_id: int | None = None, adapter: Any = None,
+    n_actions: int | None = None,
 ) -> tuple[Any, dict]:
     """Replay one episode through an adapter, leaving it at the episode's last frame.
 
     :param block: the block's folder.
     :param episode_id: which episode (see :func:`reconstruction_plan`).
     :param adapter: the adapter to drive; built from the block's ``phase`` if omitted.
+    :param n_actions: replay only the first this many of the episode's actions
+        (``0``: the reset alone), leaving the adapter at the logged frame
+        ``ep_frame == n_actions - 1``; ``None`` replays them all.
     :return: ``(adapter, plan)``; the caller owns the adapter's ``close()``.
     """
     plan = reconstruction_plan(block, episode_id)
@@ -49,10 +53,9 @@ def reconstruct_episode(
         from .adapters import get_adapter
         start = read_events(block)[0]
         adapter = get_adapter(start["backend"], start["phase"])
-    if plan["episode_id"] != 0:
-        getattr(adapter, "warm_up", lambda: None)()
     adapter.reset(plan["seed"])
-    for action in plan["actions"]:
+    actions = plan["actions"] if n_actions is None else plan["actions"][:n_actions]
+    for action in actions:
         obs, _, _, _, info = adapter.step(action)
         adapter.capture(obs, info, want_blob=False)
     return adapter, plan

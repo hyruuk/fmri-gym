@@ -38,29 +38,30 @@ baba = ["baba-gym"]
 # Baba Is Auto: Baba Is You's levels on the baba-is-auto C++ engine, compiled at install time from the
 # external/baba_auto checkout (README "External checkouts"; needs a C++17
 # compiler and python3-dev).
-baba_auto = ["baba-auto-gym"]
+baba_auto = ["baba-auto-gym", "replay-state-gym"]
 vgdl = ["vgdl-gym"]  # the games come from the external/vgdl checkout (language_and_experience)
 # nle>=1.3 is what ships wheels for current Pythons; without the floor a
 # resolver may prefer gymnasium 1.3 and fall back to nle 0.9.1 (source build).
-minihack = ["minihack", "nle>=1.3", "minihack-levels"]
-nethack = ["nle>=1.3"]
+minihack = ["minihack", "nle>=1.3", "minihack-levels", "replay-state-gym"]
+# minihack-levels for NLESeeding, the wrapper that seeds NetHack's own RNGs.
+nethack = ["nle>=1.3", "minihack-levels", "replay-state-gym"]
 # The ten browser games as a gym env, from gym/aigamestore (see tool.uv.sources).
-aigamestore = ["aigamestore-gym"]
+aigamestore = ["aigamestore-gym", "replay-state-gym"]
 # ARC-AGI-3 games, run offline by the arc-agi toolkit (Python >= 3.12), from gym/arc3 (see
 # tool.uv.sources). The games' files are fetched once (README "ARC-AGI-3 games").
 arc3 = ["arc3-gym; python_version >= '3.12'"]
-vizdoom = ["vizdoom"]
+vizdoom = ["vizdoom", "vizdoom-gym", "replay-state-gym"]
 # COOM scenarios as a gym env, from gym/coom (see tool.uv.sources). Needs the
 # external/coom checkout too; the COOM package itself is not installed.
-coom = ["coom-gym"]
-rushhour = ["rushhour-gym>=0.7.0"]
+coom = ["coom-gym", "replay-state-gym"]
+rushhour = ["rushhour-gym>=0.7.0", "replay-state-gym"]
 # SuperTuxKart, game included. The wheel is pure Python; it fetches the
 # game and a trimmed asset pack (254 MiB) from the matching GitHub release on
 # first use, into ~/.cache/supertuxkart-gym. Linux x86_64 only for now, and it
 # needs a real GL display, because the observation is the game's own rendering.
 # The pack is tied to the package version, so upgrading the pin is the whole
 # update procedure; STK_ENV_BIN overrides the binary it fetched.
-stk = ["supertuxkart-gym>=0.1.3"]
+stk = ["supertuxkart-gym>=0.1.3", "replay-state-gym"]
 # `gym` backend families beyond classic_control / toy_text (which ship with gymnasium):
 # `Box2D` is the module gymnasium's box2d envs import. gymnasium[box2d] would
 # get it from box2d-py, an sdist-only 2018 release that must compile (swig +
@@ -119,6 +120,8 @@ baba-auto-gym = { path = "gym/baba_auto", editable = true }
 crafter-gym = { path = "gym/crafter", editable = true }
 vgdl-gym = { path = "gym/vgdl", editable = true }
 arc3-gym = { path = "gym/arc3", editable = true }
+replay-state-gym = { path = "gym/replay_state", editable = true }
+vizdoom-gym = { path = "gym/vizdoom", editable = true }
 
 [tool.ruff]
 line-length = 100

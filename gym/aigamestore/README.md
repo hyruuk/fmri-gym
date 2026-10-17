@@ -34,4 +34,6 @@ An episode is one level: `reset()` starts the env's `level` afresh through the g
 
 ## Changes to the games
 
+The pages are self-contained: the libraries their HTML fetches from CDNs (p5, p5.collide2d, Matter, three.js, seedrandom, pinned by version in the URL) are answered from `vendor/`, the Google analytics tag they carry is dropped, and a request for anything else off the page's origin makes the next `step` raise, since a script from the network would draw from the seeded `Math.random` and a library served differently some day would change the game. No network is needed to play, now or later.
+
 The games differ from the ones on the platform in three ways, all so they can be played without a keyboard in front of them: level clears and game overs advance by themselves after 3 s (no "press ENTER" / "press R" prompts); the on-canvas control hints take their key names from `?label_<KEY>=` query parameters, so a host that remaps keys (a button box, say) can show the key the player really presses; and each game's `window.loadLevel(n)` (a dev-mode hook on the platform) starts level `n` as a fresh game -- score 0, full lives, PLAYING.

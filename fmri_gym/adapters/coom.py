@@ -23,6 +23,12 @@ buffer per Doom tic, so the phase must run at 35 fps. Playback uses the shared
 Audio output; capture logs independent PCM copies even when playback is muted.
 Terminal states have no audio buffer: log a marked zero placeholder, never
 replay the previous step's sound.
+
+Savestate: the scenario's logic is ACS inside the WAD and the env keeps no
+state of its own, so the game is lockstep-deterministic from ``reset(seed=)``;
+``DoomGame.save()`` would run two extra tics on every save (see the vizdoom
+adapter), so the savestate is ``replay_state_gym.ReplayState``'s instead:
+the seed and the actions since, restored by replay.
 """
 
 from __future__ import annotations
@@ -50,6 +56,7 @@ class COOMAdapter(EnvAdapter):
         :raises ValueError: audio is on, but the phase is not one tic per step.
         """
         from coom_gym import COOMEnv
+        from replay_state_gym import ReplayState
 
         options = spec.get("env_kwargs", {})
         audio = options.get("audio_buffer_enabled", False)
@@ -65,9 +72,9 @@ class COOMAdapter(EnvAdapter):
             audio_efx=options.get("audio_efx", False),
         )
         self._game = env.game
-        return env
+        return ReplayState(env)
 
-    def reset(self, seed: int | None) -> tuple[Any, dict]:
+    def reset(self, seed: int) -> tuple[Any, dict]:
         out = super().reset(seed)
         self._sectors_pending = True
         return out
@@ -105,13 +112,17 @@ class COOMAdapter(EnvAdapter):
             variables["audio"] = (state.audio_buffer.copy() if state is not None else
                                   np.zeros((self._game.get_audio_sampling_rate() // 35, 2),
                                            dtype=np.int16))
-        return FrameState(blob=None, variables=variables)
+        return FrameState(variables=variables)
 
-    def block_extra(self) -> dict | None:
-        """Describe the logged PCM format and the engine's reverb setting."""
+    def restore(self, blob: bytes) -> None:
+        self.env.set_state(blob)
+
+    def block_extra(self) -> dict:
+        """The block's end state, and the logged PCM format and reverb setting when sound is on."""
         if not self._game.is_audio_buffer_enabled():
-            return None
-        return {"audio_sampling_rate": self._game.get_audio_sampling_rate(),
+            return {"state": self.env.get_state()}
+        return {"state": self.env.get_state(),
+                "audio_sampling_rate": self._game.get_audio_sampling_rate(),
                 "audio_buffer_tics": 1,
                 "audio_efx": self.spec.get("env_kwargs", {}).get("audio_efx", False)}
 

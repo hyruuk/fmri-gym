@@ -14,7 +14,10 @@ A phase's ``keys`` index ``Discrete(5)``: 0 = wait, 1 = up, 2 = down,
 3 = left, 4 = right. The phase's ``game`` is a map name under the checkout's
 ``Resources/Maps`` (``baba_is_you``, ``out_of_reach``, ``off_limits``, ...) or
 a map file's path. Logged per turn: ``play_state`` (0 PLAYING, 1 WON, 2 LOST)
-and the ``(16, H, W)`` state tensor. No savestate -> seed + action replay.
+and the ``(16, H, W)`` state tensor. ``pyBaba.Game`` has no serializer (its
+map, object ids, noun history and RNG are private C++), so the savestate is
+``replay_state_gym.ReplayState``'s: the seed and the moves since, restored
+by replay, at a few ms per move.
 """
 
 from __future__ import annotations
@@ -34,8 +37,9 @@ class BabaAutoAdapter(EnvAdapter):
 
     def _make(self, spec: dict) -> gym.Env:
         from baba_auto_gym import BabaAutoEnv
+        from replay_state_gym import ReplayState
 
-        return BabaAutoEnv(spec["game"], repo=spec.get("repo"))
+        return ReplayState(BabaAutoEnv(spec["game"], repo=spec.get("repo")))
 
     def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
         # The engine's PlayState, WON or LOST, is what ended the episode.
@@ -47,3 +51,9 @@ class BabaAutoAdapter(EnvAdapter):
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         return FrameState(variables={"play_state": _PLAY_STATE[info["play_state"]],
                                      "state": np.asarray(obs).copy()})
+
+    def restore(self, blob: bytes) -> None:
+        self.env.set_state(blob)
+
+    def block_extra(self) -> dict:
+        return {"state": self.env.get_state()}

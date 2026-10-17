@@ -36,8 +36,16 @@ without levels (game4, an endless runner) has episodes that end when it is lost.
 Not supported: sound (the games have none) and savestates (replay from seed).
 Needs a Chromium-based browser (the system Chrome by default; pass
 ``browser_channel=None`` for Playwright's bundled Chromium after
-``playwright install chromium``). The games load p5 / three.js from a CDN, so
-the first run needs network access.
+``playwright install chromium``).
+
+The page is self-contained. The games' HTML loads p5, three.js, Matter and
+seedrandom from CDNs and an analytics tag from Google; the env answers the
+library URLs with the copies under ``vendor/`` (:data:`VENDORED`), drops the
+analytics tag, and refuses any other request that leaves the page's origin --
+a script that arrived from the network would draw from the seeded
+``Math.random`` and schedule timers of its own, and a library the CDN serves
+differently some day would change the game. Either breaks replay without a
+sign, so the step after such a request raises instead.
 """
 
 from __future__ import annotations
@@ -61,6 +69,20 @@ from gymnasium import spaces
 _HERE = Path(__file__).resolve().parent
 _GAMES_DIR = _HERE.parent          # game1/ .. game10/ sit beside this package
 _LOCKSTEP_JS = _HERE / "lockstep.js"
+_VENDOR_DIR = _GAMES_DIR / "vendor"
+
+#: The libraries the games' pages fetch, and the file under ``vendor/`` served
+#: for each (pinned by version in the URL; the game modules import three.js by
+#: this URL too).
+VENDORED: dict[str, str] = {
+    "https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js": "p5-1.4.0.js",
+    "https://unpkg.com/p5.collide2d@0.7.3/p5.collide2d.js": "p5.collide2d-0.7.3.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js": "matter-0.19.0.min.js",
+    "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js": "three-0.160.0.module.js",
+    "https://cdn.jsdelivr.net/npm/seedrandom@3.0.5/seedrandom.min.js": "seedrandom-3.0.5.min.js",
+}
+#: The analytics tag every page carries; dropped, never fetched.
+_ANALYTICS = "https://www.googletagmanager.com/"
 
 #: The keys each vendored game listens for during play (its ``input.js``);
 #: this is the env's action vocabulary. Enter / Escape / R start, pause and
@@ -160,6 +182,11 @@ class AIGameStoreEnv(gym.Env):
             **({"channel": browser_channel} if browser_channel else {}))
         self._page = self._browser.new_page(viewport={"width": 900, "height": 700})
         self._page.add_init_script(path=str(_LOCKSTEP_JS))
+        self._origin = "{0.scheme}://{0.netloc}/".format(urllib.parse.urlsplit(self._url))
+        self._left_the_page: list[str] = []
+        # Routes match newest first: the page's own files and rng.js go through,
+        # everything else is answered here.
+        self._page.route("**/*", self._route)
         self._page.route("**/rng.js", self._patch_rng)
 
         self._frame: np.ndarray | None = None
@@ -251,6 +278,18 @@ class AIGameStoreEnv(gym.Env):
         self._page.goto(f"{self._url}&seed={seed}")
         self._page.evaluate("n => window.__aigs.boot(n)", _BOOT_FRAMES)
 
+    def _route(self, route: Any) -> None:
+        """Answer a request the page makes: its own files, a vendored library, or nothing."""
+        url = route.request.url
+        if url.startswith(self._origin):
+            route.continue_()
+        elif url in VENDORED:
+            route.fulfill(path=str(_VENDOR_DIR / VENDORED[url]))
+        else:
+            if not url.startswith(_ANALYTICS):
+                self._left_the_page.append(url)
+            route.abort()
+
     def _patch_rng(self, route: Any) -> None:
         """Force game7's own vendored RNG module (``rng.js``) onto this episode's seed.
         """
@@ -262,7 +301,15 @@ class AIGameStoreEnv(gym.Env):
         route.fulfill(response=response, body=body)
 
     def _step(self, names: list[str], frames: int) -> tuple[np.ndarray, dict]:
-        """Hold exactly ``names``, tick ``frames``, and read canvas + state."""
+        """Hold exactly ``names``, tick ``frames``, and read canvas + state.
+
+        :raises RuntimeError: the page asked for a file off its origin that is
+            not in :data:`VENDORED` (vendor it, or the game is not replayable).
+        """
+        if self._left_the_page:
+            raise RuntimeError(f"{self.game} requested {self._left_the_page} from outside the "
+                               "page; add the file to vendor/ and VENDORED, or the game "
+                               "depends on the network and cannot be replayed")
         out = self._page.evaluate("([n, f]) => window.__aigs.step(n, f)", [names, frames])
         self._frame = _decode_png(out["png"])
         return self._frame, out["state"]

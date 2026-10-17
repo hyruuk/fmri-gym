@@ -16,3 +16,7 @@ for name, layout in LAYOUTS.items():
         kwargs={"layout": name},
         max_episode_steps=1200 if layout["family"] == "maze" else 500,
     )
+
+from .seeding import NLESeeding  # noqa: E402
+
+__all__ = ["LAYOUTS", "NLESeeding"]
