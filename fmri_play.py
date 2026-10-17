@@ -14,6 +14,7 @@ script passes the same --ses to all of its runs, each with its own --run):
     python fmri_play.py --subject sub-01 --curriculum my.json --ses 1 --run 1
     python fmri_play.py ... --dummy-trigger    # testing: no experimenter/scanner wait
     python fmri_play.py ... --no-audio         # mute all games
+    python fmri_play.py ... --duration 600 --resume  # a 10-min run of a longer curriculum
 
 See configs/demo_mixed.json for a curriculum that mixes all three backends,
 and README.md for the config schema.
@@ -57,6 +58,13 @@ def _parser() -> argparse.ArgumentParser:
                    help="this task's run number in the session, from 1: which run of the "
                    "design this is, so it stays the same however the session went. A run that "
                    "already has data is re-acquired beside it, never overwritten")
+    p.add_argument("--duration", type=float, default=None,
+                   help="the run's length in seconds from the scanner trigger: the phases stop "
+                   "10 s before it, whatever is playing, and the run closes on a fixation "
+                   "cross. Default: play the curriculum to its end")
+    p.add_argument("--resume", action="store_true",
+                   help="carry on from where this subject's latest run of this config (any "
+                   "session) stopped, mid-block included. Default: start at the beginning")
     p.add_argument("--size", default="1024x768")
     p.add_argument("--fullscreen", action="store_true")
     p.add_argument("--monitor", type=int, default=0,

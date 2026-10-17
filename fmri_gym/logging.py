@@ -260,9 +260,9 @@ def _writer_main(q: mp.Queue) -> None:
             line = rec["line"]
             if rec.get("state") is not None:
                 # Savestates are large and mostly redundant (a crafter pickle is
-                # 2.3 MB, ~57 KB zlib'd), so they are compressed here, not in
-                # the game loop.
-                line["state"] = base64.b64encode(zlib.compress(rec["state"], 1)).decode("ascii")
+                # 2.3 MB, ~57 KB zlib'd), so they are compressed here, by
+                # _json_default as every logged bytes value is, not in the game loop.
+                line["state"] = rec["state"]
             lines[block].write(json.dumps(line, default=_json_default) + "\n")
         elif op == "frame":
             if block not in h5:
@@ -370,6 +370,11 @@ def read_events(block: str) -> list[dict]:
             except json.JSONDecodeError:
                 break
     return events
+
+
+def read_state(text: str) -> bytes:
+    """A savestate as the log writes it (zlib'd, then base64), as the bytes ``restore`` takes."""
+    return zlib.decompress(base64.b64decode(text))
 
 
 def read_frames(block: str) -> tuple[np.ndarray, np.ndarray]:
