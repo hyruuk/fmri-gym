@@ -619,14 +619,14 @@ class Run:
 
         ## Final outcome
         outcome, message = _final_outcome(adapter, outcome, terminated, truncated)
-        end = {"episode_id": episode_id, "outcome": outcome, "terminated": bool(terminated),
+        result = {"episode_id": episode_id, "outcome": outcome, "terminated": bool(terminated),
                "truncated": bool(truncated), "score": score, "n_pacing_resets": n_pacing_resets}
-        self.logger.log(type="episode_end", **end)
+        self.logger.log(type="episode_end", **result)
         if message and outcome_duration > 0:
             self.audio.stop()               # the episode's last sounds, still queued
             self.display.draw_text(f"Final score: {score:g}\n{message}")
             _wait_for_duration(self.display, outcome_duration)
-        return end
+        return result
 
     def _show(
         self, adapter: EnvAdapter, play_sound: bool, score: float, block_end: float
@@ -740,14 +740,14 @@ class Run:
             ## Run one episode
             # Seeded by episodes played, so a restart from the menu replays
             # the very instance the subject gave up on (a start-over).
-            end = self._episode(
+            episode_result = self._episode(
                 adapter, seed=base_seed + completed, episode_id=len(episodes),
                 turn_based=turn_based, latched=latched, live_hud=live_hud,
                 dt=dt, state_stride=state_stride,
                 block_end=block_end, play_sound=play_sound, menu=menu,
                 outcome_duration=outcome_duration)
-            episodes.append(end)
-            outcome = end["outcome"]
+            episodes.append(episode_result)
+            outcome = episode_result["outcome"]
             # An episode's last sounds are still queued when it ends; drop them
             # so they do not play over the next episode or the next fixation.
             self.audio.stop()
@@ -756,25 +756,22 @@ class Run:
             completed += outcome != "reset" and (advancing is None or outcome in advancing)
             if mode == "episode" and completed >= n_episodes:
                 break
-        user_quit = outcome == "quit"
+        user_quit = (outcome == "quit")
 
         self.triggers.block_end()
-        audio = self.audio.block_log()
-        if audio:
-            audio["onsets"] = [[chunk, self.clock.from_perf(t)] for chunk, t in audio["onsets"]]
-        extra = adapter.block_extra()
-        adapter.close()
-        # Some gym envs (classic-control) call pygame.display.quit() on close(),
-        # which tears down our shared window; rebuild it if so.
-        self.display.ensure()
+
+        # Logging
+        block_extra = adapter.block_extra() # run before closing the adapter to get the last state
+        audio_log = self.audio.block_log()
+        if audio_log:
+            audio_log["onsets"] = [[chunk, self.clock.from_perf(t)] for chunk, t in audio_log["onsets"]]
         summary = {
             "n_episodes": len(episodes), "n_frames": self.logger.n_frames,
-            # How the episodes ended, by outcome name (see EnvAdapter.outcome).
             "outcomes": dict(Counter(e["outcome"] for e in episodes)),
             "n_pacing_resets": sum(e["n_pacing_resets"] for e in episodes),
             "total_reward": sum(e["score"] for e in episodes),
         }
-        self.logger.close_block(**summary, audio=audio, extra=extra)
+        self.logger.close_block(**summary, audio=audio_log, extra=block_extra)
         self.logger.log_phase({
             "index": index, "type": "game", "backend": backend,
             "game": phase["game"], "mode": mode,
@@ -783,6 +780,11 @@ class Run:
             "data_dir": data_dir, **speed,
             **({"menu": menu.describe()} if menu else {}),
         })
+
+        # Close adapter and environment
+        adapter.close()
+        self.display.ensure() # Some gym envs call pygame.display.quit() on close() which tears down our shared window
+
         if user_quit:
             raise KeyboardInterrupt
 
