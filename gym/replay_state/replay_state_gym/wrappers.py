@@ -1,4 +1,4 @@
-"""Savestates for deterministic envs that keep none, and fresh starts for envs whose reset is not.
+"""A savestate for deterministic envs that keep none: the seed and the actions since.
 
 Many engines hold their state where Python cannot reach it -- a NetHack library
 loaded per instance, a Doom process, a Go process, a browser page, a C++ object
@@ -10,16 +10,13 @@ replay. :class:`ReplayState` records that pair and offers it through
 (procgen, retro's emulator, VGDL).
 
 That only works when ``reset(seed)`` returns the engine to the same state
-every time. An engine whose reset leaves something of the previous episode
-behind -- a physics world not fully rebuilt, say -- is exact only from a fresh
-launch. :class:`RelaunchOnReset` gives it one on every reset, by building a
-new inner env; under :class:`ReplayState` that makes ``set_state`` exact too.
+every time; an engine whose reset leaves something of the previous episode
+behind must be relaunched before ``set_state``.
 """
 
 from __future__ import annotations
 
 import pickle
-from collections.abc import Callable
 from typing import Any
 
 import gymnasium as gym
@@ -67,22 +64,3 @@ class ReplayState(gym.Wrapper):
         self._episode = {**episode, "actions": list(episode["actions"])}
         return obs, info
 
-
-class RelaunchOnReset(gym.Wrapper):
-    """Build a fresh inner env on every reset but the first.
-
-    :param make: builds the inner env (a launch of the engine).
-    """
-
-    def __init__(self, make: Callable[[], gym.Env]) -> None:
-        super().__init__(make())
-        self._make = make
-        self._fresh = True
-
-    def reset(self, *, seed: int | None = None, options: dict | None = None) -> tuple[Any, dict]:
-        """Relaunch the engine unless it has not been used since its launch, then reset it."""
-        if not self._fresh:
-            self.env.close()
-            self.env = self._make()
-        self._fresh = False
-        return self.env.reset(seed=seed, options=options)

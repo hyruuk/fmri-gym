@@ -1,10 +1,10 @@
-"""Gymnasium wrappers for replayable envs: a savestate by replay, a fresh launch per reset.
+"""A Gymnasium wrapper for replayable envs: a savestate by replay.
 
 See :mod:`replay_state_gym.wrappers`.
 """
 
 from __future__ import annotations
 
-from .wrappers import RelaunchOnReset, ReplayState
+from .wrappers import ReplayState
 
-__all__ = ["RelaunchOnReset", "ReplayState"]
+__all__ = ["ReplayState"]

@@ -19,12 +19,12 @@ keyboard. The participant and a model are therefore in front of the same env.
 Replay: a run reproduces bit for bit from a fresh launch, but a restart of the
 race in the same process leaves the physics world a little off a fresh one
 (``stk_gym``'s README measures it: millimetres, growing to centimetres over a
-few hundred steps). So every episode gets a fresh launch
-(``replay_state_gym.RelaunchOnReset``), about half a second of track loading
-between races, and an episode is then exact from its launch ``seed``, its
-episode seed and its actions alone. The savestate is
-``replay_state_gym.ReplayState``'s over that: the seed and the actions since,
-restored by a relaunch and a replay at about a millisecond a step.
+few hundred steps). So every episode but the block's first gets a fresh
+launch (``reset``), about half a second of track loading between races, and an
+episode is then exact from its launch ``seed``, its episode seed and its
+actions alone. The savestate is ``replay_state_gym.ReplayState``'s: the seed
+and the actions since, restored by a fresh launch and a replay at about a
+millisecond a step.
 
 Timing: the game is lock-stepped, one ``step`` per fmri-gym frame, so
 ``fps`` here must equal the game's physics rate divided by ``frame_skip``
@@ -55,11 +55,19 @@ from .base import EnvAdapter, FrameState
 
 class STKAdapter(EnvAdapter):
     name: str = "stk"
+    _played: bool = False
 
     def _make(self, spec: dict) -> gym.Env:
-        from replay_state_gym import RelaunchOnReset, ReplayState
+        from replay_state_gym import ReplayState
 
-        return ReplayState(RelaunchOnReset(lambda: _launch(spec)))
+        return ReplayState(_launch(spec))
+
+    def reset(self, seed: int) -> tuple[Any, dict]:
+        """Relaunch the game, unless it is unused since its launch, and start a race."""
+        if self._played:
+            self._relaunch()
+        self._played = True
+        return super().reset(seed)
 
     def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
         # The env's is_success: the kart crossed the finish line.
@@ -73,7 +81,14 @@ class STKAdapter(EnvAdapter):
         return FrameState(variables=self.env.unwrapped.sample())
 
     def restore(self, blob: bytes) -> None:
+        self._relaunch()
+        self._played = True
         self.env.set_state(blob)
+
+    def _relaunch(self) -> None:
+        """Close the game and launch it afresh."""
+        self.env.close()
+        self.env = self._make(self.spec)
 
     def block_extra(self) -> dict:
         return {"state": self.env.get_state()}
