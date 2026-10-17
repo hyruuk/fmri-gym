@@ -115,7 +115,7 @@ class EnvAdapter:
         :raises ValueError: ``seed`` is ``None`` (an episode is replayed from its seed).
         """
         if seed is None:
-            raise ValueError("an episode needs a seed: it is replayed from its seed and actions")
+            raise ValueError("an episode needs a seed")
         return self.env.reset(seed=seed)
 
     def step(self, action: Any) -> tuple[Any, float, bool, bool, dict]:

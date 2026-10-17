@@ -58,14 +58,40 @@ class STKAdapter(EnvAdapter):
     _played: bool = False
 
     def _make(self, spec: dict) -> gym.Env:
+        import stk_gym
         from replay_state_gym import ReplayState
 
-        return ReplayState(_launch(spec))
+        env = stk_gym.StkEnv(
+            track=spec.get("track", "hacienda"),
+            laps=spec.get("laps"),
+            num_karts=spec.get("num_karts"),
+            difficulty=spec.get("difficulty"),
+            obs_mode="vector",
+            action_mode="keys",
+            render_mode="rgb_array",
+            frame_skip=int(spec.get("frame_skip", 2)),
+            screensize=spec.get("screensize", "640x360"),
+            seed=spec.get("seed"),
+            binary=spec.get("binary"),
+        )
+        # run.py paces the loop at fps; the game advances frame_skip ticks
+        # per step. If the two disagree the race runs in slow or fast motion
+        # relative to the scanner clock, silently.
+        fps = int(spec.get("fps", 30))
+        if env.metadata["render_fps"] != fps:
+            env.close()
+            raise ValueError(
+                f"fps={fps} but the game steps at {env.metadata['render_fps']} Hz "
+                f"(physics {env.engine.meta['physics_fps']} Hz / frame_skip "
+                f"{env.engine.meta['frames']}); set frame_skip so they match"
+            )
+        return ReplayState(env)
 
     def reset(self, seed: int) -> tuple[Any, dict]:
         """Relaunch the game, unless it is unused since its launch, and start a race."""
         if self._played:
-            self._relaunch()
+            self.env.close()
+            self.env = self._make(self.spec)
         self._played = True
         return super().reset(seed)
 
@@ -81,50 +107,10 @@ class STKAdapter(EnvAdapter):
         return FrameState(variables=self.env.unwrapped.sample())
 
     def restore(self, blob: bytes) -> None:
-        self._relaunch()
+        self.env.close()
+        self.env = self._make(self.spec)
         self._played = True
         self.env.set_state(blob)
 
-    def _relaunch(self) -> None:
-        """Close the game and launch it afresh."""
-        self.env.close()
-        self.env = self._make(self.spec)
-
     def block_extra(self) -> dict:
         return {"state": self.env.get_state()}
-
-
-def _launch(spec: dict) -> gym.Env:
-    """Launch the game for ``spec``: a fresh process, and the race set up once.
-
-    :param spec: the game-phase config.
-    :return: the ``stk_gym.StkEnv``.
-    :raises ValueError: the phase's ``fps`` is not the game's step rate.
-    """
-    import stk_gym
-
-    env = stk_gym.StkEnv(
-            track=spec.get("track", "hacienda"),
-            laps=spec.get("laps"),
-            num_karts=spec.get("num_karts"),
-            difficulty=spec.get("difficulty"),
-            obs_mode="vector",
-            action_mode="keys",
-            render_mode="rgb_array",
-            frame_skip=int(spec.get("frame_skip", 2)),
-            screensize=spec.get("screensize", "640x360"),
-            seed=spec.get("seed"),
-            binary=spec.get("binary"),
-        )
-    # run.py paces the loop at fps; the game advances frame_skip ticks
-    # per step. If the two disagree the race runs in slow or fast motion
-    # relative to the scanner clock, silently.
-    fps = int(spec.get("fps", 30))
-    if env.metadata["render_fps"] != fps:
-        env.close()
-        raise ValueError(
-            f"fps={fps} but the game steps at {env.metadata['render_fps']} Hz "
-            f"(physics {env.engine.meta['physics_fps']} Hz / frame_skip "
-            f"{env.engine.meta['frames']}); set frame_skip so they match"
-        )
-    return env
