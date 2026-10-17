@@ -202,9 +202,8 @@ def last_position(root: str, subject: str, config_path: str) -> dict | None:
         "index": games[-1]["index"], "phase": manifest["curriculum"][games[-1]["index"]]}
     position = {"run": manifest["run"]["label"], "last_game": last_game}
     last = played[-1]
-    if last["type"] != "game":  # a game phase's instructions are a message at its index
-        curriculum = manifest["curriculum"]
-        final = last["index"] == len(curriculum) - 1 and curriculum[-1]["type"] != "game"
+    if last["type"] != "game":
+        final = last["index"] == len(manifest["curriculum"]) - 1
         return {**position, "index": last["index"] + final}
     events = read_events(os.path.join(folder, last["data_dir"]))
     end = events[-1]

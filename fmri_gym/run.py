@@ -482,13 +482,21 @@ class Run:
     def _message(self, phase: dict, index: int) -> None:
         """Show on-screen text until a key press or timed duration.
 
-        :param phase: message-phase config (``text`` as a string or list of
-            lines; optional ``duration`` / ``key`` / ``keys_to_dismiss`` /
-            ``align``). ``key`` is the character that dismisses the screen
-            (default SPACE), or ``"any"``; ``keys_to_dismiss`` is a list of key
-            NAMES instead, which with a ``duration`` ends the screen at
-            whichever comes first.
+        :param phase: message-phase config (see :meth:`_show_message`).
         :param index: phase index in the curriculum (for the manifest).
+        """
+        self.logger.log_phase({"index": index, "type": "message", **self._show_message(phase)})
+
+    def _show_message(self, phase: dict) -> dict:
+        """Draw a message and wait until a key press or its duration.
+
+        :param phase: ``text`` as a string or list of lines; optional
+            ``duration`` / ``key`` / ``keys_to_dismiss`` / ``align``. ``key`` is
+            the character that dismisses the screen (default SPACE), or
+            ``"any"``; ``keys_to_dismiss`` is a list of key NAMES instead, which
+            with a ``duration`` ends the screen at whichever comes first.
+        :return: the ``text`` shown, its ``onset`` and ``offset``.
+        :raises KeyboardInterrupt: on window close or ESC.
         """
         text = _join_multiline_text(phase.get("text", ""))
         duration = phase.get("duration")
@@ -505,9 +513,7 @@ class Run:
                            dummy_trigger=self.dummy_trigger, until=self._run_end)
         else:
             _wait_for_duration(self.display, duration, until=self._run_end)
-
-        self.logger.log_phase({"index": index, "type": "message", "text": text,
-                               "onset": onset, "offset": self.clock.run_time()})
+        return {"text": text, "onset": onset, "offset": self.clock.run_time()}
 
     def _survey(self, phase: dict, index: int) -> None:
         """Run a Likert-style survey and log each confirmed response.
@@ -738,6 +744,24 @@ class Run:
             _wait_for_duration(self.display, outcome_duration, until=self._run_end)
         return result
 
+    def _instructions(self, phase: dict, resumed: bool) -> dict | None:
+        """Show a game phase's ``instructions``, if any, as a message headed by its title.
+
+        :param phase: the game phase (``instructions``: ``title``, ``text``,
+            ``align``, ``duration``, ``keys_to_dismiss``).
+        :param resumed: whether the block carries on from an earlier run: the
+            heading says "Resuming <title>" rather than "Starting <title>".
+        :return: for the game's manifest entry, the ``text`` shown with its
+            ``onset`` and ``offset``; ``None`` without instructions.
+        :raises KeyboardInterrupt: on window close or ESC.
+        """
+        spec = phase.get("instructions")
+        if spec is None:
+            return None
+        heading = f"{'Resuming' if resumed else 'Starting'} {spec['title']}"
+        text = _join_multiline_text(spec.get("text", ""))
+        return self._show_message({**spec, "text": f"{heading}\n\n{text}"})
+
     def _show(
         self, adapter: EnvAdapter, play_sound: bool, score: float, block_end: float
     ) -> tuple[float, Any, Any]:
@@ -830,11 +854,7 @@ class Run:
         # default that changes with the engine underneath it.
         fps = phase["fps"]
         dt = 1.0 / fps
-        if "instructions" in phase:     # "Resuming" when an earlier run stopped the block
-            spec = phase["instructions"]
-            verb = "Resuming" if "block_time_elapsed" in phase else "Starting"
-            text = _join_multiline_text(spec.get("text", ""))
-            self._message({**spec, "text": f"{verb} {spec['title']}\n\n{text}"}, index)
+        instructions = self._instructions(phase, resumed="block_time_elapsed" in phase)
 
         # Some backends (nle, browser games) take several seconds to start;
         # show a Loading screen so the previous fixation "+" doesn't freeze.
@@ -911,6 +931,7 @@ class Run:
             **({"advancing_outcomes": advancing} if advancing is not None else {}),
             "data_dir": data_dir, **speed,
             **({"menu": menu.describe()} if menu else {}),
+            **({"instructions": instructions} if instructions else {}),
         })
 
         # Close adapter and environment

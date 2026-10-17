@@ -403,8 +403,7 @@ They assume `sub-01` and a 1024x768 window, and take the subject's next free ses
                                 // optional: the screen before the block, "Starting Pong" (or
                                 // "Resuming Pong" when a run carries the block on) over the text,
                                 // until duration runs out or one of the keys is pressed (at least
-                                // one of the two). A message phase at the game's index in the
-                                // manifest; outside the block's clock, inside the run's
+                                // one of the two). Outside the block's clock, inside the run's
  "mode": "duration",            // "duration" = replay until time up; "episode" = play N episodes
  "duration": 30.0,              // seconds (duration mode)
  "n_episodes": 1,               // episodes (episode mode)
