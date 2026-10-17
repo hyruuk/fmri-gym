@@ -23,7 +23,10 @@ where it differs from the game's own.
 
 Timing: lock-stepped, one ``step`` per fmri-gym frame, so ``fps`` must equal
 ``60 / frame_skip`` (10 by default); ``_make`` refuses a config where they
-disagree. Not supported: sound (the games have none) and savestates.
+disagree. Not supported: sound (the games have none). A browser page has no
+snapshot, so the savestate is :class:`~.replaystate.ReplayState`'s: the seed
+and the key sets since, restored by reloading the page and replaying them at
+the env's step rate (tens of ms a step).
 
 Phase fields: ``game`` ("game1".."game10", with an optional "/level<N>", or an
 http(s):// URL to an index.html -- then ``game_keys`` lists the keys that game
@@ -39,6 +42,7 @@ from typing import Any
 import gymnasium as gym
 
 from .base import EnvAdapter, FrameState
+from .replaystate import ReplayState
 
 
 class AIGameStoreAdapter(EnvAdapter):
@@ -69,7 +73,7 @@ class AIGameStoreAdapter(EnvAdapter):
             env.close()
             raise ValueError(f"fps={fps} but the game steps at {env.metadata['render_fps']:g} Hz "
                              f"(60 / frame_skip {env.frame_skip}); set frame_skip so they match")
-        return env
+        return ReplayState(env)
 
     def native_fps(self) -> float:
         return self.env.metadata["render_fps"]
@@ -86,5 +90,8 @@ class AIGameStoreAdapter(EnvAdapter):
         return super().outcome(terminated, truncated)
 
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
-        return FrameState(blob=None, variables={
+        return FrameState(blob=self.env.get_state() if want_blob else None, variables={
             f"state_{name}": value for name, value in info["state"].items()})
+
+    def restore(self, blob: bytes) -> None:
+        self.env.set_state(blob)

@@ -23,6 +23,12 @@ buffer per Doom tic, so the phase must run at 35 fps. Playback uses the shared
 Audio output; capture logs independent PCM copies even when playback is muted.
 Terminal states have no audio buffer: log a marked zero placeholder, never
 replay the previous step's sound.
+
+Savestate: the scenario's logic is ACS inside the WAD and the env keeps no
+state of its own, so the game is lockstep-deterministic from ``reset(seed=)``;
+``DoomGame.save()`` would run two extra tics on every save (see the vizdoom
+adapter), so the savestate is :class:`~.replaystate.ReplayState`'s instead:
+the seed and the actions since, restored by replay.
 """
 
 from __future__ import annotations
@@ -33,6 +39,7 @@ import gymnasium as gym
 import numpy as np
 
 from .base import EnvAdapter, FrameState, Sound
+from .replaystate import ReplayState
 
 
 class COOMAdapter(EnvAdapter):
@@ -65,7 +72,7 @@ class COOMAdapter(EnvAdapter):
             audio_efx=options.get("audio_efx", False),
         )
         self._game = env.game
-        return env
+        return ReplayState(env)
 
     def reset(self, seed: int | None) -> tuple[Any, dict]:
         out = super().reset(seed)
@@ -105,7 +112,10 @@ class COOMAdapter(EnvAdapter):
             variables["audio"] = (state.audio_buffer.copy() if state is not None else
                                   np.zeros((self._game.get_audio_sampling_rate() // 35, 2),
                                            dtype=np.int16))
-        return FrameState(blob=None, variables=variables)
+        return FrameState(blob=self.env.get_state() if want_blob else None, variables=variables)
+
+    def restore(self, blob: bytes) -> None:
+        self.env.set_state(blob)
 
     def block_extra(self) -> dict | None:
         """Describe the logged PCM format and the engine's reverb setting."""

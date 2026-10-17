@@ -1,6 +1,9 @@
 # Session data written by fmri_play.py
 data/
 
+# Local write-ups and scratch notes, not part of the repo
+artifacts/
+
 # Python
 __pycache__/
 *.pyc

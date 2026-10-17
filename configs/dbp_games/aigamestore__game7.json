@@ -28,27 +28,27 @@
     {
       "type": "game", "backend": "aigamestore", "game": "game7/level1",
       "keys": {"LEFT": 0, "RIGHT": 1, "UP": 2, "DOWN": 3, "Z": 4, "SPACE": 5, "LSHIFT": 6, "1": 7, "2": 8, "3": 9, "4": 10, "5": 11},
-      "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 120.0, "fps": 10
+      "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 120.0, "fps": 10, "state_stride": 10
     },
     {
       "type": "game", "backend": "aigamestore", "game": "game7/level2",
       "keys": {"LEFT": 0, "RIGHT": 1, "UP": 2, "DOWN": 3, "Z": 4, "SPACE": 5, "LSHIFT": 6, "1": 7, "2": 8, "3": 9, "4": 10, "5": 11},
-      "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 120.0, "fps": 10
+      "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 120.0, "fps": 10, "state_stride": 10
     },
     {
       "type": "game", "backend": "aigamestore", "game": "game7/level3",
       "keys": {"LEFT": 0, "RIGHT": 1, "UP": 2, "DOWN": 3, "Z": 4, "SPACE": 5, "LSHIFT": 6, "1": 7, "2": 8, "3": 9, "4": 10, "5": 11},
-      "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 120.0, "fps": 10
+      "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 120.0, "fps": 10, "state_stride": 10
     },
     {
       "type": "game", "backend": "aigamestore", "game": "game7/level4",
       "keys": {"LEFT": 0, "RIGHT": 1, "UP": 2, "DOWN": 3, "Z": 4, "SPACE": 5, "LSHIFT": 6, "1": 7, "2": 8, "3": 9, "4": 10, "5": 11},
-      "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 120.0, "fps": 10
+      "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 120.0, "fps": 10, "state_stride": 10
     },
     {
       "type": "game", "backend": "aigamestore", "game": "game7/level5",
       "keys": {"LEFT": 0, "RIGHT": 1, "UP": 2, "DOWN": 3, "Z": 4, "SPACE": 5, "LSHIFT": 6, "1": 7, "2": 8, "3": 9, "4": 10, "5": 11},
-      "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 120.0, "fps": 10
+      "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 120.0, "fps": 10, "state_stride": 10
     },
     {"type": "fixation", "duration": 2.0}
   ]

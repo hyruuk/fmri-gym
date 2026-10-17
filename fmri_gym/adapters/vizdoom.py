@@ -33,6 +33,13 @@ The phase's `"audio": false` mutes the speakers; the PCM is still logged.
 Doom produces 1/35 s of sound per step whatever the frame rate, so audio only
 runs in real time when `fps * env_kwargs.frame_skip == 35`; below that it plays
 with gaps, above it lags further behind every frame.
+
+Savestate: ViZDoom's ``DoomGame.save()`` exists but runs two extra game tics
+with the last action held, which would make a block that saved on a stride
+differ from its own log, and ``load()`` leaves the tic counter and timeout
+where they were. The game is lockstep-deterministic from ``reset(seed=)`` in
+its synchronous mode, so the savestate is :class:`~.replaystate.ReplayState`'s
+instead: the seed and the actions since, restored by replay.
 """
 
 from __future__ import annotations
@@ -43,6 +50,7 @@ import gymnasium as gym
 import numpy as np
 
 from .base import EnvAdapter, FrameState, Sound
+from .replaystate import ReplayState
 
 
 class _KeyboardOnlyAction(gym.ActionWrapper):
@@ -89,11 +97,15 @@ class VizDoomAdapter(EnvAdapter):
             # buffer itself still carries the real sound.
             env.unwrapped.game.add_game_args("+snd_efx 0")
         if isinstance(env.action_space, gym.spaces.Dict):
-            return _KeyboardOnlyAction(env)
+            env = _KeyboardOnlyAction(env)
+        env = ReplayState(env)
+        # The first reset runs game.init(), every later one game.new_episode(),
+        # and an episode begun by init() has its sound mixed a little
+        # differently (pixels and game variables are the same). A restored
+        # savestate always begins with new_episode(), so the block's episodes
+        # do too: one reset here, before any that is recorded.
+        env.reset(seed=0)
         return env
-
-    def warm_up(self) -> None:
-        self.reset(0)
 
     def render(self) -> np.ndarray:
         return np.asarray(self.env.render())
@@ -134,7 +146,10 @@ class VizDoomAdapter(EnvAdapter):
                     continue
                 variables[k] = np.asarray(v).copy()
         variables.update(info or {})
-        return FrameState(blob=None, variables=variables)
+        return FrameState(blob=self.env.get_state() if want_blob else None, variables=variables)
+
+    def restore(self, blob: bytes) -> None:
+        self.env.set_state(blob)
 
     def block_extra(self) -> dict | None:
         """Block-level arrays merged into the npz (the audio sample rate).

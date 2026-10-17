@@ -24,7 +24,7 @@
     {
       "type": "game", "backend": "aigamestore", "game": "game4",
       "keys": {"SPACE": 0, "UP": 1},
-      "mode": "episode", "n_episodes": 1, "max_duration": 300.0, "fps": 10
+      "mode": "episode", "n_episodes": 1, "max_duration": 300.0, "fps": 10, "state_stride": 10
     },
     {"type": "fixation", "duration": 2.0}
   ]

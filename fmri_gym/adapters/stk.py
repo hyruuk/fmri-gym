@@ -15,8 +15,15 @@ the requested ``screensize``; ``display.py`` scales it to the screen. With
 indices a phase's ``keys`` name -- and the game's own player controller turns
 it into controls, so steering ramps and skids latch exactly as they do for a
 keyboard. The participant and a model are therefore in front of the same env,
-and a block replays from ``episode_seeds`` + ``actions`` (with the same launch
-``seed``: see ``stk_gym``'s README).
+and a block replays from its launch ``seed``, ``episode_seeds`` and ``actions``
+-- from a fresh launch, and every episode in order: a restart of the race
+leaves the physics world a little off a fresh one (``stk_gym``'s README
+measures it, millimetres growing to centimetres over a few hundred steps), so
+an episode is exact only after the ones before it were played first. That is
+why this adapter sets ``replay_needs_history`` (``replay.py``), and why its
+savestate, :class:`~.replaystate.ReplayState` with ``relaunch``, holds every
+episode since launch and restores by relaunching the game and replaying them
+(about half a second to launch, then a millisecond a step).
 
 Timing: the game is lock-stepped, one ``step`` per fmri-gym frame, so
 ``fps`` here must equal the game's physics rate divided by ``frame_skip``
@@ -43,15 +50,43 @@ from typing import Any
 import gymnasium as gym
 
 from .base import EnvAdapter, FrameState
+from .replaystate import ReplayState
 
 
 class STKAdapter(EnvAdapter):
     name: str = "stk"
+    #: a restarted race is not a fresh launch (see the module docstring).
+    replay_needs_history: bool = True
 
     def _make(self, spec: dict) -> gym.Env:
-        import stk_gym
+        return ReplayState(_launch(spec), relaunch=lambda: _launch(spec))
 
-        env = stk_gym.StkEnv(
+    def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
+        # The env's is_success: the kart crossed the finish line.
+        if terminated and self.last_info.get("is_success"):
+            return "won", "Race finished"
+        return super().outcome(terminated, truncated)
+
+    def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
+        # Every SAMPLE_FIELDS column every frame (NaN when the game did not
+        # report), including the controls the kart applied.
+        return FrameState(blob=self.env.get_state() if want_blob else None,
+                          variables=self.env.unwrapped.sample())
+
+    def restore(self, blob: bytes) -> None:
+        self.env.set_state(blob)
+
+
+def _launch(spec: dict) -> gym.Env:
+    """Launch the game for ``spec``: a fresh process, and the race set up once.
+
+    :param spec: the game-phase config.
+    :return: the ``stk_gym.StkEnv``.
+    :raises ValueError: the phase's ``fps`` is not the game's step rate.
+    """
+    import stk_gym
+
+    env = stk_gym.StkEnv(
             track=spec.get("track", "hacienda"),
             laps=spec.get("laps"),
             num_karts=spec.get("num_karts"),
@@ -64,26 +99,15 @@ class STKAdapter(EnvAdapter):
             seed=spec.get("seed"),
             binary=spec.get("binary"),
         )
-        # run.py paces the loop at fps; the game advances frame_skip ticks
-        # per step. If the two disagree the race runs in slow or fast motion
-        # relative to the scanner clock, silently.
-        fps = int(spec.get("fps", 30))
-        if env.metadata["render_fps"] != fps:
-            env.close()
-            raise ValueError(
-                f"fps={fps} but the game steps at {env.metadata['render_fps']} Hz "
-                f"(physics {env.engine.meta['physics_fps']} Hz / frame_skip "
-                f"{env.engine.meta['frames']}); set frame_skip so they match"
-            )
-        return env
-
-    def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
-        # The env's is_success: the kart crossed the finish line.
-        if terminated and self.last_info.get("is_success"):
-            return "won", "Race finished"
-        return super().outcome(terminated, truncated)
-
-    def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
-        # Every SAMPLE_FIELDS column every frame (NaN when the game did not
-        # report), including the controls the kart applied.
-        return FrameState(blob=None, variables=self.env.sample())
+    # run.py paces the loop at fps; the game advances frame_skip ticks
+    # per step. If the two disagree the race runs in slow or fast motion
+    # relative to the scanner clock, silently.
+    fps = int(spec.get("fps", 30))
+    if env.metadata["render_fps"] != fps:
+        env.close()
+        raise ValueError(
+            f"fps={fps} but the game steps at {env.metadata['render_fps']} Hz "
+            f"(physics {env.engine.meta['physics_fps']} Hz / frame_skip "
+            f"{env.engine.meta['frames']}); set frame_skip so they match"
+        )
+    return env
