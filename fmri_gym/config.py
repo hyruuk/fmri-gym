@@ -139,6 +139,7 @@ def validate_config(config: dict) -> list[str]:
         problems.append("curriculum: needs at least one phase")
     for i, phase in enumerate(config["curriculum"]):
         problems.extend(f"phase {i}: {p}" for p in _phase_problems(phase))
+    problems.extend(_opening_problems(config["curriculum"]))
     problems.extend(trigger_problems(config.get("triggers")))
     problems.extend(trigger_key_clashes(config))
     return problems
@@ -166,6 +167,25 @@ def trigger_key_clashes(config: dict) -> list[str]:
             f"volume (triggers.sync.key): bind another key"
             for i, phase in enumerate(config["curriculum"])
             for combo in phase.get("keys", {}) if name in combo.upper().split("+")]
+
+
+def _opening_problems(curriculum: list[dict]) -> list[str]:
+    """``include_on_resume`` marks the phases a curriculum opens with, and only those.
+
+    A resumed run plays them before carrying on (a fixation to settle in), so
+    they are an unbroken run of non-game phases from phase 0.
+    """
+    out = []
+    opening = True
+    for i, phase in enumerate(curriculum):
+        flag = phase.get("include_on_resume", False)
+        if not isinstance(flag, bool):
+            out.append(f"phase {i}: include_on_resume: expected true or false, got {flag!r}")
+        elif flag and (phase["type"] == "game" or not opening):
+            out.append(f"phase {i}: include_on_resume: only for the non-game phases the "
+                       "curriculum opens with, with none without it before them")
+        opening = opening and flag is True
+    return out
 
 
 def _phase_problems(phase: dict) -> list[str]:
@@ -198,6 +218,35 @@ def _phase_problems(phase: dict) -> list[str]:
         out.append(f"outcome_duration: expected seconds >= 0, got {phase['outcome_duration']!r}")
     if "menu" in phase:
         out.extend(menu_problems(phase["menu"]))
+    if "instructions" in phase:
+        out.extend(_instructions_problems(phase["instructions"]))
+    return out
+
+
+def _instructions_problems(spec: Any) -> list[str]:
+    """A game phase's ``instructions``: a title, a text, and what makes the screen go away."""
+    if not isinstance(spec, dict):
+        return [f"instructions: expected an object, got {spec!r}"]
+    out = []
+    unknown = set(spec) - {"title", "text", "align", "duration", "keys_to_dismiss"}
+    if unknown:
+        out.append(f"instructions: unknown field(s) {sorted(unknown)}; the fields are title, "
+                   "text, align, duration and keys_to_dismiss")
+    if not isinstance(spec.get("title"), str) or not spec["title"]:
+        out.append('instructions: title: missing (the screen says "Starting <title>" or '
+                   '"Resuming <title>")')
+    if spec.get("align", "center") not in ("center", "left"):
+        out.append(f"instructions: align: expected 'center' or 'left', got {spec['align']!r}")
+    duration = spec.get("duration")
+    if duration is not None and (isinstance(duration, bool)
+                                 or not isinstance(duration, (int, float)) or duration <= 0):
+        out.append(f"instructions: duration: expected seconds > 0, got {duration!r}")
+    keys = spec.get("keys_to_dismiss")
+    if keys is not None and (not isinstance(keys, list) or set(keys) - KEY_NAMES):
+        out.append(f"instructions: keys_to_dismiss: expected a list of key names (as in "
+                   f"fmri_gym/keys.py), got {keys!r}")
+    if duration is None and keys is None:
+        out.append("instructions: give a duration, keys_to_dismiss, or both")
     return out
 
 

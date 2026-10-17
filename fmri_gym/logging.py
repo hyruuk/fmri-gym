@@ -372,6 +372,11 @@ def read_events(block: str) -> list[dict]:
     return events
 
 
+def read_state(text: str) -> bytes:
+    """A savestate as the log writes it (zlib'd, then base64), as the bytes ``restore`` takes."""
+    return zlib.decompress(base64.b64decode(text))
+
+
 def read_frames(block: str) -> tuple[np.ndarray, np.ndarray]:
     """A block's recorded frames.
 

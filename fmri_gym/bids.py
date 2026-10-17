@@ -25,12 +25,18 @@ replay each other's episodes unless a phase pins its ``"seed"``.
 The names follow BIDS, apart from that attempt suffix; the contents do not yet
 (a manifest and a folder per block in a folder per run, not ``_beh.tsv`` +
 ``_events.tsv`` sidecars).
+
+A curriculum can outlast a run: :func:`last_position` reads where the
+subject's latest run of a config stopped, from that run's manifest and its
+last block's ``block_end`` line, so the next run can carry on from there.
 """
 
 from __future__ import annotations
 
 import argparse
+import glob
 import hashlib
+import json
 import os
 import re
 import sys
@@ -152,6 +158,67 @@ def phase_seed(label: str, index: int) -> int:
     """
     digest = hashlib.sha256(f"{label}|phase-{index}".encode()).digest()
     return int.from_bytes(digest[:4], "big") >> 1
+
+
+def last_position(root: str, subject: str, config_path: str) -> dict | None:
+    """Where the subject's latest run of this config (in any session) stopped.
+
+    The latest run is the last one to start that played something besides
+    its ``include_on_resume`` opening phases. A game block it cut off (``cut``
+    in its ``block_end`` line) is carried on: its index, the seconds it has
+    played, the episodes counted toward it and, if an episode was still
+    going, the savestate it stopped in. Otherwise the next run picks up after
+    the last game block played, or at the last other phase shown, played
+    again from its beginning (unless it was the curriculum's last).
+
+    :param root: the BIDS tree's root.
+    :param subject: ``sub-<label>``.
+    :param config_path: the config; its name is the task label.
+    :return: ``{"run", "index", "last_game"}`` -- the run's label, the
+        phase to start at, and the last game phase it played (``index`` and
+        the ``phase`` as that run had it; ``None`` if none) -- plus ``block_time_elapsed``,
+        ``num_completed_episodes`` and ``initial_state`` (bytes or ``None``)
+        for a block that is carried on; ``None`` if no run of this config got
+        past its opening phases.
+    """
+    from .logging import read_events, read_state
+    task = task_label(config_path)
+    pattern = os.path.join(root, subject, "ses-*", "beh", f"{subject}_ses-*_task-{task}_run-*",
+                           "manifest.json")
+    runs = []
+    for path in glob.glob(pattern):
+        with open(path) as f:
+            manifest = json.load(f)
+        # index None: the run's closing fixation
+        played = [p for p in manifest["phases"] if p["index"] is not None
+                  and not manifest["curriculum"][p["index"]].get("include_on_resume", False)]
+        if played:
+            runs.append((manifest["start_epoch"], os.path.dirname(path), manifest, played))
+    if not runs:
+        return None
+    _, folder, manifest, played = max(runs, key=lambda r: r[0])
+    games = [p for p in played if p["type"] == "game"]
+    last_game = None if not games else {
+        "index": games[-1]["index"], "phase": manifest["curriculum"][games[-1]["index"]]}
+    position = {"run": manifest["run"]["label"], "last_game": last_game}
+    last = played[-1]
+    if last["type"] != "game":
+        final = last["index"] == len(manifest["curriculum"]) - 1
+        return {**position, "index": last["index"] + final}
+    events = read_events(os.path.join(folder, last["data_dir"]))
+    end = events[-1]
+    if not end["cut"]:
+        return {**position, "index": last["index"] + 1}
+    episode_ends = [e for e in events if e["type"] == "episode_end"]
+    state = (end["extra"] or {}).get("state")
+    going = bool(episode_ends) and episode_ends[-1]["outcome"] in ("playing", "quit")
+    if going and state is None:
+        print(f"resume: {last['backend']} keeps no savestate, so the episode phase "
+              f"{last['index']} stopped in starts over", file=sys.stderr)
+    return {**position, "index": last["index"],
+            "block_time_elapsed": end["block_time_elapsed"],
+            "num_completed_episodes": end["num_completed_episodes"],
+            "initial_state": read_state(state) if going and state is not None else None}
 
 
 def _beh(root: str, subject: str, session: int) -> str:

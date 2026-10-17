@@ -3,6 +3,8 @@
 An episode is replayed from its seed and its actions through a fresh adapter
 built from the block's own ``block_start`` line, so a block's log is enough to
 recreate the game the subject saw, frame for frame, on a deterministic engine.
+An episode that carried on from an earlier run starts from the savestate its
+``episode_start`` line holds (``initial_state``), restored over the reset.
 """
 
 from __future__ import annotations
@@ -11,7 +13,7 @@ from typing import Any
 
 import numpy as np
 
-from .logging import read_events
+from .logging import read_events, read_state
 
 
 def reconstruction_plan(block: str, episode_id: int | None = None) -> dict:
@@ -20,7 +22,8 @@ def reconstruction_plan(block: str, episode_id: int | None = None) -> dict:
     :param block: the block's folder.
     :param episode_id: which episode; ``None`` = the last one started (the
         crash-recovery case).
-    :return: ``{"episode_id", "seed", "actions"}``.
+    :return: ``{"episode_id", "seed", "initial_state", "actions"}``;
+        ``initial_state`` is the savestate bytes the episode started from, or ``None``.
     :raises ValueError: if the block has no episode.
     """
     events = read_events(block)
@@ -31,7 +34,9 @@ def reconstruction_plan(block: str, episode_id: int | None = None) -> dict:
         episode_id = max(starts)
     actions = [e["action"] for e in events
                if e["type"] == "frame" and e["episode_id"] == episode_id]
-    return {"episode_id": episode_id, "seed": starts[episode_id]["seed"], "actions": actions}
+    state = starts[episode_id].get("initial_state")  # blocks logged before it was a field lack it
+    return {"episode_id": episode_id, "seed": starts[episode_id]["seed"],
+            "initial_state": None if state is None else read_state(state), "actions": actions}
 
 
 def reconstruct_episode(
@@ -54,6 +59,8 @@ def reconstruct_episode(
         start = read_events(block)[0]
         adapter = get_adapter(start["backend"], start["phase"])
     adapter.reset(plan["seed"])
+    if plan["initial_state"] is not None:
+        adapter.restore(plan["initial_state"])
     actions = plan["actions"] if n_actions is None else plan["actions"][:n_actions]
     for action in actions:
         obs, _, _, _, info = adapter.step(action)

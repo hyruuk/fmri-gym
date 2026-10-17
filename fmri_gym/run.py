@@ -14,10 +14,17 @@ and never touches env.unwrapped.
 Recording-device concerns (waiting for or sending the scanner start, trigger
 codes for MEG/EEG) go through :mod:`fmri_gym.triggers`; with no ``triggers``
 config the loop behaves as the fMRI default and sends nothing.
+
+A run is the scanner's and a curriculum the subject's, so a run can stop
+part-way through one: given a duration, the run stops whatever phase is on
+screen :data:`END_FIXATION_S` before its end and closes on a fixation cross,
+for the haemodynamic response to the last thing played. A later run started
+with ``--resume`` carries on from there (:func:`~fmri_gym.bids.last_position`).
 """
 
 from __future__ import annotations
 
+import math
 import sys
 import time
 from collections import Counter
@@ -48,6 +55,14 @@ _SAME_SPEED = 2e-3
 #: The HUD's coarsest field is a whole second, so this only has to be fast
 #: enough that the number is never seen a second behind.
 HUD_REPAINT_S = 0.2
+#: Seconds of fixation that close a run given a duration.
+END_FIXATION_S = 10.0
+#: Game-phase fields a config may change between runs and still carry a block
+#: on; any other change makes it a different game. ``seed`` and ``audio`` are
+#: the run's own (folded in from the run label and the command line).
+RESUMABLE_CHANGES = frozenset({"duration", "max_duration", "n_episodes", "advancing_outcomes",
+                               "outcome_duration", "instructions", "keys", "menu", "seed",
+                               "audio"})
 
 
 class Clock:
@@ -170,19 +185,22 @@ def _poll_keys_until(
         display.idle(deadline)
 
 
-def _wait_for_char(display: Display, char: str, dummy_trigger: bool = False) -> None:
+def _wait_for_char(
+    display: Display, char: str, dummy_trigger: bool = False, until: float = math.inf
+) -> None:
     """Block until ``char`` is typed (or briefly sleep in dummy mode).
 
     :param display: the display, idled between polls (see :meth:`Display.idle`).
     :param char: the unicode character that unblocks the wait, or ``"any"``
         to accept every key (a self-paced "press any key" screen).
     :param dummy_trigger: if ``True``, sleep briefly and return without waiting.
+    :param until: ``perf_counter`` at which to stop waiting regardless.
     :raises KeyboardInterrupt: on window close or ESC.
     """
     if dummy_trigger:
         time.sleep(0.05)
         return
-    while True:
+    while time.perf_counter() < until:
         for event in get_events():
             if event.type == pygame.QUIT:
                 raise KeyboardInterrupt
@@ -205,18 +223,42 @@ def _join_multiline_text(text: str | list | tuple) -> str:
     return str(text)
 
 
-def _wait_for_duration(display: Display, duration: float) -> None:
+def _wait_for_duration(display: Display, duration: float, until: float = math.inf) -> None:
     """Block for ``duration`` seconds.
 
     :param display: the display, idled between polls (see :meth:`Display.idle`).
     :param duration: seconds to wait.
+    :param until: ``perf_counter`` at which to stop waiting regardless.
     :raises KeyboardInterrupt: on window close or ESC.
     """
-    end = time.perf_counter() + duration
+    end = min(time.perf_counter() + duration, until)
     while time.perf_counter() < end:
         if _check_quit():
             raise KeyboardInterrupt
         display.idle(end, poll=0.005)
+
+
+def _wait_for_keys(display: Display, names: list[str], deadline: float) -> str | None:
+    """Block until one of the keys ``names`` is pressed, or ``deadline``.
+
+    :param display: the display, idled between polls (see :meth:`Display.idle`).
+    :param names: key NAMES (:mod:`fmri_gym.keys`) that end the wait.
+    :param deadline: ``perf_counter`` at which to stop waiting.
+    :return: the key that ended the wait, or ``None`` at the deadline.
+    :raises KeyboardInterrupt: on window close or ESC.
+    """
+    while time.perf_counter() < deadline:
+        for event in get_events():
+            if event.type == pygame.QUIT:
+                raise KeyboardInterrupt
+            if event.type != pygame.KEYDOWN:
+                continue
+            if event.key == pygame.K_ESCAPE:
+                raise KeyboardInterrupt
+            if key_name(event.key) in names:
+                return key_name(event.key)
+        display.idle(min(deadline, time.perf_counter() + 0.005), poll=0.005)
+    return None
 
 
 def _final_outcome(
@@ -243,8 +285,41 @@ def _final_outcome(
     else:
         outcome, message = adapter.outcome(terminated, truncated)
         if outcome == "playing":        # the block's clock, not the game, ended it
-            message = "Block ended. Game will resume in the next block" # TODO actually implement `resume`
+            message = "Block ended"
     return outcome, message
+
+
+def _resume_position(args: Any, curriculum: list[dict]) -> dict | None:
+    """Where ``--resume`` starts: the subject's last position in this config, checked against it.
+
+    :param args: ``fmri_play``'s parsed flags (``data_root``, ``subject``, ``curriculum``).
+    :param curriculum: the config's phases.
+    :return: :func:`~fmri_gym.bids.last_position`, or ``None`` (said on stderr)
+        when no earlier run of this config got past its opening phases.
+    :raises ValueError: if that run played the config to its end, or its
+        last game phase differs in this config by more than :data:`RESUMABLE_CHANGES`.
+    """
+    position = bids.last_position(args.data_root, args.subject, args.curriculum)
+    if position is None:
+        print("resume: no earlier run of this config got past its opening phases; starting "
+              "at the beginning", file=sys.stderr)
+        return None
+    run, index, last = position["run"], position["index"], position["last_game"]
+    if index >= len(curriculum):
+        raise ValueError(f"--resume: {run} played this config to its end; start it over "
+                         "without --resume")
+    if last is not None:
+        then = last["phase"]
+        now = curriculum[last["index"]] if last["index"] < len(curriculum) else {}
+        changed = sorted(k for k in then.keys() | now.keys() if then.get(k) != now.get(k)
+                         and k not in RESUMABLE_CHANGES and not k.startswith("_"))
+        if changed:
+            raise ValueError(f"--resume: phase {last['index']}, the last game {run} played, is "
+                             f"not the same game in this config ({', '.join(changed)} changed). "
+                             "Put it back, or start over without --resume")
+    print(f"resume: carrying on from {run} at phase {index}"
+          + (" mid-block" if "block_time_elapsed" in position else ""), file=sys.stderr)
+    return position
 
 
 class Run:
@@ -259,6 +334,8 @@ class Run:
         audio: Audio | None = None,
         triggers: Triggers | None = None,
         dummy_trigger: bool = False,
+        duration: float | None = None,
+        resume: dict | None = None,
     ) -> None:
         """Set up clock, logger, and phase dispatch for one subject.
 
@@ -273,6 +350,10 @@ class Run:
             and the audio. ``None`` = the fMRI default: wait for ``=``, send
             no trigger codes.
         :param dummy_trigger: if ``True``, skip real experimenter/scanner waits.
+        :param duration: the run's seconds from the trigger, the closing
+            fixation included; ``None`` plays the curriculum to its end.
+        :param resume: where to start in the curriculum
+            (:func:`~fmri_gym.bids.last_position`); ``None`` starts at its beginning.
         """
         self.subject = subject
         self.curriculum = curriculum
@@ -287,6 +368,13 @@ class Run:
         self.outdir = outdir
         self.triggers = triggers or Triggers.from_config(None)
         self.sync = self.triggers.sync
+        self.duration = duration
+        self.resume = resume
+        #: ``perf_counter`` at which the phases stop for the closing fixation.
+        self._run_end = math.inf
+        self.logger.set_extra("duration", duration)
+        self.logger.set_extra("resumed_from", None if resume is None else
+                              {k: v for k, v in resume.items() if k != "initial_state"})
 
     @classmethod
     def from_config(cls, config: dict, args: Any) -> "Run":
@@ -301,9 +389,14 @@ class Run:
         :param args: ``fmri_play``'s parsed flags.
         :return: the run, ready to :meth:`play`.
         :raises ValueError: on a BIDS name or number, a monitor or a window
-            size this machine or this subject refuses.
+            size this machine or this subject refuses; a duration no longer
+            than the closing fixation; a position to resume from that this
+            config cannot carry on (see :func:`_resume_position`).
         """
         curriculum = config["curriculum"]
+        if args.duration is not None and args.duration <= END_FIXATION_S:
+            raise ValueError(f"--duration {args.duration:g}: a run closes on {END_FIXATION_S:g} s "
+                             "of fixation, so it must be longer than that")
         width, height = (int(x) for x in args.size.lower().split("x"))
         out = bids.run_output(args.data_root, args.subject, args.curriculum,
                               args.ses, args.run)
@@ -311,6 +404,7 @@ class Run:
             print(f"{out.label} already has data: this is attempt {out.attempt} at it, and "
                   "writes beside the others", file=sys.stderr)
         print(f"output: {out.folder}", file=sys.stderr)
+        resume = _resume_position(args, curriculum) if args.resume else None
         seeds = bids.fold_seeds(curriculum, out.label)
         check_monitor(args.monitor)
         fold_cli_options(curriculum, args)
@@ -327,7 +421,8 @@ class Run:
         display = Display(size=(width, height), fullscreen=args.fullscreen,
                           vsync=not args.no_vsync, monitor=args.monitor)
         run = cls(args.subject, curriculum, display, out.folder, audio=audio,
-                  triggers=triggers, dummy_trigger=args.dummy_trigger)
+                  triggers=triggers, dummy_trigger=args.dummy_trigger,
+                  duration=args.duration, resume=resume)
         run.logger.set_extra("run", {"label": out.label, "attempt": out.attempt})
         run.logger.set_extra("seeds", seeds)
         run.logger.set_extra("pad", pad_status)   # which controller answered, and as what
@@ -379,7 +474,7 @@ class Run:
         duration = phase.get("duration", 2.0)
 
         onset = self.clock.from_perf(self.display.draw_fixation())
-        _wait_for_duration(self.display, duration)
+        _wait_for_duration(self.display, duration, until=self._run_end)
 
         self.logger.log_phase({"index": index, "type": "fixation",
                                "onset": onset, "offset": self.clock.run_time()})
@@ -399,9 +494,9 @@ class Run:
             self.display.draw_text(text, align=phase.get("align", "center")))
         if duration is None:
             _wait_for_char(self.display, phase.get("key", " "),
-                           dummy_trigger=self.dummy_trigger)
+                           dummy_trigger=self.dummy_trigger, until=self._run_end)
         else:
-            _wait_for_duration(self.display, duration)
+            _wait_for_duration(self.display, duration, until=self._run_end)
 
         self.logger.log_phase({"index": index, "type": "message", "text": text,
                                "onset": onset, "offset": self.clock.run_time()})
@@ -470,6 +565,7 @@ class Run:
         play_sound: bool,
         menu: Menu | None,
         outcome_duration: float,
+        initial_state: bytes | None = None,
     ) -> dict:
         """Run one episode, logging every frame.
 
@@ -487,6 +583,10 @@ class Run:
             phase's ``audio``); muting never changes what is logged.
         :param menu: the block's :class:`~.menu.Menu`, or ``None``.
         :param outcome_duration: seconds the final score and outcome are shown.
+        :param initial_state: a savestate to restore over the reset, so the
+            episode starts where an earlier run's stopped; logged on
+            ``episode_start``, since it, not the seed, is what the episode
+            starts from.
         :return: the episode's ``episode_end`` record, as recorded:
             ``episode_id``, ``outcome`` (one of the adapter's,
             :meth:`~.adapters.base.EnvAdapter.outcome`: ``"won"``, ``"lost"``,
@@ -521,13 +621,15 @@ class Run:
 
         ## Reset environment and show initial state
         observation, info = adapter.reset(seed)
+        if initial_state is not None:
+            adapter.restore(initial_state)
         self.display.call_on_flip(self.triggers.episode_start)
         # Paced from the flip, so a slow reset does not become a burst of
         # catch-up frames. The reset frame's sound is not played: it is not a
         # step's, and it would start the episode's sound off its flips.
         flip_t0, _, _ = self._show(adapter, False, score, block_end)
         self.logger.log(type="episode_start", episode_id=episode_id, seed=seed,
-                         flip_time=self.clock.from_perf(flip_t0))
+                        initial_state=initial_state, flip_time=self.clock.from_perf(flip_t0))
         next_t = flip_t0 + dt
 
         ## Loop over frames within episode
@@ -622,11 +724,37 @@ class Run:
         result = {"episode_id": episode_id, "outcome": outcome, "terminated": bool(terminated),
                "truncated": bool(truncated), "score": score, "n_pacing_resets": n_pacing_resets}
         self.logger.log(type="episode_end", **result)
-        if message and outcome_duration > 0:
+        if message and outcome_duration > 0 and not self._time_up():
             self.audio.stop()               # the episode's last sounds, still queued
             self.display.draw_text(f"Final score: {score:g}\n{message}")
-            _wait_for_duration(self.display, outcome_duration)
+            _wait_for_duration(self.display, outcome_duration, until=self._run_end)
         return result
+
+    def _instructions(self, phase: dict, resumed: bool) -> dict | None:
+        """Show a game phase's ``instructions``, if any, for their duration or until a key.
+
+        :param phase: the game phase (``instructions``: ``title``, ``text``,
+            ``align``, ``duration``, ``keys_to_dismiss``).
+        :param resumed: whether the block carries on from an earlier run: the
+            heading says "Resuming <title>" rather than "Starting <title>".
+        :return: for the manifest, the heading, onset, offset and the key that
+            dismissed it (``None`` if none did); ``None`` without instructions.
+        :raises KeyboardInterrupt: on window close or ESC.
+        """
+        spec = phase.get("instructions")
+        if spec is None:
+            return None
+        heading = f"{'Resuming' if resumed else 'Starting'} {spec['title']}"
+        text = _join_multiline_text(spec.get("text", ""))
+        onset = self.clock.from_perf(self.display.draw_text(
+            f"{heading}\n\n{text}", align=spec.get("align", "center")))
+        keys = spec.get("keys_to_dismiss", [])
+        deadline = time.perf_counter() + spec.get("duration", math.inf)
+        if keys and self.dummy_trigger:     # a test run skips the waits for a key
+            deadline = min(deadline, time.perf_counter() + 0.05)
+        key = _wait_for_keys(self.display, keys, min(deadline, self._run_end))
+        return {"heading": heading, "onset": onset, "offset": self.clock.run_time(),
+                "dismissed_by": key}
 
     def _show(
         self, adapter: EnvAdapter, play_sound: bool, score: float, block_end: float
@@ -659,7 +787,10 @@ class Run:
             ``duration`` / ``n_episodes`` and ``advancing_outcomes``, ``fps``,
             ``seed``, ``state_stride``, ``turn_based``, ``latched_keys``,
             ``live_hud``,
-            ``keys``, ``outcome_duration``, …).
+            ``keys``, ``outcome_duration``, ``instructions``, …; and, when the
+            run carries on a block an earlier run stopped, its
+            ``block_time_elapsed``, ``num_completed_episodes`` and the
+            ``initial_state`` of the episode it was in).
         :param index: phase index in the curriculum (for the manifest).
         :raises KeyboardInterrupt: if the subject quits mid-block.
         """
@@ -680,6 +811,10 @@ class Run:
         # for disk -- retro states are ~1 MB/frame.
         state_stride = max(1, int(phase.get("state_stride", 1)))
         cap = duration if mode == "duration" else phase.get("max_duration", 300.0)
+        # A block an earlier run stopped goes on with the time and episodes it has left.
+        block_time_elapsed = phase.get("block_time_elapsed", 0.0)
+        num_completed_episodes = phase.get("num_completed_episodes", 0)
+        initial_state = phase.pop("initial_state", None)    # logged on episode_start
         # Turn-based games (grid worlds: FrozenLake, CliffWalking, Taxi, ...) must
         # advance ONE step per deliberate key PRESS, not once per frame. In a
         # real-time loop they'd auto-step every frame with the noop action (which
@@ -713,6 +848,7 @@ class Run:
         # default that changes with the engine underneath it.
         fps = phase["fps"]
         dt = 1.0 / fps
+        instructions = self._instructions(phase, resumed="block_time_elapsed" in phase)
 
         # Some backends (nle, browser games) take several seconds to start;
         # show a Loading screen so the previous fixation "+" doesn't freeze.
@@ -728,11 +864,11 @@ class Run:
         self.audio.start(frame_period=None if turn_based else dt, flip_period=flip_period)
         onset = self.clock.run_time()
         block_start = time.perf_counter()
-        block_end = block_start + cap
+        own_end = block_start + cap - block_time_elapsed
+        block_end = min(own_end, self._run_end)
         # The hold-a-key pause menu (reset / forfeit / resume), if the phase has one.
         menu = Menu(phase["menu"], block_start) if "menu" in phase else None
         episodes: list[dict] = []       # each episode's episode_end record
-        completed = 0
         outcome = ""
 
         ## Loop over episodes within game block
@@ -741,22 +877,30 @@ class Run:
             # Seeded by episodes played, so a restart from the menu replays
             # the very instance the subject gave up on (a start-over).
             episode_result = self._episode(
-                adapter, seed=base_seed + completed, episode_id=len(episodes),
+                adapter, seed=base_seed + num_completed_episodes, episode_id=len(episodes),
                 turn_based=turn_based, latched=latched, live_hud=live_hud,
                 dt=dt, state_stride=state_stride,
                 block_end=block_end, play_sound=play_sound, menu=menu,
-                outcome_duration=outcome_duration)
+                outcome_duration=outcome_duration, initial_state=initial_state)
+            initial_state = None
             episodes.append(episode_result)
             outcome = episode_result["outcome"]
             # An episode's last sounds are still queued when it ends; drop them
             # so they do not play over the next episode or the next fixation.
             self.audio.stop()
             # An episode the subject restarted from the menu was not played; nor,
-            # in a blocking block, one whose outcome does not advance.
-            completed += outcome != "reset" and (advancing is None or outcome in advancing)
-            if mode == "episode" and completed >= n_episodes:
+            # in a blocking block, one whose outcome does not advance; nor one
+            # a clock or ESC stopped, which a later run may carry on.
+            num_completed_episodes += (outcome not in ("reset", "playing", "quit")
+                                       and (advancing is None or outcome in advancing))
+            if mode == "episode" and num_completed_episodes >= n_episodes:
                 break
         user_quit = (outcome == "quit")
+        # Stopped before the block's own end (its clock, its episodes, a
+        # forfeit) -- by the run's clock or ESC -- so a later run can carry it on.
+        cut = user_quit or (self._time_up() and time.perf_counter() < own_end
+                            and outcome != "forfeit"
+                            and not (mode == "episode" and num_completed_episodes >= n_episodes))
 
         self.triggers.block_end()
 
@@ -770,6 +914,8 @@ class Run:
             "outcomes": dict(Counter(e["outcome"] for e in episodes)),
             "n_pacing_resets": sum(e["n_pacing_resets"] for e in episodes),
             "total_reward": sum(e["score"] for e in episodes),
+            "block_time_elapsed": block_time_elapsed + time.perf_counter() - block_start,
+            "num_completed_episodes": num_completed_episodes, "cut": cut,
         }
         self.logger.close_block(**summary, audio=audio_log, extra=block_extra)
         self.logger.log_phase({
@@ -779,6 +925,7 @@ class Run:
             **({"advancing_outcomes": advancing} if advancing is not None else {}),
             "data_dir": data_dir, **speed,
             **({"menu": menu.describe()} if menu else {}),
+            **({"instructions": instructions} if instructions else {}),
         })
 
         # Close adapter and environment
@@ -808,15 +955,23 @@ class Run:
         return {"native_fps": native, "speed": speed}
 
     def play(self) -> bool:
-        """Play the full curriculum: trigger wait, then each phase in order.
+        """Play the curriculum: trigger wait, then each phase in order.
 
+        A resumed run skips the phases an earlier run played, except the
+        ``include_on_resume`` opening ones, and hands the block it carries on
+        its progress in the phase dict. A run with a duration stops its phases
+        :data:`END_FIXATION_S` before the end and closes on a fixation cross.
         Always writes the run's manifest in ``finally``, including after an
         interrupt (partial data).
 
-        :return: ``True`` if the curriculum played to its end, ``False`` if it
-            was quit, so a caller can report a run that stopped early.
+        :return: ``True`` if the run played to its end -- the curriculum's or
+            its duration's -- and ``False`` if it was quit, so a caller can
+            report a run that stopped early.
         """
-        completed = False
+        user_quit = False
+        start = self.resume["index"] if self.resume else 0
+        carry = {k: v for k, v in (self.resume or {}).items()
+                 if k in ("block_time_elapsed", "num_completed_episodes", "initial_state")}
         handlers = {"fixation": self._fixation, "message": self._message,
                     "game": self._game, "survey": self._survey}
         if any(p["type"].startswith("check_") for p in self.curriculum):
@@ -825,17 +980,28 @@ class Run:
                              for kind in checks.CHECK_TYPES})
         try:
             self._trigger()
+            if self.duration is not None:
+                self._run_end = self.clock.t0_perf + self.duration - END_FIXATION_S
 
+            reached_end = True
             for index, phase in enumerate(self.curriculum):
+                if index < start and not phase.get("include_on_resume", False):
+                    continue                    # an earlier run played it
+                if self._time_up():
+                    reached_end = False
+                    break
                 handler = handlers.get(phase["type"])
                 if handler is None:
                     raise ValueError(f"unknown phase type: {phase['type']!r}")
-                handler(phase, index)
+                handler({**phase, **carry} if index == start else phase, index)
 
-            self.display.draw_text("Done. Thank you!")
-            time.sleep(2.0)
-            completed = True
+            if self.duration is not None:
+                self._end_fixation()
+            if reached_end:
+                self.display.draw_text("Done. Thank you!")
+                time.sleep(2.0)
         except KeyboardInterrupt:
+            user_quit = True
             print("Interrupted -- saving partial data.", file=sys.stderr)
         finally:
             if self.clock.t0_perf is not None:
@@ -844,4 +1010,15 @@ class Run:
             manifest_path = self.logger.save_manifest()
             print(f"Saved run to: {self.outdir}")
             print(f"Manifest: {manifest_path}")
-        return completed
+        return not user_quit
+
+    def _time_up(self) -> bool:
+        """Whether the run has reached its closing fixation."""
+        return time.perf_counter() >= self._run_end
+
+    def _end_fixation(self) -> None:
+        """Close the run on :data:`END_FIXATION_S` seconds of fixation."""
+        onset = self.clock.from_perf(self.display.draw_fixation())
+        _wait_for_duration(self.display, END_FIXATION_S)
+        self.logger.log_phase({"index": None, "type": "fixation", "end_of_run": True,
+                               "onset": onset, "offset": self.clock.run_time()})
