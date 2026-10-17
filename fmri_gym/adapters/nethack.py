@@ -10,8 +10,12 @@ NetHackScore-v0: 0 = MORE (Enter), 1 = N, 2 = E, 3 = S, 4 = W). Play it
 
 NetHack is a terminal game, so we render the TTY buffer to a pixel frame (a
 monospace text grid) for display -- faithful to how the game actually looks.
-`blstats` (score, HP, depth, ...) are logged as analysis variables. No pixel obs
-and no savestate over the gym API -> reconstruction is seed + action replay.
+`blstats` (score, HP, depth, ...) are logged as analysis variables. NLE has no
+savestate API, so the savestate is :class:`~.replaystate.ReplayState`'s (seed
+and actions, restored by replay), exact because :class:`~.minihack.NLESeeding`
+seeds NetHack's own RNGs on every reset and ``fix_moon_phase`` takes the real
+date out of the game. One date remains: the character's birthday, which full
+NetHack reads for shop prices, ant species and zoo stocking.
 
 Requires: `pip install nle` (already present if minihack is installed) and
 `setuptools<81` (pkg_resources).
@@ -25,6 +29,8 @@ import gymnasium as gym
 import numpy as np
 
 from .base import EnvAdapter, FrameState
+from .minihack import NLESeeding
+from .replaystate import ReplayState
 
 # NetHack TTY palette (16 colors), indexed by tty_colors (0..15).
 _TTY_PALETTE = np.array([
@@ -40,13 +46,13 @@ class NetHackAdapter(EnvAdapter):
 
     def _make(self, spec: dict) -> gym.Env:
         import nle  # noqa: F401  (registers NetHack*-v0 env ids)
-        env = gym.make(spec.get("game", "NetHackScore-v0"))
+        env = gym.make(spec.get("game", "NetHackScore-v0"), fix_moon_phase=True)
         self._cell = spec.get("cell_px", 10)  # pixel size of one TTY cell
         self._last = None
-        return env
+        return ReplayState(NLESeeding(env))
 
     def reset(self, seed: int | None) -> tuple[Any, dict]:
-        obs, info = self.env.reset(seed=seed)
+        obs, info = super().reset(seed)
         self._last = obs
         return obs, info
 
@@ -72,9 +78,14 @@ class NetHackAdapter(EnvAdapter):
             for k, v in obs.items():
                 if k in ("tty_chars", "tty_colors"):
                     continue
-                variables[k] = np.asarray(v)
+                # NLE reuses its observation buffers, and the logger pickles a
+                # line after the loop has moved on: a view here logs the next frame.
+                variables[k] = np.asarray(v).copy()
         variables.update(info or {})
-        return FrameState(blob=None, variables=variables)
+        return FrameState(blob=self.env.get_state() if want_blob else None, variables=variables)
+
+    def restore(self, blob: bytes) -> None:
+        self._last, _ = self.env.set_state(blob)
 
 
 def _tty_to_rgb(obs: Any, cell: int) -> np.ndarray:

@@ -10,10 +10,13 @@ the game look tiny. Set the phase field "full_screen": true to display the whole
 Discrete(8), indices 0..7), which a phase's ``keys`` index; some tasks append
 more (Eat: 29 = eat). Play ``turn_based``: there is no no-op (0 is "move N").
 
-No savestate API -> reconstruction is via seed + action replay (deterministic
-under reset(seed=)). The full obs dict (glyphs, blstats, message, ...) is the
-analysis state; we log the compact non-pixel fields and keep the pixel frame
-for display only.
+NLE has no savestate API and its game lives in a NetHack library loaded per
+env, out of Python's reach, so the savestate is :class:`~.replaystate.ReplayState`'s:
+the seed and the actions since, restored by replay. That is exact only because
+:class:`NLESeeding` seeds NetHack's own RNGs on every reset and refuses one
+where that did not take. The full obs dict (glyphs, blstats, message, ...) is
+the analysis state; we log the compact non-pixel fields and keep the pixel
+frame for display only.
 
 Requires `pkg_resources` (install setuptools<81) as minihack imports it.
 """
@@ -26,6 +29,34 @@ import gymnasium as gym
 import numpy as np
 
 from .base import EnvAdapter, FrameState
+from .replaystate import ReplayState
+
+
+class NLESeeding(gym.Wrapper):
+    """Seed NetHack's own RNGs on every reset, and refuse a reset where that did not take.
+
+    Gymnasium's ``reset(seed=)`` seeds only the env's ``np_random``; NetHack's
+    two RNGs (core and disp) are set by NLE's ``seed(core=, disp=, reseed=)``,
+    which applies to the next reset and that one only. Without it every reset
+    draws true randomness and the game reseeds itself mid-play (NetHack's
+    anti-automation measure), and no replay can match it. The other half is
+    the env's ``fix_moon_phase`` kwarg: NetHack reads the real date for luck
+    (full moon, Friday the 13th); with it the date derives from the seed.
+    ``get_seeds()`` reports what the reset actually used, so a reset that was
+    not seeded is caught here rather than found in a replay that diverges.
+    """
+
+    def reset(self, *, seed: int | None = None, options: dict | None = None) -> tuple[Any, dict]:
+        if seed is None:
+            raise ValueError("NetHack needs reset(seed=...): an unseeded game reseeds itself "
+                             "from true randomness and cannot be replayed")
+        self.env.unwrapped.seed(core=seed, disp=seed, reseed=False)
+        out = self.env.reset(seed=seed, options=options)
+        core, disp, reseed = self.env.unwrapped.get_seeds()[:3]
+        if (core, disp, reseed) != (seed, seed, False):
+            raise RuntimeError(f"NetHack reset with seeds {(core, disp, reseed)}, not "
+                               f"{(seed, seed, False)}: the episode would not replay")
+        return out
 
 
 class MiniHackAdapter(EnvAdapter):
@@ -42,15 +73,10 @@ class MiniHackAdapter(EnvAdapter):
             keys = (self._pixel_key,) + keys
         env = gym.make(spec["game"], observation_keys=keys, fix_moon_phase=True)
         self._last = None
-        return env
+        return ReplayState(NLESeeding(env))
 
     def reset(self, seed: int | None) -> tuple[Any, dict]:
-        # Explicitly seed NetHack's core and dispersion RNGs for reproducible
-        # action replay. This avoids relying solely on Gymnasium's reset seed,
-        # whose propagation to NLE/NetHack is version-dependent.
-        if seed is not None:
-            self.env.unwrapped.seed(core=seed, disp=seed, reseed=False)
-        obs, info = self.env.reset(seed=seed)
+        obs, info = super().reset(seed)
         self._last = obs
         return obs, info
 
@@ -78,4 +104,7 @@ class MiniHackAdapter(EnvAdapter):
                     continue
                 variables[k] = np.asarray(v).copy()
         variables.update(info or {})
-        return FrameState(blob=None, variables=variables)
+        return FrameState(blob=self.env.get_state() if want_blob else None, variables=variables)
+
+    def restore(self, blob: bytes) -> None:
+        self._last, _ = self.env.set_state(blob)
