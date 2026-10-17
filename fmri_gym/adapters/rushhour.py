@@ -36,7 +36,7 @@ timed on the wall clock, on by default with ``puzzle_indices``) is always off
 here: the curriculum paces the trials, and a wall-clock gate between a press
 and a move would make the block depend on when the presses came, not only on
 which. The game is then a pure function of puzzle and presses, so the
-savestate is :class:`~.replaystate.ReplayState`'s: the seed and the presses
+savestate is ``replay_state_gym.ReplayState``'s: the seed and the presses
 since, restored by replay through the Go engine at tens of µs a move.
 """
 
@@ -47,7 +47,6 @@ from typing import Any
 import gymnasium as gym
 
 from .base import EnvAdapter, FrameState
-from .replaystate import ReplayState
 
 _ENV_ID = "RushHourHuman-v0"
 _ENV_KWARGS = ("puzzle", "puzzle_indices", "min_moves_range", "movable_only", "binary")
@@ -58,6 +57,7 @@ class RushHourAdapter(EnvAdapter):
 
     def _make(self, spec: dict) -> gym.Env:
         import rushhour_gym  # noqa: F401  (registers RushHour*-v0)
+        from replay_state_gym import ReplayState
         game = spec.get("game", _ENV_ID)
         if game != _ENV_ID:
             raise ValueError(

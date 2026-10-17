@@ -16,7 +16,7 @@ A phase's ``keys`` index ``Discrete(5)``: 0 = wait, 1 = up, 2 = down,
 a map file's path. Logged per turn: ``play_state`` (0 PLAYING, 1 WON, 2 LOST)
 and the ``(16, H, W)`` state tensor. ``pyBaba.Game`` has no serializer (its
 map, object ids, noun history and RNG are private C++), so the savestate is
-:class:`~.replaystate.ReplayState`'s: the seed and the moves since, restored
+``replay_state_gym.ReplayState``'s: the seed and the moves since, restored
 by replay, at a few ms per move.
 """
 
@@ -28,7 +28,6 @@ import gymnasium as gym
 import numpy as np
 
 from .base import EnvAdapter, FrameState
-from .replaystate import ReplayState
 
 _PLAY_STATE = {"PLAYING": 0, "WON": 1, "LOST": 2}
 
@@ -38,6 +37,7 @@ class BabaAutoAdapter(EnvAdapter):
 
     def _make(self, spec: dict) -> gym.Env:
         from baba_auto_gym import BabaAutoEnv
+        from replay_state_gym import ReplayState
 
         return ReplayState(BabaAutoEnv(spec["game"], repo=spec.get("repo")))
 

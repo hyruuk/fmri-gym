@@ -24,7 +24,7 @@ where it differs from the game's own.
 Timing: lock-stepped, one ``step`` per fmri-gym frame, so ``fps`` must equal
 ``60 / frame_skip`` (10 by default); ``_make`` refuses a config where they
 disagree. Not supported: sound (the games have none). A browser page has no
-snapshot, so the savestate is :class:`~.replaystate.ReplayState`'s: the seed
+snapshot, so the savestate is ``replay_state_gym.ReplayState``'s: the seed
 and the key sets since, restored by reloading the page and replaying them at
 the env's step rate (tens of ms a step).
 
@@ -42,7 +42,6 @@ from typing import Any
 import gymnasium as gym
 
 from .base import EnvAdapter, FrameState
-from .replaystate import ReplayState
 
 
 class AIGameStoreAdapter(EnvAdapter):
@@ -50,6 +49,7 @@ class AIGameStoreAdapter(EnvAdapter):
 
     def _make(self, spec: dict) -> gym.Env:
         from aigamestore_gym import GAME_KEYS, AIGameStoreEnv
+        from replay_state_gym import ReplayState
 
         # "game6/level3" -> game6, level 3; an episode is one level.
         game, _, level = spec["game"].partition("/level")

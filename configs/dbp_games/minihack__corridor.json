@@ -30,7 +30,7 @@
     {
       "type": "game", "backend": "minihack", "game": "MiniHack-Corridor-R2-v0",
       "keys": {"UP": 0, "DOWN": 2, "LEFT": 3, "RIGHT": 1, "Y": 7, "U": 4, "B": 6, "N": 5, "O": 8, "K": 9, "S": 10},
-      "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 300.0, "fps": 15, "turn_based": true
+      "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 300.0, "fps": 15, "turn_based": true, "state_stride": -1
     },
     {"type": "fixation", "duration": 2.0}
   ]

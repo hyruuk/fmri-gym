@@ -85,7 +85,8 @@ def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
     :param clock: the run's clock, for the same time columns humans get.
     :param seed: RNG seed for this episode's ``reset``.
     :param episode_id: index of this episode within the block.
-    :param state_stride: save a full state blob every this many frames.
+    :param state_stride: save a full state blob every this many frames; ``-1``:
+        one, after the episode's last frame.
     :param fps: the phase's frames per second, for the HUD's countdown only.
     :param turn_based: the phase's, so the same stretches the run loop steps
         by itself are not put to the policy either
@@ -129,7 +130,8 @@ def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
         auto = adapter.autoplay(info) if turn_based else None
         score += float(reward)
         # A savestate at the episode's first frame (the replay anchor), then every stride.
-        fs = adapter.capture(observation, info, want_blob=ep_frame % state_stride == 0)
+        fs = adapter.capture(observation, info,
+                             want_blob=state_stride > 0 and ep_frame % state_stride == 0)
         fields = {
             "episode_id": episode_id, "ep_frame": ep_frame, "action": action, "reward": reward,
             "terminated": bool(terminated), "truncated": bool(truncated),
@@ -144,6 +146,10 @@ def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
             fields["env_action"] = info["env_action"]
         logger.log_frame(fields, frame=adapter.render(), state=fs.blob)
         ep_frame += 1
+
+    if state_stride == -1:
+        logger.log_state(adapter.capture(observation, info).blob,
+                         episode_id=episode_id, ep_frame=ep_frame - 1)
 
     # Same vocabulary the human blocks log, from the same method: "playing" is
     # the budget cutting the episode off, where a subject's block clock would.
@@ -167,7 +173,7 @@ def play_block(phase: dict, index: int, args, logger: Logger,
     """
     backend = phase.get("backend", "gym")
     base_seed = phase.get("seed", 1000 + index)
-    state_stride = max(1, int(phase.get("state_stride", 1)))
+    state_stride = int(phase.get("state_stride", 1))
     # A policy has no ears. Whatever the block's config plays to a subject as a
     # sound, it reads as a line of text, so the two players are told the same
     # things; scanner configs keep that line off the screen to hold the gaze on

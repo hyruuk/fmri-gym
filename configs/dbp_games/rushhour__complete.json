@@ -42,7 +42,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p01", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -58,7 +58,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p02", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -74,7 +74,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p03", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -90,7 +90,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p04", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -106,7 +106,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p05", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -122,7 +122,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p06", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -138,7 +138,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p07", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -154,7 +154,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p08", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -170,7 +170,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p09", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -186,7 +186,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p10", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -202,7 +202,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p11", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -218,7 +218,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p12", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -234,7 +234,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p47", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -250,7 +250,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p21", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -266,7 +266,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p15", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -282,7 +282,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p13", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -298,7 +298,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p22", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -314,7 +314,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p43", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -330,7 +330,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p20", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -346,7 +346,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p16", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -362,7 +362,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p34", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -378,7 +378,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p29", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -394,7 +394,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p26", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -410,7 +410,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p38", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -426,7 +426,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p41", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -442,7 +442,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p33", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -458,7 +458,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p44", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -474,7 +474,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p31", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -490,7 +490,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p40", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -506,7 +506,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p46", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -522,7 +522,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p32", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -538,7 +538,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p28", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -554,7 +554,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p42", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -570,7 +570,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p18", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -586,7 +586,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p45", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -602,7 +602,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p17", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -618,7 +618,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p35", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -634,7 +634,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p30", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -650,7 +650,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p49", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -666,7 +666,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p48", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -682,7 +682,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p24", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -698,7 +698,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p14", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -714,7 +714,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p23", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -730,7 +730,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p39", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -746,7 +746,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p37", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -762,7 +762,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p36", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -778,7 +778,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p27", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -794,7 +794,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p25", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",
@@ -810,7 +810,7 @@
       "type": "game", "backend": "rushhour", "game": "RushHourHuman-v0",
       "puzzle": "p19", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "fps": 60, "turn_based": true
+      "fps": 60, "turn_based": true, "state_stride": -1
     },
     {
       "type": "message",

@@ -6,7 +6,9 @@ but COOM itself pins gymnasium 0.28 which conflicts with the other backends
 Gymnasium environments that work with our gymnasium and cover the same
 action-shooter category (DefendCenter, DeadlyCorridor, HealthGathering,
 TakeCover, MyWayHome, Deathmatch, and the full Doom and Freedoom maps). So this
-backend uses ViZDoom directly.
+backend uses ViZDoom directly, under two wrappers from ``vizdoom_gym``
+(``gym/vizdoom``): keyboard-only actions, and episodes that all begin with
+``new_episode()``.
 
 The env's observation is a dict {"screen": (H,W,3) uint8, "gamevariables": ...};
 `env.render()` (rgb_array) returns the screen for display, and we log
@@ -22,9 +24,9 @@ k presses button n-k (index 0 is the no-op), and `keys` are those indices.
 A few scenarios (Deathmatch, the full-game maps) also declare *delta* buttons
 -- the mouse axes -- which makes ViZDoom's action space a
 ``Dict{"binary", "continuous"}``. A scanner button box has no mouse, so
-:class:`_KeyboardOnlyAction` hides the delta axes and leaves the keyboard
+the delta axes are hidden and leaves the keyboard
 buttons: the subject turns with TURN_LEFT/TURN_RIGHT, as in every other
-scenario.
+scenario. ``vizdoom_gym.KeyboardOnlyAction`` does that.
 
 Sound is opt-in per curriculum: `env_kwargs.audio_buffer_enabled` puts one tic
 of stereo PCM in `obs["audio"]` (so a model sees the same observation a subject
@@ -38,7 +40,7 @@ Savestate: ViZDoom's ``DoomGame.save()`` exists but runs two extra game tics
 with the last action held, which would make a block that saved on a stride
 differ from its own log, and ``load()`` leaves the tic counter and timeout
 where they were. The game is lockstep-deterministic from ``reset(seed=)`` in
-its synchronous mode, so the savestate is :class:`~.replaystate.ReplayState`'s
+its synchronous mode, so the savestate is ``replay_state_gym.ReplayState``'s
 instead: the seed and the actions since, restored by replay.
 """
 
@@ -50,31 +52,6 @@ import gymnasium as gym
 import numpy as np
 
 from .base import EnvAdapter, FrameState, Sound
-from .replaystate import ReplayState
-
-
-class _KeyboardOnlyAction(gym.ActionWrapper):
-    """Drop a scenario's delta (mouse) axes, keeping its keyboard buttons.
-
-    ViZDoom presents a scenario with both kinds of buttons as a
-    ``Dict{"binary": ..., "continuous": Box(n_delta)}`` action space. There is
-    no mouse in the scanner, so the axes are held at 0 and the action space the
-    adapter (and a model) sees is the plain binary one.
-    """
-
-    def __init__(self, env: gym.Env) -> None:
-        super().__init__(env)
-        self.action_space = env.action_space["binary"]
-        self._axes = np.zeros(env.action_space["continuous"].shape,
-                              dtype=np.float32)
-
-    def action(self, action: Any) -> dict[str, Any]:
-        """Return ``action`` as a Dict action with the delta axes at rest.
-
-        :param action: a binary action (Discrete index or button vector).
-        :return: the ``{"binary", "continuous"}`` action ViZDoom expects.
-        """
-        return {"binary": action, "continuous": self._axes}
 
 
 class VizDoomAdapter(EnvAdapter):
@@ -86,7 +63,9 @@ class VizDoomAdapter(EnvAdapter):
         :param spec: game-phase config dict from the curriculum.
         :return: a ViZDoom Gymnasium environment.
         """
+        from replay_state_gym import ReplayState
         from vizdoom import gymnasium_wrapper  # noqa: F401  (registers Vizdoom*-v1)
+        from vizdoom_gym import KeyboardOnlyAction, StartedEpisodes
         env = gym.make(spec["game"], render_mode="rgb_array",
                        **spec.get("env_kwargs", {}))
         if env.unwrapped.game.is_audio_buffer_enabled():
@@ -97,15 +76,8 @@ class VizDoomAdapter(EnvAdapter):
             # buffer itself still carries the real sound.
             env.unwrapped.game.add_game_args("+snd_efx 0")
         if isinstance(env.action_space, gym.spaces.Dict):
-            env = _KeyboardOnlyAction(env)
-        env = ReplayState(env)
-        # The first reset runs game.init(), every later one game.new_episode(),
-        # and an episode begun by init() has its sound mixed a little
-        # differently (pixels and game variables are the same). A restored
-        # savestate always begins with new_episode(), so the block's episodes
-        # do too: one reset here, before any that is recorded.
-        env.reset(seed=0)
-        return env
+            env = KeyboardOnlyAction(env)
+        return ReplayState(StartedEpisodes(env))
 
     def render(self) -> np.ndarray:
         return np.asarray(self.env.render())

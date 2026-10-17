@@ -11,9 +11,9 @@ Discrete(8), indices 0..7), which a phase's ``keys`` index; some tasks append
 more (Eat: 29 = eat). Play ``turn_based``: there is no no-op (0 is "move N").
 
 NLE has no savestate API and its game lives in a NetHack library loaded per
-env, out of Python's reach, so the savestate is :class:`~.replaystate.ReplayState`'s:
+env, out of Python's reach, so the savestate is ``replay_state_gym.ReplayState``'s:
 the seed and the actions since, restored by replay. That is exact only because
-:class:`NLESeeding` seeds NetHack's own RNGs on every reset and refuses one
+``minihack_levels.NLESeeding`` seeds NetHack's own RNGs on every reset and refuses one
 where that did not take. The full obs dict (glyphs, blstats, message, ...) is
 the analysis state; we log the compact non-pixel fields and keep the pixel
 frame for display only.
@@ -29,34 +29,6 @@ import gymnasium as gym
 import numpy as np
 
 from .base import EnvAdapter, FrameState
-from .replaystate import ReplayState
-
-
-class NLESeeding(gym.Wrapper):
-    """Seed NetHack's own RNGs on every reset, and refuse a reset where that did not take.
-
-    Gymnasium's ``reset(seed=)`` seeds only the env's ``np_random``; NetHack's
-    two RNGs (core and disp) are set by NLE's ``seed(core=, disp=, reseed=)``,
-    which applies to the next reset and that one only. Without it every reset
-    draws true randomness and the game reseeds itself mid-play (NetHack's
-    anti-automation measure), and no replay can match it. The other half is
-    the env's ``fix_moon_phase`` kwarg: NetHack reads the real date for luck
-    (full moon, Friday the 13th); with it the date derives from the seed.
-    ``get_seeds()`` reports what the reset actually used, so a reset that was
-    not seeded is caught here rather than found in a replay that diverges.
-    """
-
-    def reset(self, *, seed: int | None = None, options: dict | None = None) -> tuple[Any, dict]:
-        if seed is None:
-            raise ValueError("NetHack needs reset(seed=...): an unseeded game reseeds itself "
-                             "from true randomness and cannot be replayed")
-        self.env.unwrapped.seed(core=seed, disp=seed, reseed=False)
-        out = self.env.reset(seed=seed, options=options)
-        core, disp, reseed = self.env.unwrapped.get_seeds()[:3]
-        if (core, disp, reseed) != (seed, seed, False):
-            raise RuntimeError(f"NetHack reset with seeds {(core, disp, reseed)}, not "
-                               f"{(seed, seed, False)}: the episode would not replay")
-        return out
 
 
 class MiniHackAdapter(EnvAdapter):
@@ -64,6 +36,8 @@ class MiniHackAdapter(EnvAdapter):
 
     def _make(self, spec: dict) -> gym.Env:
         import minihack  # noqa: F401  (registers MiniHack-* env ids)
+        from minihack_levels import NLESeeding
+        from replay_state_gym import ReplayState
         # Prefer the agent-centered square crop for display; the full terminal
         # ("pixel") only looks good with "full_screen": true.
         self._pixel_key = "pixel" if spec.get("full_screen") else "pixel_crop"
@@ -75,7 +49,7 @@ class MiniHackAdapter(EnvAdapter):
         self._last = None
         return ReplayState(NLESeeding(env))
 
-    def reset(self, seed: int | None) -> tuple[Any, dict]:
+    def reset(self, seed: int) -> tuple[Any, dict]:
         obs, info = super().reset(seed)
         self._last = obs
         return obs, info

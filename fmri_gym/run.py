@@ -481,7 +481,8 @@ class Run:
         :param live_hud: turn-based only: redraw the HUD while waiting for the
             press, so its clock is not the one the last press left behind.
         :param dt: target seconds per frame (``1 / fps``).
-        :param state_stride: record a full savestate every this many frames.
+        :param state_stride: record a full savestate every this many frames;
+            ``-1``: one, after the episode's last frame.
         :param block_end: ``perf_counter`` deadline for the game block.
         :param play_sound: pass the adapter's sound to the speakers (the
             phase's ``audio``); muting never changes what is logged.
@@ -574,7 +575,7 @@ class Run:
             score += float(reward)
             # A savestate at each episode's first frame (the replay anchor), then
             # every stride; frames between are the anchor plus the logged actions.
-            save_state = ep_frame % state_stride == 0
+            save_state = state_stride > 0 and ep_frame % state_stride == 0
             fs = adapter.capture(observation, info, want_blob=save_state)
             # The frame trigger goes out on the flip that shows this frame.
             self.display.call_on_flip(self.triggers.frame)
@@ -616,6 +617,10 @@ class Run:
             self.logger.log_frame(fields, frame=frame, state=fs.blob)
             self.logger.log_audio(sound)
             ep_frame += 1
+
+        if state_stride == -1:
+            self.logger.log_state(adapter.capture(observation, info).blob,
+                                  episode_id=episode_id, ep_frame=ep_frame - 1)
 
         ## Final outcome
         outcome, message = _final_outcome(adapter, outcome, terminated, truncated)
@@ -677,8 +682,11 @@ class Run:
         outcome_duration = float(phase.get("outcome_duration", 2.0))
         base_seed = phase.get("seed", 1000 + index)
         # 1 = a savestate every frame (default); larger trades savestate density
-        # for disk -- retro states are ~1 MB/frame.
-        state_stride = max(1, int(phase.get("state_stride", 1)))
+        # for disk -- retro states are ~1 MB/frame; -1 = one per episode, at its end.
+        state_stride = int(phase.get("state_stride", 1))
+        if state_stride < 1 and state_stride != -1:
+            raise ValueError(f"game phase {index}: state_stride must be >= 1, or -1 for one "
+                             f"savestate at the end of each episode; got {state_stride}")
         cap = duration if mode == "duration" else phase.get("max_duration", 300.0)
         # Turn-based games (grid worlds: FrozenLake, CliffWalking, Taxi, ...) must
         # advance ONE step per deliberate key PRESS, not once per frame. In a

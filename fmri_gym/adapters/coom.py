@@ -27,7 +27,7 @@ replay the previous step's sound.
 Savestate: the scenario's logic is ACS inside the WAD and the env keeps no
 state of its own, so the game is lockstep-deterministic from ``reset(seed=)``;
 ``DoomGame.save()`` would run two extra tics on every save (see the vizdoom
-adapter), so the savestate is :class:`~.replaystate.ReplayState`'s instead:
+adapter), so the savestate is ``replay_state_gym.ReplayState``'s instead:
 the seed and the actions since, restored by replay.
 """
 
@@ -39,7 +39,6 @@ import gymnasium as gym
 import numpy as np
 
 from .base import EnvAdapter, FrameState, Sound
-from .replaystate import ReplayState
 
 
 class COOMAdapter(EnvAdapter):
@@ -57,6 +56,7 @@ class COOMAdapter(EnvAdapter):
         :raises ValueError: audio is on, but the phase is not one tic per step.
         """
         from coom_gym import COOMEnv
+        from replay_state_gym import ReplayState
 
         options = spec.get("env_kwargs", {})
         audio = options.get("audio_buffer_enabled", False)
@@ -74,7 +74,7 @@ class COOMAdapter(EnvAdapter):
         self._game = env.game
         return ReplayState(env)
 
-    def reset(self, seed: int | None) -> tuple[Any, dict]:
+    def reset(self, seed: int) -> tuple[Any, dict]:
         out = super().reset(seed)
         self._sectors_pending = True
         return out

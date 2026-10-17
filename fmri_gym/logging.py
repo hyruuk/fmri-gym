@@ -19,8 +19,10 @@ Every line in ``events.jsonl`` has a ``type``. The logger writes the first
 and last itself -- ``block_start`` (``format``, ``version``, ``subject``,
 ``block_index``, ``backend``, ``game``, ``phase``: the config, ``base_seed``)
 and ``block_end`` (whatever summary :meth:`Logger.close_block` is given) --
-and stamps each ``frame`` with its index in the block, also ``frame``. The
-other lines are the run's, verbatim (:mod:`fmri_gym.run`).
+and stamps each ``frame`` with its index in the block, also ``frame``. A
+savestate rides in a ``frame`` line's ``state``, or in a ``state`` line of its
+own (:meth:`Logger.log_state`). The other lines are the run's, verbatim
+(:mod:`fmri_gym.run`).
 
 ``frames.h5`` holds ``frames`` ``(N, H, W, C)``, one gzip'd chunk per frame
 so any one reads alone, and ``frame_index`` ``(N,)``, the ``frame`` of each
@@ -165,6 +167,16 @@ class Logger:
             self._queue.put({"op": "frame", "block": self._block,
                              "index": self.n_frames, "frame": np.array(frame)})
         self.n_frames += 1
+
+    def log_state(self, state: bytes | None, **fields: Any) -> None:
+        """Append one ``state`` line: a savestate outside any ``frame`` line.
+
+        :param state: the savestate, stored like a frame's (zlib'd, then base64);
+            ``None`` writes the line without one.
+        :param fields: the line's other fields.
+        """
+        self._queue.put({"op": "line", "block": self._block,
+                         "line": {"type": "state", **fields}, "state": state})
 
     def log_audio(self, sound: Any) -> None:
         """Append one frame's queued PCM chunk to the block's ``audio.h5``.

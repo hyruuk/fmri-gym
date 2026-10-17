@@ -35,6 +35,7 @@
       "max_duration": 120.0,
       "fps": 15,
       "turn_based": true,
+      "state_stride": -1,
       "keys": {"UP": 0, "DOWN": 2, "LEFT": 3, "RIGHT": 1, "Y": 7, "U": 4, "B": 6, "N": 5},
       "_note": "Many env ids (MiniHack-Room-*, MiniHack-MazeWalk-*, MiniHack-River-*, ...). Diagonals via y/u/b/n; extra commands per scenario (see minihack__corridor / minihack__eat).",
       "type": "game"

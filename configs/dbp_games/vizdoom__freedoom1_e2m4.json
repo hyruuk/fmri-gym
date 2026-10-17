@@ -32,7 +32,7 @@
       "type": "game", "backend": "vizdoom", "game": "VizdoomFreedoom1E2M4-S2-v0",
       "env_kwargs": {"max_buttons_pressed": 0, "render_hud": true, "render_minimal_hud": false, "render_weapon": true, "render_crosshair": true, "render_messages": true, "audio_buffer_enabled": true, "automap_buffer_enabled": false},
       "keys": {"UP": 7, "DOWN": 6, "LEFT": 9, "RIGHT": 8, "Z": 5, "X": 4, "SPACE": 0, "E": 3, "N": 18, "M": 17, "S": 1},
-      "mode": "duration", "duration": 300.0, "fps": 35, "state_stride": 35
+      "mode": "duration", "duration": 300.0, "fps": 35, "state_stride": -1
     },
     {"type": "fixation", "duration": 2.0}
   ]

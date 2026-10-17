@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "replay-state-gym"
+version = "0.1.0"
+description = "Gymnasium wrappers for deterministic envs: a savestate by replay, a fresh launch per reset."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["gymnasium", "numpy"]
+
+[tool.setuptools]
+packages = ["replay_state_gym"]

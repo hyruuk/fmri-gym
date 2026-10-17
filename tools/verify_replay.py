@@ -8,7 +8,8 @@ process because the usual culprit is hash order, fixed for the life of one
 interpreter (AGENTS.md: crafter passed every in-process check and diverged
 across ``PYTHONHASHSEED``). The same pass then restores every savestate
 anchor the block holds and plays on from it to the next, so an anchor is shown
-to be a branch point and not just bytes.
+to be a branch point and not just bytes; an end-of-episode savestate
+(``state_stride: -1``) is restored and compared with the episode's last frame.
 
 Record and check::
 
@@ -80,6 +81,7 @@ def check_block(block: str) -> dict[str, Any]:
     events = read_events(block)
     start = events[0]
     lines = [e for e in events if e["type"] == "frame"]
+    end_states = {e["episode_id"]: e for e in events if e["type"] == "state"}
     frames, index = read_frames(block)
     pixels = {int(i): frames[k] for k, i in enumerate(index)}
     tally = {"frames": 0, "frame_mismatches": 0, "anchors": 0, "anchor_mismatches": 0,
@@ -92,6 +94,8 @@ def check_block(block: str) -> dict[str, Any]:
             tally["frames"] += len(episode)
             tally["frame_mismatches"] += _step_and_compare(adapter, episode, pixels, tally)
             _check_anchors(adapter, episode, pixels, tally)
+            if episode_id in end_states and episode:
+                _check_end_state(adapter, end_states[episode_id], episode[-1], pixels, tally)
     finally:
         adapter.close()
     tally["pass"] = tally["frame_mismatches"] == 0 and tally["anchor_mismatches"] == 0
@@ -111,6 +115,15 @@ def _check_anchors(adapter: Any, episode: list[dict], pixels: dict, tally: dict)
         until = anchors[n + 1] if n + 1 < len(anchors) else len(episode)
         bad += _step_and_compare(adapter, episode[k + 1:until], pixels, tally)
         tally["anchor_mismatches"] += bad
+
+
+def _check_end_state(adapter: Any, state: dict, last: dict, pixels: dict, tally: dict) -> None:
+    """Restore an episode's end-of-episode savestate and compare it with its last frame."""
+    adapter.restore(zlib.decompress(base64.b64decode(state["state"])))
+    tally["anchors"] += 1
+    if not np.array_equal(np.asarray(adapter.render()), pixels[last["frame"]]):
+        tally["anchor_mismatches"] += 1
+        _note(tally, last, "pixels differ after restoring the end-of-episode state")
 
 
 def _step_and_compare(adapter: Any, lines: list[dict], pixels: dict, tally: dict) -> int:

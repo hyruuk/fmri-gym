@@ -14,16 +14,17 @@ the requested ``screensize``; ``display.py`` scales it to the screen. With
 ``MultiBinary(8)`` over left, right, up, down, nitro, skid, fire, rescue, the
 indices a phase's ``keys`` name -- and the game's own player controller turns
 it into controls, so steering ramps and skids latch exactly as they do for a
-keyboard. The participant and a model are therefore in front of the same env,
-and a block replays from its launch ``seed``, ``episode_seeds`` and ``actions``
--- from a fresh launch, and every episode in order: a restart of the race
-leaves the physics world a little off a fresh one (``stk_gym``'s README
-measures it, millimetres growing to centimetres over a few hundred steps), so
-an episode is exact only after the ones before it were played first. That is
-why this adapter sets ``replay_needs_history`` (``replay.py``), and why its
-savestate, :class:`~.replaystate.ReplayState` with ``relaunch``, holds every
-episode since launch and restores by relaunching the game and replaying them
-(about half a second to launch, then a millisecond a step).
+keyboard. The participant and a model are therefore in front of the same env.
+
+Replay: a run reproduces bit for bit from a fresh launch, but a restart of the
+race in the same process leaves the physics world a little off a fresh one
+(``stk_gym``'s README measures it: millimetres, growing to centimetres over a
+few hundred steps). So every episode gets a fresh launch
+(``replay_state_gym.RelaunchOnReset``), about half a second of track loading
+between races, and an episode is then exact from its launch ``seed``, its
+episode seed and its actions alone. The savestate is
+``replay_state_gym.ReplayState``'s over that: the seed and the actions since,
+restored by a relaunch and a replay at about a millisecond a step.
 
 Timing: the game is lock-stepped, one ``step`` per fmri-gym frame, so
 ``fps`` here must equal the game's physics rate divided by ``frame_skip``
@@ -50,16 +51,15 @@ from typing import Any
 import gymnasium as gym
 
 from .base import EnvAdapter, FrameState
-from .replaystate import ReplayState
 
 
 class STKAdapter(EnvAdapter):
     name: str = "stk"
-    #: a restarted race is not a fresh launch (see the module docstring).
-    replay_needs_history: bool = True
 
     def _make(self, spec: dict) -> gym.Env:
-        return ReplayState(_launch(spec), relaunch=lambda: _launch(spec))
+        from replay_state_gym import RelaunchOnReset, ReplayState
+
+        return ReplayState(RelaunchOnReset(lambda: _launch(spec)))
 
     def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
         # The env's is_success: the kart crossed the finish line.

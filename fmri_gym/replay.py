@@ -3,10 +3,6 @@
 An episode is replayed from its seed and its actions through a fresh adapter
 built from the block's own ``block_start`` line, so a block's log is enough to
 recreate the game the subject saw, frame for frame, on a deterministic engine.
-An engine that is exact only from its launch -- a restarted episode is not
-quite a fresh one -- is declared by its adapter with ``replay_needs_history =
-True``, and the block's earlier episodes are then replayed first, in order,
-before the one asked for.
 """
 
 from __future__ import annotations
@@ -57,28 +53,12 @@ def reconstruct_episode(
         from .adapters import get_adapter
         start = read_events(block)[0]
         adapter = get_adapter(start["backend"], start["phase"])
-    if getattr(adapter, "replay_needs_history", False):
-        _replay_earlier_episodes(block, plan["episode_id"], adapter)
-    elif plan["episode_id"] != 0:
-        getattr(adapter, "warm_up", lambda: None)()
     adapter.reset(plan["seed"])
     actions = plan["actions"] if n_actions is None else plan["actions"][:n_actions]
     for action in actions:
         obs, _, _, _, info = adapter.step(action)
         adapter.capture(obs, info, want_blob=False)
     return adapter, plan
-
-
-def _replay_earlier_episodes(block: str, episode_id: int, adapter: Any) -> None:
-    """Play the block's episodes before ``episode_id`` through ``adapter``, in order."""
-    earlier = sorted({e["episode_id"] for e in read_events(block)
-                      if e["type"] == "episode_start" and e["episode_id"] < episode_id})
-    for prior in earlier:
-        plan = reconstruction_plan(block, prior)
-        adapter.reset(plan["seed"])
-        for action in plan["actions"]:
-            obs, _, _, _, info = adapter.step(action)
-            adapter.capture(obs, info, want_blob=False)
 
 
 def frame_arrays(block: str) -> dict[str, np.ndarray]:

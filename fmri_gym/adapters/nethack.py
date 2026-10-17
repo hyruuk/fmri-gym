@@ -11,8 +11,8 @@ NetHackScore-v0: 0 = MORE (Enter), 1 = N, 2 = E, 3 = S, 4 = W). Play it
 NetHack is a terminal game, so we render the TTY buffer to a pixel frame (a
 monospace text grid) for display -- faithful to how the game actually looks.
 `blstats` (score, HP, depth, ...) are logged as analysis variables. NLE has no
-savestate API, so the savestate is :class:`~.replaystate.ReplayState`'s (seed
-and actions, restored by replay), exact because :class:`~.minihack.NLESeeding`
+savestate API, so the savestate is ``replay_state_gym.ReplayState``'s (seed
+and actions, restored by replay), exact because ``minihack_levels.NLESeeding``
 seeds NetHack's own RNGs on every reset and ``fix_moon_phase`` takes the real
 date out of the game. One date remains: the character's birthday, which full
 NetHack reads for shop prices, ant species and zoo stocking.
@@ -29,8 +29,6 @@ import gymnasium as gym
 import numpy as np
 
 from .base import EnvAdapter, FrameState
-from .minihack import NLESeeding
-from .replaystate import ReplayState
 
 # NetHack TTY palette (16 colors), indexed by tty_colors (0..15).
 _TTY_PALETTE = np.array([
@@ -46,12 +44,14 @@ class NetHackAdapter(EnvAdapter):
 
     def _make(self, spec: dict) -> gym.Env:
         import nle  # noqa: F401  (registers NetHack*-v0 env ids)
+        from minihack_levels import NLESeeding
+        from replay_state_gym import ReplayState
         env = gym.make(spec.get("game", "NetHackScore-v0"), fix_moon_phase=True)
         self._cell = spec.get("cell_px", 10)  # pixel size of one TTY cell
         self._last = None
         return ReplayState(NLESeeding(env))
 
-    def reset(self, seed: int | None) -> tuple[Any, dict]:
+    def reset(self, seed: int) -> tuple[Any, dict]:
         obs, info = super().reset(seed)
         self._last = obs
         return obs, info

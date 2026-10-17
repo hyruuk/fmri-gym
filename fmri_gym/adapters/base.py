@@ -104,15 +104,18 @@ class EnvAdapter:
         """
         raise NotImplementedError
 
-    def reset(self, seed: int | None) -> tuple[Any, dict]:
+    def reset(self, seed: int) -> tuple[Any, dict]:
         """Reset the env for a new episode.
 
         Subclasses may use ``self.spec`` for per-episode setup (e.g. retro
         load_state).
 
-        :param seed: RNG seed for this episode, or ``None``.
+        :param seed: RNG seed for this episode.
         :return: ``(obs, info)`` from ``env.reset``.
+        :raises ValueError: ``seed`` is ``None`` (an episode is replayed from its seed).
         """
+        if seed is None:
+            raise ValueError("an episode needs a seed: it is replayed from its seed and actions")
         return self.env.reset(seed=seed)
 
     def step(self, action: Any) -> tuple[Any, float, bool, bool, dict]:

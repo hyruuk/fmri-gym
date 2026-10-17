@@ -26,7 +26,7 @@
     {
       "env_kwargs": {"audio_buffer_enabled": true, "audio_efx": false},
       "type": "game", "backend": "coom", "game": "floor_is_lava", "keys": {"": 0, "LEFT": 8, "RIGHT": 4, "UP": 2, "LEFT+UP": 10, "RIGHT+UP": 6, "LSHIFT": 1, "UP+LSHIFT": 3},
-      "mode": "duration", "duration": 300.0, "fps": 35, "state_stride": 35
+      "mode": "duration", "duration": 300.0, "fps": 35, "state_stride": -1
     },
     {"type": "fixation", "duration": 2.0}
   ]
