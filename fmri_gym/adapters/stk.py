@@ -70,11 +70,13 @@ class STKAdapter(EnvAdapter):
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
         # Every SAMPLE_FIELDS column every frame (NaN when the game did not
         # report), including the controls the kart applied.
-        return FrameState(blob=self.env.get_state() if want_blob else None,
-                          variables=self.env.unwrapped.sample())
+        return FrameState(variables=self.env.unwrapped.sample())
 
     def restore(self, blob: bytes) -> None:
         self.env.set_state(blob)
+
+    def block_extra(self) -> dict:
+        return {"state": self.env.get_state()}
 
 
 def _launch(spec: dict) -> gym.Env:

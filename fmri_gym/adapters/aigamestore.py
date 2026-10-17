@@ -90,8 +90,11 @@ class AIGameStoreAdapter(EnvAdapter):
         return super().outcome(terminated, truncated)
 
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
-        return FrameState(blob=self.env.get_state() if want_blob else None, variables={
+        return FrameState(variables={
             f"state_{name}": value for name, value in info["state"].items()})
 
     def restore(self, blob: bytes) -> None:
         self.env.set_state(blob)
+
+    def block_extra(self) -> dict:
+        return {"state": self.env.get_state()}

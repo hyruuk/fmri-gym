@@ -38,7 +38,6 @@
         12
       ],
       "movable_only": true,
-      "state_stride": -1,
       "keys": {
         "S": 4,
         "D": 5,

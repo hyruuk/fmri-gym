@@ -256,10 +256,12 @@ class EnvAdapter:
         :meth:`capture` writes a row per frame; this is what the block needs
         said once, and what a per-frame column cannot say about itself: the
         sampling rate that makes logged audio playable, the names behind the
-        integers in a column. Called after the last step, so it may read the
-        env. Default is ``None`` -- nothing to add.
+        integers in a column, the state the block ended in (``"state"``: bytes
+        :meth:`restore` takes, which the log stores as a frame's ``state`` is).
+        Called after the last step, so it may read the env. Default is
+        ``None`` -- nothing to add.
 
-        :return: a mapping of name to array-like, or ``None``.
+        :return: a mapping of name to array-like (or bytes), or ``None``.
         """
         return None
 

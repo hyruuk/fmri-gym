@@ -112,16 +112,17 @@ class COOMAdapter(EnvAdapter):
             variables["audio"] = (state.audio_buffer.copy() if state is not None else
                                   np.zeros((self._game.get_audio_sampling_rate() // 35, 2),
                                            dtype=np.int16))
-        return FrameState(blob=self.env.get_state() if want_blob else None, variables=variables)
+        return FrameState(variables=variables)
 
     def restore(self, blob: bytes) -> None:
         self.env.set_state(blob)
 
-    def block_extra(self) -> dict | None:
-        """Describe the logged PCM format and the engine's reverb setting."""
+    def block_extra(self) -> dict:
+        """The block's end state, and the logged PCM format and reverb setting when sound is on."""
         if not self._game.is_audio_buffer_enabled():
-            return None
-        return {"audio_sampling_rate": self._game.get_audio_sampling_rate(),
+            return {"state": self.env.get_state()}
+        return {"state": self.env.get_state(),
+                "audio_sampling_rate": self._game.get_audio_sampling_rate(),
                 "audio_buffer_tics": 1,
                 "audio_efx": self.spec.get("env_kwargs", {}).get("audio_efx", False)}
 

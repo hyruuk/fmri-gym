@@ -118,18 +118,19 @@ class VizDoomAdapter(EnvAdapter):
                     continue
                 variables[k] = np.asarray(v).copy()
         variables.update(info or {})
-        return FrameState(blob=self.env.get_state() if want_blob else None, variables=variables)
+        return FrameState(variables=variables)
 
     def restore(self, blob: bytes) -> None:
         self.env.set_state(blob)
 
-    def block_extra(self) -> dict | None:
-        """Block-level arrays merged into the npz (the audio sample rate).
+    def block_extra(self) -> dict:
+        """The block's end state, and the audio sample rate when sound is on.
 
-        :return: ``{"audio_sampling_rate": Hz}`` when sound is on, else
-            ``None``. Without it the logged ``audio`` is not playable back.
+        :return: ``{"state": ...}``, plus ``"audio_sampling_rate"`` (Hz) when
+            sound is on: without it the logged ``audio`` is not playable back.
         """
         game = self.env.unwrapped.game
         if not game.is_audio_buffer_enabled():
-            return None
-        return {"audio_sampling_rate": game.get_audio_sampling_rate()}
+            return {"state": self.env.get_state()}
+        return {"state": self.env.get_state(),
+                "audio_sampling_rate": game.get_audio_sampling_rate()}

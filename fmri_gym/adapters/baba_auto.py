@@ -49,9 +49,11 @@ class BabaAutoAdapter(EnvAdapter):
         return super().outcome(terminated, truncated)
 
     def capture(self, obs: Any, info: dict, want_blob: bool = True) -> FrameState:
-        return FrameState(blob=self.env.get_state() if want_blob else None,
-                          variables={"play_state": _PLAY_STATE[info["play_state"]],
+        return FrameState(variables={"play_state": _PLAY_STATE[info["play_state"]],
                                      "state": np.asarray(obs).copy()})
 
     def restore(self, blob: bytes) -> None:
         self.env.set_state(blob)
+
+    def block_extra(self) -> dict:
+        return {"state": self.env.get_state()}

@@ -78,7 +78,10 @@ class MiniHackAdapter(EnvAdapter):
                     continue
                 variables[k] = np.asarray(v).copy()
         variables.update(info or {})
-        return FrameState(blob=self.env.get_state() if want_blob else None, variables=variables)
+        return FrameState(variables=variables)
 
     def restore(self, blob: bytes) -> None:
         self._last, _ = self.env.set_state(blob)
+
+    def block_extra(self) -> dict:
+        return {"state": self.env.get_state()}
