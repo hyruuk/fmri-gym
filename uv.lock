@@ -826,7 +826,6 @@ shimmy = [
     { name = "shimmy" },
 ]
 stk = [
-    { name = "replay-state-gym" },
     { name = "supertuxkart-gym" },
 ]
 tilematch = [
@@ -878,7 +877,6 @@ requires-dist = [
     { name = "replay-state-gym", marker = "extra == 'minihack'", editable = "gym/replay_state" },
     { name = "replay-state-gym", marker = "extra == 'nethack'", editable = "gym/replay_state" },
     { name = "replay-state-gym", marker = "extra == 'rushhour'", editable = "gym/replay_state" },
-    { name = "replay-state-gym", marker = "extra == 'stk'", editable = "gym/replay_state" },
     { name = "replay-state-gym", marker = "extra == 'vizdoom'", editable = "gym/replay_state" },
     { name = "rushhour-gym", marker = "extra == 'rushhour'", specifier = ">=0.7.0" },
     { name = "setuptools", specifier = "<81" },
