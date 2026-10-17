@@ -483,8 +483,11 @@ class Run:
         """Show on-screen text until a key press or timed duration.
 
         :param phase: message-phase config (``text`` as a string or list of
-            lines; optional ``duration`` / ``key`` / ``align``). ``key`` is the
-            character that dismisses the screen (default SPACE), or ``"any"``.
+            lines; optional ``duration`` / ``key`` / ``keys_to_dismiss`` /
+            ``align``). ``key`` is the character that dismisses the screen
+            (default SPACE), or ``"any"``; ``keys_to_dismiss`` is a list of key
+            NAMES instead, which with a ``duration`` ends the screen at
+            whichever comes first.
         :param index: phase index in the curriculum (for the manifest).
         """
         text = _join_multiline_text(phase.get("text", ""))
@@ -492,7 +495,12 @@ class Run:
 
         onset = self.clock.from_perf(
             self.display.draw_text(text, align=phase.get("align", "center")))
-        if duration is None:
+        if "keys_to_dismiss" in phase:
+            deadline = time.perf_counter() + (math.inf if duration is None else duration)
+            if self.dummy_trigger:      # a test run skips the waits for a key
+                deadline = min(deadline, time.perf_counter() + 0.05)
+            _wait_for_keys(self.display, phase["keys_to_dismiss"], min(deadline, self._run_end))
+        elif duration is None:
             _wait_for_char(self.display, phase.get("key", " "),
                            dummy_trigger=self.dummy_trigger, until=self._run_end)
         else:
@@ -730,32 +738,6 @@ class Run:
             _wait_for_duration(self.display, outcome_duration, until=self._run_end)
         return result
 
-    def _instructions(self, phase: dict, resumed: bool) -> dict | None:
-        """Show a game phase's ``instructions``, if any, for their duration or until a key.
-
-        :param phase: the game phase (``instructions``: ``title``, ``text``,
-            ``align``, ``duration``, ``keys_to_dismiss``).
-        :param resumed: whether the block carries on from an earlier run: the
-            heading says "Resuming <title>" rather than "Starting <title>".
-        :return: for the manifest, the heading, onset, offset and the key that
-            dismissed it (``None`` if none did); ``None`` without instructions.
-        :raises KeyboardInterrupt: on window close or ESC.
-        """
-        spec = phase.get("instructions")
-        if spec is None:
-            return None
-        heading = f"{'Resuming' if resumed else 'Starting'} {spec['title']}"
-        text = _join_multiline_text(spec.get("text", ""))
-        onset = self.clock.from_perf(self.display.draw_text(
-            f"{heading}\n\n{text}", align=spec.get("align", "center")))
-        keys = spec.get("keys_to_dismiss", [])
-        deadline = time.perf_counter() + spec.get("duration", math.inf)
-        if keys and self.dummy_trigger:     # a test run skips the waits for a key
-            deadline = min(deadline, time.perf_counter() + 0.05)
-        key = _wait_for_keys(self.display, keys, min(deadline, self._run_end))
-        return {"heading": heading, "onset": onset, "offset": self.clock.run_time(),
-                "dismissed_by": key}
-
     def _show(
         self, adapter: EnvAdapter, play_sound: bool, score: float, block_end: float
     ) -> tuple[float, Any, Any]:
@@ -848,7 +830,11 @@ class Run:
         # default that changes with the engine underneath it.
         fps = phase["fps"]
         dt = 1.0 / fps
-        instructions = self._instructions(phase, resumed="block_time_elapsed" in phase)
+        if "instructions" in phase:     # "Resuming" when an earlier run stopped the block
+            spec = phase["instructions"]
+            verb = "Resuming" if "block_time_elapsed" in phase else "Starting"
+            text = _join_multiline_text(spec.get("text", ""))
+            self._message({**spec, "text": f"{verb} {spec['title']}\n\n{text}"}, index)
 
         # Some backends (nle, browser games) take several seconds to start;
         # show a Loading screen so the previous fixation "+" doesn't freeze.
@@ -925,7 +911,6 @@ class Run:
             **({"advancing_outcomes": advancing} if advancing is not None else {}),
             "data_dir": data_dir, **speed,
             **({"menu": menu.describe()} if menu else {}),
-            **({"instructions": instructions} if instructions else {}),
         })
 
         # Close adapter and environment

@@ -392,6 +392,7 @@ They assume `sub-01` and a 1024x768 window, and take the subject's next free ses
 {"type": "fixation", "duration": 2.0}                 // "+" for N seconds
 {"type": "fixation", "duration": 1.0, "include_on_resume": true}  // also played first by a resumed run (below)
 {"type": "message", "text": "Get ready", "duration": 2.0}  // text: string or list of lines; omit duration to wait for a key
+                                                           // ("key": a character, or "keys_to_dismiss": key names)
 {"type": "survey", "n_points": 7, "questions": ["...","..."]}
 
 {"type": "game",
@@ -402,7 +403,8 @@ They assume `sub-01` and a 1024x768 window, and take the subject's next free ses
                                 // optional: the screen before the block, "Starting Pong" (or
                                 // "Resuming Pong" when a run carries the block on) over the text,
                                 // until duration runs out or one of the keys is pressed (at least
-                                // one of the two). Outside the block's clock, inside the run's
+                                // one of the two). A message phase at the game's index in the
+                                // manifest; outside the block's clock, inside the run's
  "mode": "duration",            // "duration" = replay until time up; "episode" = play N episodes
  "duration": 30.0,              // seconds (duration mode)
  "n_episodes": 1,               // episodes (episode mode)

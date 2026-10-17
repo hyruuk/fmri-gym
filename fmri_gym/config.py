@@ -192,6 +192,8 @@ def _phase_problems(phase: dict) -> list[str]:
     if phase["type"].startswith("check_"):
         from .checks import phase_problems
         return phase_problems(phase)
+    if phase["type"] == "message":
+        return _dismiss_problems("keys_to_dismiss", phase.get("keys_to_dismiss"))
     if phase["type"] != "game":
         return []
     out = []
@@ -242,12 +244,17 @@ def _instructions_problems(spec: Any) -> list[str]:
                                  or not isinstance(duration, (int, float)) or duration <= 0):
         out.append(f"instructions: duration: expected seconds > 0, got {duration!r}")
     keys = spec.get("keys_to_dismiss")
-    if keys is not None and (not isinstance(keys, list) or set(keys) - KEY_NAMES):
-        out.append(f"instructions: keys_to_dismiss: expected a list of key names (as in "
-                   f"fmri_gym/keys.py), got {keys!r}")
+    out.extend(_dismiss_problems("instructions: keys_to_dismiss", keys))
     if duration is None and keys is None:
         out.append("instructions: give a duration, keys_to_dismiss, or both")
     return out
+
+
+def _dismiss_problems(where: str, keys: Any) -> list[str]:
+    """``keys_to_dismiss``, if given: a list of key names (:data:`~fmri_gym.keys.KEY_NAMES`)."""
+    if keys is None or (isinstance(keys, list) and keys and not set(keys) - KEY_NAMES):
+        return []
+    return [f"{where}: expected a list of key names (as in fmri_gym/keys.py), got {keys!r}"]
 
 
 def _keys_problems(phase: dict) -> list[str]:
