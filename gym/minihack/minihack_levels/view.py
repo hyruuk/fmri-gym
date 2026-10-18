@@ -16,6 +16,9 @@ env's NetHack directory; that is where it is read from. An env built from a
 ``.des`` file on disk leaves no such copy, and so does one whose des-file has
 no ``MAP`` (``RANDOM_CORRIDORS`` levels): both get the whole terminal, which
 is the only fixed view there is for a level that can be anywhere.
+
+:func:`allocentric` builds any registered MiniHack task inside the wrapper; it
+is the entry point of the ``-Allocentric-v0`` ids the package registers.
 """
 
 from __future__ import annotations
@@ -27,8 +30,12 @@ from typing import Any
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
+from gymnasium.envs.registration import load_env_creator
 from minihack.base import N_TILE_PIXEL
 from nle import nethack
+
+#: the observations a view is built on when the caller names none
+DEFAULT_OBSERVATION_KEYS = ("pixel_crop", "glyphs", "blstats", "message")
 
 #: glyph rows and columns of the NetHack map NLE exposes (``nethack.ROWNO``
 #: rows; the terminal is 80 columns but NLE drops column 0).
@@ -122,3 +129,20 @@ class MapView(gym.ObservationWrapper):
         :return: a new dict; ``pixel_crop`` is a copy, the rest the same arrays.
         """
         return {**observation, "pixel_crop": observation["pixel"][self._rows, self._cols].copy()}
+
+
+def allocentric(env_id: str, observation_keys: tuple[str, ...] = DEFAULT_OBSERVATION_KEYS,
+                **kwargs: Any) -> gym.Env:
+    """A registered MiniHack task seen fixed on its map: the env inside :class:`MapView`.
+
+    :param env_id: the MiniHack id to build, whose own ``pixel_crop`` is centred on
+        the agent.
+    :param observation_keys: the observations to expose; ``pixel`` is added, since
+        the view is cut from it.
+    :param kwargs: options for the env, on top of the id's registered ones.
+    :return: the task's env wrapped in :class:`MapView`.
+    """
+    spec = gym.spec(env_id)
+    keys = tuple(dict.fromkeys((*observation_keys, "pixel")))
+    env = load_env_creator(spec.entry_point)(**{**spec.kwargs, **kwargs}, observation_keys=keys)
+    return MapView(env)

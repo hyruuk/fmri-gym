@@ -314,7 +314,7 @@ fmri_gym/
     default.py      # ANY gym env: rgb frames, seed+replay, obs-as-state
     vgdl.py         # VGDL via vgdl-gym: get_state/set_state savestate, symbolic grid + events
     crafter.py      # Crafter via crafter-gym: obs is the frame; achievements
-    minihack.py     # pixel view fixed on the map (minihack_levels.MapView) or on the agent + compass keymap; blstats/glyphs/message
+    minihack.py     # pixel_crop as the env id defines it (minihack_levels: -Allocentric-v0 twins fixed on the map) + compass keymap; blstats/glyphs/message
     nethack.py      # base NLE: TTY grid -> RGB; vi-key movement; blstats
     aigamestore.py  # AI GameStore via aigamestore-gym: held keys as the env's action, state_* from getGameState
     coom.py         # COOM via coom-gym: Discrete(12) actions, game variables and PCM logged
