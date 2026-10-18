@@ -4,7 +4,7 @@ Please read this before writing code.
 
 ## Where things are explained
 
-This file is the rules: the four below, and the shape of the repo. The step-by-step procedures live as skills, one folder each under `.claude/skills/<name>/SKILL.md`, which is plain Markdown anyone can open: `testing` (run the suite, read a failure, what CI does), `add-backend` (the checklist for a new game engine and the traps), `pull-request` (branch, local checks, the description, CI). Claude Code and Cursor load them from `.claude/skills/`; Codex reads `.agents/skills/`, where each entry is a symlink to the same folder. A procedure belongs in a skill and a rule belongs here; neither belongs in both. The test suite describes itself in `tests/README.md`.
+This file is the rules: the five below, and the shape of the repo. The step-by-step procedures live as skills, one folder each under `.claude/skills/<name>/SKILL.md`, which is plain Markdown anyone can open: `testing` (run the suite, read a failure, what CI does), `add-backend` (the checklist for a new game engine and the traps), `pull-request` (branch, local checks, the description, CI). Claude Code and Cursor load them from `.claude/skills/`; Codex reads `.agents/skills/`, where each entry is a symlink to the same folder. A procedure belongs in a skill and a rule belongs here; neither belongs in both. The test suite describes itself in `tests/README.md`.
 
 ## The shape of the repo
 
@@ -84,6 +84,16 @@ The worst outcome this code can produce is not a crash. It is a session that run
 - **One shape per input.** No `isinstance` branches that accept two config layouts, no `x or {}` / `.get(k) or []` that turn a wrong value into an empty one. Enforce the shape and say what was expected.
 - **A default that changes what the recording gets is allowed only if it is visible**: on the experimenter screen, on the console, and in the manifest (see `Triggers.status()` / `triggers.defaulted`). A silent default is a bug.
 - **Test switches announce themselves** (`--dummy-trigger` prints what it skips and lands in the manifest). Degrading gracefully is for the frame loop mid-session, not for set-up.
+
+## Rule 5: build the smallest thing that reuses what is already there
+
+- **Start from what is already recorded.** Before adding a file, a record or a module, check whether the log, the manifest, a savestate or an existing code path already holds what you need; usually the change is to read it, not to keep a second copy (resume needed no new record: the end state, elapsed time and episode count were already in `block_end`).
+- **One mechanism per idea.** When features need the same thing -- resume, rewind and replay all start an episode from a saved state -- make one path (`initial_state`) serve them all, rather than a subsystem each with its own log lines and replay rules.
+- **Build what was asked, then stop.** Alternative units, caps, extra menu entries and configurable timings each cost validation, docs and tests for good; ask first. A feature is cheap to add later and expensive to remove.
+- **Use the seam that exists.** A new `EnvAdapter` hook or phase field is a core change (Rule 2); try `overlay()`, `block_extra()`, `info` or an env wrapper first.
+- **Agree the design before writing it.** For a change that touches the core, write the plan in a few lines and ask the questions only a human can answer (is this ever interleaved? should finishing end the level?). A conversation is cheaper than rewriting a branch.
+- **Treat size as a warning.** If a feature passes a few hundred lines, or its docstring needs paragraphs to defend the design, stop and look for a simpler one: a long justification usually marks a design that fights the code around it.
+- **Verify against a reference.** When porting or rewriting, run the old and new side by side on the same inputs; when saving and restoring, compare bytes. Keep the result in the commit message, not a check script in the repo.
 
 ## Adding a backend, testing it, opening the PR
 
