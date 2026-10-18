@@ -7,8 +7,6 @@ import unittest
 import gymnasium as gym
 import numpy as np
 
-from minihack_levels import LAYOUTS
-
 KEYS = ("pixel", "pixel_crop", "chars", "blstats")
 TILE = 16
 
@@ -46,6 +44,8 @@ class ViewTest(unittest.TestCase):
     def test_layout_window_starts_where_the_layout_does(self):
         # Room and River: the window's corner is the agent's start minus the
         # layout's start tile, an origin found without the des-file.
+        from minihack_levels import LAYOUTS  # the package is this backend's; the suite collects everywhere
+
         for name, layout in LAYOUTS.items():
             if layout["family"] == "maze":
                 continue
