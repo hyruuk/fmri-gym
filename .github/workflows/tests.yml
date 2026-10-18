@@ -1,5 +1,6 @@
-# The suite in tests/, on every pull request that is ready for review, and
-# again on every push to it. A draft PR runs nothing; marking it ready does.
+# The suite in tests/, on every pull request that is ready for review, again on
+# every push to it, and on main after a merge. A draft PR runs nothing; marking
+# it ready does.
 #
 # One job for the core (lint, the engine-free tests, the `gym` backend that
 # ships with gymnasium), then one job per game backend a hosted Linux runner
@@ -16,6 +17,8 @@ name: tests
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
