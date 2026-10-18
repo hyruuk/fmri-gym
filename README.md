@@ -103,7 +103,7 @@ Each is a minimal `message → fixation → game (300 s) → fixation` curriculu
 |---|---|---|
 | `atari__` | 10 | pong, breakout, spaceinvaders, mspacman, seaquest, qbert, asterix, beamrider, enduro, boxing |
 | `vgdl__` | 10 | aliens, beesAndBirds, … (needs the VGDL fork checkout) |
-| `minihack__` | 12 | room5x5/15x15, mazewalk9x9, river, corridor, eat: MiniHack's own ids (egocentric view), each with an `_allocentric` twin (`minihack_levels`, view fixed on the map) |
+| `minihack__` | 12 | room5x5/15x15, mazewalk9x9, river, corridor, eat: the `-Allocentric-v0` twin from `minihack_levels` (view fixed on the map), each with an `_egocentric` sibling on MiniHack's own id (view centred on the agent) |
 | `nethack__` | 1 | score (base NetHack; TTY rendered to a pixel frame) |
 | `aigamestore__` | 10 | game1…game10 (p5.js; needs playwright) |
 | `classic__` | 5 | cartpole, mountaincar, acrobot, pendulum, mountaincarcontinuous |

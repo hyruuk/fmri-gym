@@ -1,13 +1,13 @@
 {
-  "_game": "MiniHack: MiniHack-Corridor-R2-Allocentric-v0",
-  "_note": "pip install minihack (needs setuptools<81). MiniHack-Corridor-R2-Allocentric-v0 is minihack_levels' twin of MiniHack-Corridor-R2-v0 with pixel_crop fixed on the level's map, so the level holds still and the agent moves; minihack__corridor.json plays MiniHack-Corridor-R2-v0 itself, the egocentric view, a 9x9 window centred on the agent.",
+  "_game": "MiniHack: MiniHack-Corridor-R2-v0",
+  "_note": "pip install minihack (needs setuptools<81). Egocentric view: MiniHack's own pixel_crop, a 9x9 window centred on the agent, so the agent holds still and the level slides; minihack__corridor.json plays the same task with the view fixed on the level's map.",
   "_keys_note": "Discrete(11): 0-7 = compass (0=N,1=E,2=S,3=W,4=NE,5=SE,6=SW,7=NW), 8=OPEN, 9=KICK, 10=SEARCH. Arrows map to the cardinals; y/u/b/n to the diagonals; O/K/S to the door/search commands. turn_based:true is required -- noop is action 0 (=move N). Keep the instructions' Controls text in sync with 'keys' by hand.",
   "_keys_reference": "https://github.com/facebookresearch/minihack",
   "_curriculum_note": "Blocking: the block is this task played until completed (mode 'episode', n_episodes 1, advancing_outcomes ['won']); a death or the env's own step limit restarts the same level, and max_duration 300 s is the cap. ESC is the experimenter's way out.",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {
-      "type": "game", "backend": "minihack", "game": "minihack_levels:MiniHack-Corridor-R2-Allocentric-v0",
+      "type": "game", "backend": "minihack", "game": "MiniHack-Corridor-R2-v0",
       "instructions": {
         "title": "MiniHack: Corridor", "align": "left", "keys_to_dismiss": ["SPACE"],
         "text": [
