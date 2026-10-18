@@ -68,9 +68,16 @@ class _FakeStream:
         pass
 
 
+def _fake_query_devices(device=None, kind=None):
+    """One stub output device, for a machine (a CI runner) that has none."""
+    stub = {"name": "stub", "index": 0, "max_output_channels": 2, "default_samplerate": RATE}
+    return stub if (device is not None or kind is not None) else [stub]
+
+
 @pytest.fixture(autouse=True)
-def _fake_output_stream(monkeypatch):
+def _fake_sound_device(monkeypatch):
     monkeypatch.setattr(_audio.sounddevice, "OutputStream", _FakeStream)
+    monkeypatch.setattr(_audio.sounddevice, "query_devices", _fake_query_devices)
 
 
 MAX_OFFSET = _audio._MAX_OFFSET

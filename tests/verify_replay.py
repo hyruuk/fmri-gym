@@ -123,18 +123,22 @@ def _read_audio(block: str) -> dict[int, np.ndarray] | None:
 
 
 def _check_anchors(adapter: Any, episode: list[dict], pixels: dict, tally: dict) -> None:
-    """Restore each anchor of ``episode`` and play on to the next one, comparing."""
+    """Restore each anchor of ``episode`` and play on through the next one, comparing.
+
+    What a restore is judged by is the play that follows it, not the picture
+    at the instant of the restore: an emulator's snapshot restores the
+    machine, and its screen buffer shows the last frame it emulated until the
+    next step (the ALE). The frames stepped after the anchor, up to and
+    including the next anchor's, are compared, so an anchor every frame still
+    checks one step from each.
+    """
     anchors = [k for k, e in enumerate(episode) if "state" in e]
     for n, k in enumerate(anchors):
         adapter.restore(zlib.decompress(base64.b64decode(episode[k]["state"])))
         tally["anchors"] += 1
-        bad = 0
-        if not np.array_equal(np.asarray(adapter.render()), pixels[episode[k]["frame"]]):
-            bad += 1
-            _note(tally, episode[k], "pixels differ right after restore")
-        until = anchors[n + 1] if n + 1 < len(anchors) else len(episode)
-        bad += _step_and_compare(adapter, episode[k + 1:until], pixels, None, tally)
-        tally["anchor_mismatches"] += bad
+        until = anchors[n + 1] + 1 if n + 1 < len(anchors) else len(episode)
+        tally["anchor_mismatches"] += _step_and_compare(adapter, episode[k + 1:until], pixels,
+                                                        None, tally)
 
 
 def _check_end_state(adapter: Any, state: str, last: dict, pixels: dict, tally: dict) -> None:

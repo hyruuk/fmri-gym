@@ -13,7 +13,8 @@ it could do (AGENTS.md, rule 4).
 ``--thorough`` plays every config of a selected backend through the quick
 check and runs the long sweeps, where the default plays the backend's smoke
 configs only. ``--no-audio`` keeps the headless runs off the sound device, for
-a machine without one.
+a machine without one. The options themselves are declared in the repo root's
+``conftest.py``, which says why they cannot live here.
 """
 
 from __future__ import annotations
@@ -26,26 +27,6 @@ import pytest
 
 from tests.backends import BACKENDS, REPO, configs_of, game_phases, phase_backend
 from tests.changed import changed_files, select
-
-
-def pytest_addoption(parser: pytest.Parser) -> None:
-    g = parser.getgroup("fmri-gym", "which game backends the suite plays")
-    g.addoption("--backend", action="append", default=[], metavar="NAME",
-                help="play these backends (repeat or comma-separate; 'all', 'none'); "
-                     "a named backend this machine cannot run fails")
-    g.addoption("--changed", nargs="?", const="origin/main", default=None, metavar="BASE",
-                help="play the backends the files changed since BASE touch "
-                     "(default base: origin/main); a core change selects every backend")
-    g.addoption("--strict-backends", action="store_true",
-                help="a selected backend this machine cannot run fails instead of skipping")
-    g.addoption("--thorough", action="store_true",
-                help="every config of a selected backend, and the long sweeps")
-    g.addoption("--no-audio", action="store_true",
-                help="headless runs leave the sound device alone (CI, or no output here)")
-    g.addoption("--frames", type=int, default=120,
-                help="frames per episode the recordings play (default 120)")
-    g.addoption("--run-seconds", type=float, default=25.0,
-                help="length of each headless run; the game plays 10 s less (default 25)")
 
 
 @dataclass

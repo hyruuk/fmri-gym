@@ -20,7 +20,7 @@ uv run pytest --backend none             # the engine-free tests only
 | `test_crafter_cues.py` | crafter | the adapter's predicted sound cue against the engine's own outcome, press by press |
 | `gym/minihack/tests/` | minihack | the `minihack-levels` package's own tests, collected when minihack is selected |
 
-`backends.py` is the table: one row per backend with the extra that installs it, the import that proves it, the checkout, browser or game files it needs, its smoke configs, and why CI cannot play it, if it cannot. `changed.py` maps changed files to backends. `verify_replay.py` and `headless.py` are the two steps the backend tests drive, and both work on their own:
+The repo root's `conftest.py` declares the suite's options (it has to be at the root: pytest reads an unknown option's value as a path, and `--backend gym` names the `gym/` directory). `backends.py` is the table: one row per backend with the extra that installs it, the import that proves it, the checkout, browser or game files it needs, its smoke configs, and why CI cannot play it, if it cannot. `changed.py` maps changed files to backends. `verify_replay.py` and `headless.py` are the two steps the backend tests drive, and both work on their own:
 
 ```bash
 uv run python -m tests.verify_replay --curriculum configs/dbp_games/minihack__room5x5.json --max-frames 200
