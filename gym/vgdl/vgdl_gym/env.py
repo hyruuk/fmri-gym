@@ -77,6 +77,7 @@ class VGDLEnv(gym.Wrapper):
         """
         if seed is not None:
             self.env.game.set_seed(int(seed))
+        _resume_ids(self.env.game.sprite_registry, None)   # a restored game's ids end with it
         return self.env.reset(with_img=False)
 
     def step(self, action: Any) -> tuple[Any, float, bool, bool, dict]:
@@ -98,12 +99,60 @@ class VGDLEnv(gym.Wrapper):
         ``close`` would quit pygame for the whole process."""
 
     def get_state(self) -> Any:
-        """The game's exact, picklable state; :meth:`set_state` takes it back."""
-        return self.env.get_state(return_orientation=True)
+        """The game's exact, picklable state; :meth:`set_state` takes it back.
+
+        The fork's state is its live sprites, and two things the game then
+        goes on with are not in it. Its random generator: a restored game
+        would draw its spawns and chance effects from wherever the generator
+        happened to stand, not from where it stood at this frame. And the id a
+        sprite born later gets (``sam.2``), which comes from a count over the
+        live *and dead* sprites of its kind, the dead being gone from the
+        state. The state carries both, so play from a restored state is the
+        recorded game's.
+        """
+        state = self.env.get_state(return_orientation=True)
+        registry = self.env.game.sprite_registry
+        state["rng"] = self.env.game.random_generator.getstate()
+        state["next_ids"] = {key: int(registry.generate_id_number(key))
+                             for key in registry.sprite_keys}
+        return state
 
     def set_state(self, state: Any) -> None:
-        """Restore a state from :meth:`get_state`."""
+        """Restore a state from :meth:`get_state`, random generator and later ids included."""
         self.env.set_state(state)
+        self.env.game.random_generator.setstate(state["rng"])
+        _one_of_each(self.env.game.sprite_registry)
+        _resume_ids(self.env.game.sprite_registry, state["next_ids"])
+
+
+def _one_of_each(registry: Any) -> None:
+    """Leave each sprite id one live instance in ``registry``.
+
+    The fork's restore carries the walls of the registry it replaces over
+    into the new one and then rebuilds every sprite of the state, walls
+    included, so each wall is live twice and a collision with one fires two
+    events. The instance kept is the one the registry's id table names.
+    """
+    for key, sprites in registry._live_sprites_by_key.items():
+        ids = dict.fromkeys(s.id for s in sprites)
+        sprites[:] = [registry._sprite_by_id[i] for i in ids]
+
+
+def _resume_ids(registry: Any, next_ids: dict[str, int] | None) -> None:
+    """Make ``registry`` number new sprites from ``next_ids`` on, never below; ``None`` lifts it.
+
+    The registry a restore builds is fresh, so the fork's own count (over the
+    sprites it holds) is what it would start from; this keeps whichever is
+    higher, which is the recorded game's count once its dead are gone. The
+    floor is the instance's own attribute, so lifting it is dropping that and
+    the class's method shows again; a reset lifts it, since a new episode
+    starts its count from one.
+    """
+    registry.__dict__.pop("generate_id_number", None)
+    if next_ids is None:
+        return
+    own = registry.generate_id_number
+    registry.generate_id_number = lambda key: max(own(key), next_ids[key])
 
 
 def _offscreen(renderer: Any) -> Any:
