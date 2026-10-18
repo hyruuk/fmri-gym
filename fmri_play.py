@@ -29,6 +29,7 @@ import sys
 from fmri_gym import Run, checks
 from fmri_gym.config import EXIT_QUIT, load_config, validate_config
 from fmri_gym.display import quit_like_esc
+from fmri_gym.run import RunOptions
 
 
 class _Parser(argparse.ArgumentParser):
@@ -82,20 +83,38 @@ def _parser() -> argparse.ArgumentParser:
     return p
 
 
+def _options(args: argparse.Namespace) -> RunOptions:
+    """The flags as the run reads them: ``--size`` parsed, the ``--no-*`` switches put positively.
+
+    :raises ValueError: on a ``--size`` that is not ``WIDTHxHEIGHT``.
+    """
+    try:
+        width, height = (int(x) for x in args.size.lower().split("x"))
+    except ValueError:
+        raise ValueError(f"--size {args.size!r}: expected WIDTHxHEIGHT, such as 1024x768") from None
+    return RunOptions(
+        subject=args.subject, config_path=args.curriculum, data_root=args.data_root,
+        ses=args.ses, run=args.run, duration=args.duration, resume=args.resume,
+        size=(width, height), fullscreen=args.fullscreen, monitor=args.monitor,
+        vsync=not args.no_vsync, dummy_trigger=args.dummy_trigger,
+        audio=not args.no_audio, pad=not args.no_pad)
+
+
 def main() -> None:
     args = _parser().parse_args()
-    config = load_config(args.curriculum)
+    opts = _options(args)
+    config = load_config(opts.config_path)
     problems = validate_config(config)  # the editor's Check, so a file edited by hand gets it too
     if problems:
-        raise ValueError(f"{args.curriculum}: " + "; ".join(problems))
+        raise ValueError(f"{opts.config_path}: " + "; ".join(problems))
 
     rig_check = None
     if checks.has_checks(config):  # a rig check: its rig file, and a line that opens, first
-        rig_check = checks.prepare(config, args.curriculum)
-    run = Run.from_config(config, args)
+        rig_check = checks.prepare(config, opts.config_path)
+    run = Run.from_config(config, opts)
     if rig_check is not None:
-        run.logger.set_extra("rig", rig_check["rig"])
-        run.logger.set_extra("trigger_error", rig_check["trigger_error"])
+        run.logger.set_extra("rig", rig_check.rig)
+        run.logger.set_extra("trigger_error", rig_check.trigger_error)
     previous = signal.signal(signal.SIGINT, quit_like_esc)
     try:
         completed = run.play()
@@ -105,7 +124,7 @@ def main() -> None:
         signal.signal(signal.SIGINT, previous)
     if rig_check is not None:
         # A failed test is a finding, listed in the report: the session goes on.
-        checks.finish(run, args.ses, args.data_root)
+        checks.finish(run, opts.ses, opts.data_root)
     if not completed:
         # A session script (set -e) must not start the next run after an ESC.
         sys.exit(EXIT_QUIT)

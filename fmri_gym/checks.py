@@ -69,7 +69,7 @@ import subprocess
 import sys
 import time
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Iterator, NamedTuple, Sequence
 
 import gymnasium as gym
 import numpy as np
@@ -110,7 +110,16 @@ def has_checks(config: dict) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def prepare(config: dict, path: str) -> dict[str, Any]:
+class RigSetup(NamedTuple):
+    """What :func:`prepare` settles before the window opens, for the manifest."""
+
+    #: the rig file's fields (:func:`ensure_rig`)
+    rig: dict[str, str]
+    #: why the config's trigger line did not open; ``None`` when it did
+    trigger_error: str | None
+
+
+def prepare(config: dict, path: str) -> RigSetup:
     """Before the window: the rig file, the trigger settings, and a line the run can open.
 
     The rig file is required (its form opens when it is missing, see
@@ -126,8 +135,7 @@ def prepare(config: dict, path: str) -> dict[str, Any]:
         it has none, and replaced when its line does not open.
     :param path: the config's file, where a chosen section is saved.
     :raises ValueError: when the config has no trigger settings and none is chosen.
-    :return: ``rig`` and ``trigger_error`` (``None`` when the line opened), for
-        the manifest.
+    :return: the rig, and why the line did not open if it did not.
     """
     rig = ensure_rig(RIG_FILE)
     if "triggers" in config and config["triggers"] is None:
@@ -135,7 +143,7 @@ def prepare(config: dict, path: str) -> dict[str, Any]:
     section = config.get("triggers") or {}
     try:
         Triggers.from_config(section).close()
-        return {"rig": rig, "trigger_error": None}
+        return RigSetup(rig, None)
     except (TriggerError, OSError) as exc:
         error = f"{type(exc).__name__}: {exc}"
     sync = dict(section.get("sync", {}))
@@ -144,7 +152,7 @@ def prepare(config: dict, path: str) -> dict[str, Any]:
     config["triggers"] = {**section, "backend": "null", "sync": sync}
     print(f"rig check: the trigger line did not open ({error}); the triggers check fails, "
           "the other checks run without codes", file=sys.stderr)
-    return {"rig": rig, "trigger_error": error}
+    return RigSetup(rig, error)
 
 
 def _ask_triggers(config: dict, path: str) -> None:
