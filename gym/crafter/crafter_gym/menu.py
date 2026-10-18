@@ -11,9 +11,14 @@ the same cursor, and a replay has to reproduce it (see the repo's Rule 1).
 
 The action space is ``Discrete(n + 2)``: crafter's own ``n`` actions in their
 own order, then ``cycle`` and ``confirm``. ``info`` gains ``env_action`` (what
-the engine was actually given), ``menu_idx`` (where the cursor ended up) and
-``menu_sel`` (the name it is on), so a log keeps both what was pressed and what
-it did.
+the engine was actually given), ``menu_idx`` (where the cursor ended up),
+``menu_sel`` (the name it is on) and ``menu_extra`` (the extra entry this press
+fired, or ``""``), so a log keeps both what was pressed and what it did.
+
+``extra`` entries follow the actions in the menu: names with no crafter action
+behind them, for a wrapper above this one to act on (the task chain's
+``skip_task``). Confirming one steps the engine with ``noop`` and names it in
+``menu_extra``.
 
 ``cycle`` spends a turn: the engine is stepped with ``noop``. Otherwise a look
 through the menu would be free and the player could reach any of the ten for
@@ -41,15 +46,20 @@ class MenuWrapper(gym.Wrapper):
         whatever the action space has that is not in here, in ascending order,
         so a crafter that gained an action would put it in the menu rather
         than drop it.
+    :param extra: entry names after the actions, with no action behind them.
     """
 
-    def __init__(self, env: gym.Env, direct: tuple[int, ...] = DEFAULT_DIRECT) -> None:
+    def __init__(self, env: gym.Env, direct: tuple[int, ...] = DEFAULT_DIRECT,
+                 extra: tuple[str, ...] = ()) -> None:
         super().__init__(env)
         n = int(env.action_space.n)
         self.menu = [i for i in range(n) if i not in set(direct)]
         if not self.menu:
             raise ValueError(f"nothing left for the menu: {direct} covers all "
                              f"{n} actions")
+        if set(extra) & set(env.action_names):
+            raise ValueError(f"extra menu entries {extra} reuse crafter action names")
+        self.extra = tuple(extra)
         self.cycle, self.confirm = n, n + 1
         self.action_space = spaces.Discrete(n + 2)
         self.menu_idx = 0
@@ -62,13 +72,13 @@ class MenuWrapper(gym.Wrapper):
 
     @property
     def menu_names(self) -> list[str]:
-        """The menu's action names, in the order ``cycle`` steps through them."""
-        return [self.env.action_names[i] for i in self.menu]
+        """The menu's entries, in the order ``cycle`` steps through them."""
+        return [self.env.action_names[i] for i in self.menu] + list(self.extra)
 
     @property
     def selected(self) -> str:
-        """The action name the cursor is on."""
-        return self.env.action_names[self.menu[self.menu_idx]]
+        """The entry the cursor is on."""
+        return self.menu_names[self.menu_idx]
 
     def reset(self, **kwargs: Any) -> tuple[Any, dict]:
         """Reset the game, leaving the cursor where the last episode left it.
@@ -101,7 +111,7 @@ class MenuWrapper(gym.Wrapper):
         if action == self.cycle:
             return 0
         if action == self.confirm:
-            return self.menu[self.menu_idx]
+            return self.menu[self.menu_idx] if self.menu_idx < len(self.menu) else 0
         return action
 
     def step(self, action: Any) -> tuple[Any, float, bool, bool, dict]:
@@ -109,25 +119,29 @@ class MenuWrapper(gym.Wrapper):
 
         :param action: an index into :attr:`action_space`.
         :return: ``(obs, reward, terminated, truncated, info)``; ``info``
-            carries ``env_action``, ``menu_idx`` and ``menu_sel``.
+            carries ``env_action``, ``menu_idx``, ``menu_sel`` and ``menu_extra``.
         """
         action = int(action)
         self.showing = action in (self.cycle, self.confirm)
         env_action = self.env_action(action)
+        fired = (self.selected if action == self.confirm and self.menu_idx >= len(self.menu)
+                 else "")
         if action == self.cycle:
-            self.menu_idx = (self.menu_idx + 1) % len(self.menu)
+            self.menu_idx = (self.menu_idx + 1) % len(self.menu_names)
         obs, reward, terminated, truncated, info = self.env.step(env_action)
-        return obs, reward, terminated, truncated, self._with_menu(info, env_action)
+        return obs, reward, terminated, truncated, self._with_menu(info, env_action, fired)
 
-    def _with_menu(self, info: dict, env_action: int) -> dict:
+    def _with_menu(self, info: dict, env_action: int, fired: str = "") -> dict:
         """Add the menu fields to an ``info`` dict.
 
         :param info: the wrapped env's info.
         :param env_action: what the engine was given.
-        :return: the same dict, with the three fields set.
+        :param fired: the extra entry this press fired, or ``""``.
+        :return: the same dict, with the four fields set.
         """
         info = dict(info)
         info["env_action"] = env_action
+        info["menu_extra"] = fired
         info["menu_idx"] = self.menu_idx
         info["menu_sel"] = self.selected
         return info

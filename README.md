@@ -108,7 +108,7 @@ Each is a minimal `message → fixation → game (300 s) → fixation` curriculu
 | `box2d__` | 3 | lunarlander, bipedalwalker, carracing (needs box2d-py) |
 | `mujoco__` | 10 | ant, halfcheetah, hopper, humanoid, … (`MUJOCO_GL=egl`) |
 | `text__` | 5 | frozenlake, frozenlake8x8, cliffwalking, taxi, blackjack (turn-based) |
-| `crafter__` | 1 | crafter |
+| `crafter__` | 4 | crafter (the paradigm's levels L1-L4) |
 | `craftium__` | 1 | choptree (Luanti voxel; other ids: Room/Speleo/OpenWorld/…) |
 | `vizdoom__` | 78 | basic, deadly_corridor, defend_center, defend_line, health_gathering_supreme, my_way_home, predict_position, take_cover, deathmatch (Doom; COOM's engine; other `Vizdoom*-v1` scenarios work too), freedoom1_e1m1 … freedoom1_e4m9 and freedoom2_map01 … freedoom2_map32 (every map of [Freedoom](https://freedoom.github.io/) Phase 1 and Phase 2, whose WADs ship with `vizdoom`; `VizdoomDoom*` plays the original WADs, given them), plus `take_cover_defend_line` running two of them back to back in one session |
 | `coom__` | 9 | pitfall, chainsaw, hide_and_seek, health_gathering, arms_dealer, parkour, raise_the_roof, run_and_gun, floor_is_lava (needs the COOM repo checkout) |
@@ -413,6 +413,12 @@ They assume `sub-01` and a 1024x768 window, and take the subject's next free ses
                                 // truncated, playing (the block's clock) -- see EnvAdapter.outcome
  "max_duration": 300.0,         // hard wall-clock safety cap (episode mode)
  "outcome_duration": 2.0,       // seconds "Final score: N" + the outcome show after each episode
+ "rewind_on_death": 1,          // optional: a death sends the world back this many frames and play
+                                // goes on, as a new episode starting from that state (its
+                                // episode_start carries it as initial_state; it does not count
+                                // towards n_episodes). Session policy, not a rule of the game, so
+                                // agents/agent_play.py ignores it. Needs a backend whose capture
+                                // returns a savestate every frame (crafter, ale, retro, vgdl)
  "fps": 30,                     // required: steps (and frames) per second. The engine's own rate
                                 // (console cores and Atari ~60, Doom 35 / frame_skip) plays the game
                                 // at its real speed and fits its sound; the editor's Controls tab

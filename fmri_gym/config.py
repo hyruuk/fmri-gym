@@ -222,6 +222,11 @@ def _phase_problems(phase: dict) -> list[str]:
         out.extend(menu_problems(phase["menu"]))
     if "instructions" in phase:
         out.extend(_instructions_problems(phase["instructions"]))
+    rewind = phase.get("rewind_on_death")
+    if rewind is not None and (isinstance(rewind, bool) or not isinstance(rewind, int)
+                               or rewind < 1):
+        out.append(f"rewind_on_death: expected the frames to go back on a death, >= 1, "
+                   f"got {rewind!r}")
     return out
 
 
