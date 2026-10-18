@@ -111,10 +111,17 @@ def _offscreen(renderer: Any) -> Any:
 
     ``PygameRenderer.init_screen`` would call ``pygame.display.set_mode``; this
     sets the same attributes by hand, so ``draw_all`` and ``get_image`` work
-    and the display is never touched.
+    and a window the process already has is never touched. The fork's sprite
+    cache converts each sprite to the display's pixel format
+    (``Surface.convert_alpha``), which pygame refuses without a display
+    surface, so a process with none -- a model playing, a test -- gets a
+    hidden 1x1 window to provide that format.
     """
     import pygame
 
+    if pygame.display.get_surface() is None:
+        pygame.display.init()
+        pygame.display.set_mode((1, 1), pygame.HIDDEN)
     renderer.headless = True
     renderer.screen = pygame.Surface(renderer.screen_dims)
     renderer.screen.fill((255, 255, 255))

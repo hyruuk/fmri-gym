@@ -3,7 +3,8 @@
 The product of a run is a log that recreates the game frame for frame, and the
 only way to know a backend delivers that is to try: play a block, then rebuild
 every one of its frames from ``episode_start`` seeds and ``frame`` actions in a
-*second* process and compare pixels and logged variables bit for bit. A second
+*second* process and compare pixels, logged variables, reward, termination and
+-- where the block recorded sound -- each frame's PCM bit for bit. A second
 process because the usual culprit is hash order, fixed for the life of one
 interpreter (AGENTS.md: crafter passed every in-process check and diverged
 across ``PYTHONHASHSEED``). The same pass then restores every savestate
@@ -13,17 +14,18 @@ to be a branch point and not just bytes; a block's end state (its
 
 Record and check::
 
-    uv run python tools/verify_replay.py --curriculum configs/dbp_games/minihack__room5x5.json \\
+    uv run python -m tests.verify_replay --curriculum configs/dbp_games/minihack__room5x5.json \\
         --max-frames 200 --n-episodes 2
 
 Check a run folder that already exists (a subject's, say)::
 
-    PYTHONHASHSEED=7 uv run python tools/verify_replay.py --check data/sub-01/ses-001/beh/<run>
+    PYTHONHASHSEED=7 uv run python -m tests.verify_replay --check data/sub-01/ses-001/beh/<run>
 
 Recording uses ``agents/agent_play.py`` with the random policy, so it needs
 no window; the check builds each block's adapter from its ``block_start``
 line, exactly as :mod:`fmri_gym.replay` does. Exit status is 0 only when every
-frame and every anchor of every block matched.
+frame and every anchor of every block matched. The test suite runs the same
+two steps on every backend it selects (``tests/test_backends.py``).
 """
 
 from __future__ import annotations
@@ -46,11 +48,14 @@ AGENT_PLAY = REPO / "agents" / "agent_play.py"
 
 
 def record(curriculum: str, outdir: str, max_frames: int, n_episodes: int) -> None:
-    """Play ``curriculum``'s game blocks with the random policy into ``outdir``."""
+    """Play ``curriculum``'s game blocks with the random policy into ``outdir``.
+
+    :raises subprocess.CalledProcessError: when the recorder fails.
+    """
     env = {**os.environ, "PYTHONHASHSEED": "1"}
     subprocess.run([sys.executable, str(AGENT_PLAY), "--curriculum", curriculum,
                     "--outdir", outdir, "--max-frames", str(max_frames),
-                    "--n-episodes", str(n_episodes)], check=True, env=env)
+                    "--n-episodes", str(n_episodes)], check=True, env=env, cwd=REPO)
 
 
 def check_run(outdir: str) -> bool:
@@ -86,15 +91,16 @@ def check_block(block: str) -> dict[str, Any]:
     end_state = (end.get("extra") or {}).get("state")
     frames, index = read_frames(block)
     pixels = {int(i): frames[k] for k, i in enumerate(index)}
+    audio = _read_audio(block)
     tally = {"frames": 0, "frame_mismatches": 0, "anchors": 0, "anchor_mismatches": 0,
-             "first_mismatch": None}
+             "audio_chunks": 0, "first_mismatch": None}
     adapter = get_adapter(start["backend"], start["phase"])
     try:
         for episode_id in sorted({e["episode_id"] for e in lines}):
             episode = [e for e in lines if e["episode_id"] == episode_id]
             reconstruct_episode(block, episode_id, adapter=adapter, n_actions=0)
             tally["frames"] += len(episode)
-            tally["frame_mismatches"] += _step_and_compare(adapter, episode, pixels, tally)
+            tally["frame_mismatches"] += _step_and_compare(adapter, episode, pixels, audio, tally)
             _check_anchors(adapter, episode, pixels, tally)
 
         if end_state and lines:
@@ -103,6 +109,17 @@ def check_block(block: str) -> dict[str, Any]:
         adapter.close()
     tally["pass"] = tally["frame_mismatches"] == 0 and tally["anchor_mismatches"] == 0
     return tally
+
+
+def _read_audio(block: str) -> dict[int, np.ndarray] | None:
+    """The block's logged PCM by chunk number, or ``None`` when it logged no sound."""
+    from fmri_gym.logging import AUDIO_FILENAME, read_audio
+
+    if not os.path.exists(os.path.join(block, AUDIO_FILENAME)):
+        return None
+    samples, _rate, offsets = read_audio(block)
+    ends = np.append(offsets[1:], len(samples))
+    return {k: samples[a:b] for k, (a, b) in enumerate(zip(offsets, ends))}
 
 
 def _check_anchors(adapter: Any, episode: list[dict], pixels: dict, tally: dict) -> None:
@@ -116,7 +133,7 @@ def _check_anchors(adapter: Any, episode: list[dict], pixels: dict, tally: dict)
             bad += 1
             _note(tally, episode[k], "pixels differ right after restore")
         until = anchors[n + 1] if n + 1 < len(anchors) else len(episode)
-        bad += _step_and_compare(adapter, episode[k + 1:until], pixels, tally)
+        bad += _step_and_compare(adapter, episode[k + 1:until], pixels, None, tally)
         tally["anchor_mismatches"] += bad
 
 
@@ -129,8 +146,13 @@ def _check_end_state(adapter: Any, state: str, last: dict, pixels: dict, tally: 
         _note(tally, last, "pixels differ after restoring the block's end state")
 
 
-def _step_and_compare(adapter: Any, lines: list[dict], pixels: dict, tally: dict) -> int:
-    """Step ``lines``' actions and count the frames whose pixels or variables differ."""
+def _step_and_compare(adapter: Any, lines: list[dict], pixels: dict,
+                      audio: dict[int, np.ndarray] | None, tally: dict) -> int:
+    """Step ``lines``' actions and count the frames whose pixels, variables or sound differ.
+
+    :param audio: the block's logged chunks by number, to compare each frame's
+        ``sound()`` against its ``audio_chunk``; ``None`` skips the sound.
+    """
     mismatches = 0
     for line in lines:
         obs, reward, terminated, truncated, info = adapter.step(_action(line["action"]))
@@ -143,10 +165,22 @@ def _step_and_compare(adapter: Any, lines: list[dict], pixels: dict, tally: dict
         if (float(reward), bool(terminated), bool(truncated)) != (
                 float(line["reward"]), line["terminated"], line["truncated"]):
             problems.append("reward/termination")
+        if audio is not None and "audio_chunk" in line:
+            problems += _compare_sound(adapter.sound(), line["audio_chunk"], audio, tally)
         if problems:
             mismatches += 1
             _note(tally, line, "; ".join(problems))
     return mismatches
+
+
+def _compare_sound(sound: Any, chunk: int, audio: dict[int, np.ndarray], tally: dict) -> list[str]:
+    """This frame's PCM against the chunk the log says it queued (-1: none)."""
+    if chunk < 0:
+        return ["sound where the log has none"] if sound is not None and len(sound.pcm) else []
+    tally["audio_chunks"] += 1
+    if sound is None or not np.array_equal(np.asarray(sound.pcm), audio[chunk]):
+        return ["audio"]
+    return []
 
 
 def _action(logged: Any) -> Any:
@@ -177,10 +211,22 @@ def _note(tally: dict, line: dict, what: str) -> None:
 def _report(name: str, result: dict) -> str:
     verdict = "PASS" if result["pass"] else "FAIL"
     line = (f"{verdict} {name}: {result['frames']} frames, {result['frame_mismatches']} "
-            f"mismatched; {result['anchors']} anchors, {result['anchor_mismatches']} mismatched")
+            f"mismatched; {result['anchors']} anchors, {result['anchor_mismatches']} mismatched; "
+            f"{result['audio_chunks']} sound chunks compared")
     if result["first_mismatch"]:
         line += f"\n     first: {result['first_mismatch']}"
     return line
+
+
+def check_in_second_process(outdir: str) -> subprocess.CompletedProcess:
+    """Run ``--check`` on ``outdir`` in a fresh interpreter under another hash seed.
+
+    :return: the finished process (its ``stdout`` holds the PASS/FAIL lines).
+    """
+    # A different hash seed from the recording's, so hash-order dependence shows.
+    return subprocess.run([sys.executable, __file__, "--check", outdir], check=False,
+                          env={**os.environ, "PYTHONHASHSEED": "2"}, cwd=REPO,
+                          capture_output=True, text=True)
 
 
 def main() -> None:
@@ -199,9 +245,9 @@ def main() -> None:
     outdir = args.outdir or tempfile.mkdtemp(prefix="verify_replay_")
     record(args.curriculum, outdir, args.max_frames, args.n_episodes)
     print(f"recorded {outdir}; checking in a second process")
-    # A different hash seed from the recording's, so hash-order dependence shows.
-    done = subprocess.run([sys.executable, __file__, "--check", outdir],
-                          check=False, env={**os.environ, "PYTHONHASHSEED": "2"})
+    done = check_in_second_process(outdir)
+    sys.stdout.write(done.stdout)
+    sys.stderr.write(done.stderr)
     sys.exit(done.returncode)
 
 

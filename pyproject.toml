@@ -106,6 +106,22 @@ fmri-pad-scope = "fmri_gym.pad:scope_main"
 packages = ["fmri_gym", "fmri_gym.adapters"]
 py-modules = ["fmri_play"]
 
+# `uv sync` installs the `dev` group by default, so every checkout can run the
+# tests and the linter without naming an extra; `--no-dev` leaves them out.
+[dependency-groups]
+dev = ["pytest>=8", "pytest-timeout", "ruff"]
+
+[tool.pytest.ini_options]
+# tests/ is the suite; a gym/<pkg>/tests/ folder is that package's own tests,
+# collected when its backend is selected (tests/conftest.py).
+testpaths = ["tests", "gym/minihack/tests"]
+# -ra: every skip and its reason in the summary. A backend this machine cannot
+# run is skipped, and the summary is where that must be seen.
+addopts = "-ra"
+markers = ["backend(name): needs that game backend installed and selected"]
+# A game engine that hangs must not hang the suite: no test runs longer than this.
+timeout = 900
+
 [tool.uv]
 # A never-true marker on classic `pygame`, so it is never installed and
 # pygame-ce (an API-compatible superset) owns the `pygame` module alone.
@@ -125,3 +141,8 @@ vizdoom-gym = { path = "gym/vizdoom", editable = true }
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+# ruff's default set, written out so a machine with a ruff config of its own
+# checks the same rules CI does (`uv run ruff check`).
+select = ["E4", "E7", "E9", "F"]

@@ -1,0 +1,101 @@
+# The suite in tests/, on every pull request that is ready for review, and
+# again on every push to it. A draft PR runs nothing; marking it ready does.
+#
+# One job for the core (lint, the engine-free tests, the `gym` backend that
+# ships with gymnasium), then one job per game backend a hosted Linux runner
+# can play, each with only its own extra synced -- so a backend's job fails for
+# its own reasons, and a missing dependency in one does not hide another.
+# `--strict-backends`: a backend a job was told to play but cannot is a
+# failure, never a skip (AGENTS.md, rule 4). `--thorough`: every config of the
+# backend, not just the smoke ones. What a hosted runner cannot play (stk: a
+# GL display; retro: ROMs) is listed in tests/backends.py with the reason.
+#
+# The same thing locally, before pushing:  uv run pytest --changed
+name: tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_PYTHON: "3.12"
+  # pygame opens a window in the headless runs; PortAudio is never opened (--no-audio).
+  SDL_VIDEODRIVER: dummy
+  SDL_AUDIODRIVER: dummy
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  core:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libportaudio2
+      - name: Sync the core and the dev group
+        run: uv sync
+      - name: Lint
+        run: uv run ruff check fmri_gym fmri_play.py agents tests gym/*/tests
+      - name: Engine-free tests and the gym backend
+        run: uv run pytest --backend gym --strict-backends --thorough --no-audio
+
+  backend:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every row of tests/backends.py without a `ci` reason, minus gym (above).
+        backend: [ale, crafter, minihack, nethack, vizdoom, coom, vgdl, baba, baba_auto,
+                  rushhour, aigamestore, arc3]
+    name: ${{ matrix.backend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # coom, vgdl and baba_auto read their game files from external/<backend>.
+          submodules: recursive
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          # libportaudio2: sounddevice imports it. libopenal1: ViZDoom's audio buffer.
+          # build-essential + cmake: baba_auto compiles its C++ engine at install.
+          sudo apt-get install -y --no-install-recommends \
+            libportaudio2 libopenal1 build-essential cmake
+      - name: Sync the backend's extra
+        run: uv sync --extra ${{ matrix.backend }}
+      - name: Browser for the AI GameStore pages
+        if: matrix.backend == 'aigamestore'
+        run: uv run playwright install --with-deps chrome
+      - name: Fetch the ARC-AGI-3 game files
+        if: matrix.backend == 'arc3'
+        run: |
+          for game in ls20 tr87 tu93 g50t re86 wa30; do
+            uv run python -m arc3_gym "$game"
+          done
+      - name: Play the backend
+        run: >
+          uv run pytest --backend ${{ matrix.backend }} --strict-backends --thorough --no-audio
+          --durations=15
+      - name: Keep the run folders of a failed job
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runs-${{ matrix.backend }}
+          path: /tmp/pytest-of-runner/pytest-current/
+          if-no-files-found: ignore
+          retention-days: 7

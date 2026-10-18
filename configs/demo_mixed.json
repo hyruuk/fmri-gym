@@ -9,7 +9,7 @@
     {"type": "game", "backend": "retro", "game": "Airstriker-Genesis-v0", "keys": {"Z": 1, "X": 0, "C": 8, "A": 10, "S": 9, "D": 11, "UP": 4, "DOWN": 5, "LEFT": 6, "RIGHT": 7, "RETURN": 3, "TAB": 2}, "mode": "duration", "duration": 15.0, "fps": 59.92274340431231},
     {"type": "message", "text": "Crafter", "duration": 2.0},
     {"type": "fixation", "duration": 2.0},
-    {"type": "game", "backend": "crafter", "game": "crafter", "keys": {"": 0, "LEFT": 1, "RIGHT": 2, "UP": 3, "DOWN": 4, "SPACE": 5, "S": 6}, "mode": "episode", "n_episodes": 1, "max_duration": 15.0, "fps": 15, "seed": 0},
+    {"type": "game", "backend": "crafter", "game": "Crafter-v0", "keys": {"": 0, "LEFT": 1, "RIGHT": 2, "UP": 3, "DOWN": 4, "SPACE": 5, "S": 6}, "mode": "episode", "n_episodes": 1, "max_duration": 15.0, "fps": 15, "seed": 0},
     {"type": "message", "text": "MiniHack", "duration": 2.0},
     {"type": "fixation", "duration": 2.0},
     {"type": "game", "backend": "minihack", "game": "MiniHack-Room-5x5-v0", "keys": {"UP": 0, "RIGHT": 1, "DOWN": 2, "LEFT": 3}, "turn_based": true, "mode": "episode", "n_episodes": 3, "max_duration": 15.0, "fps": 15},

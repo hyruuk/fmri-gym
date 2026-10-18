@@ -4,15 +4,13 @@ The audio path has no test a person can run by listening in a container, and
 its one interesting piece -- the callback that splices queued chunks into
 PortAudio's slots -- is exactly the piece that only misbehaves under a producer
 that goes quiet. Doom queues a chunk every frame and never exposes it; crafter
-queues one only when something happened, and did. Run this from the repo root
-after touching fmri_gym/audio.py:
+queues one only when something happened, and did. This runs with the core
+tests, so a change to fmri_gym/audio.py meets it on every PR.
 
-    python docs/audio_queue_check.py
-
-There is no PortAudio here and none is needed. A stub ``sounddevice`` records
-how the stream was opened, and this file plays the part PortAudio's realtime
-thread plays: ask ``callback`` for its frames, over and over, while a producer
-queues chunks on the game's clock in between.
+No PortAudio is needed. ``sounddevice.OutputStream`` is replaced by a stand-in
+that records how the stream was opened, and this file plays the part
+PortAudio's realtime thread plays: ask ``callback`` for its frames, over and
+over, while a producer queues chunks on the game's clock in between.
 
 Ground truth without a microphone: every queued chunk carries a per-sample
 fingerprint (chunk number x 100000 + offset + 1), so each output sample names
@@ -22,7 +20,7 @@ read off it rather than argued about. Each chunk is queued with the onset it
 should play at, so where its first sample landed in the output is a second
 property to read off: the placement error below. The device modelled is an
 ideal one whose buffer k plays the moment buffer k-1 is done, which is the only
-part a stub can honestly stand in for; a real card's own delay is what
+part a stand-in can honestly stand in for; a real card's own delay is what
 ``Audio.lead`` measures at start-up.
 
 The stream also reports where it put each chunk (``log["onsets"]``), and a
@@ -31,15 +29,16 @@ the report agreeing with the samples is checked too. A sparse producer resyncs
 on nearly every cue and that is the design: a cue that does not follow the
 previous one is placed at its own onset, which the stream counts as a resync.
 Crafter's six cues below therefore show five, and Doom's continuous tics none.
-
-Last run 2026-09-28 (onset-scheduled stream): 5 cases, 0 defects.
 """
 
-import importlib.util
-import sys
+from __future__ import annotations
+
 import types
 
 import numpy as np
+import pytest
+
+from fmri_gym import audio as _audio
 
 RATE = 44100
 DTYPE = np.int32
@@ -69,21 +68,10 @@ class _FakeStream:
         pass
 
 
-_sd = types.ModuleType("sounddevice")
-_sd.default = types.SimpleNamespace(dtype=["float32", "float32"])
-_sd.OutputStream = _FakeStream
-_sd.query_devices = lambda device=None, kind=None: (
-    {"name": "stub", "index": 0, "max_output_channels": 2}
-    if (device is not None or kind is not None)
-    else [{"name": "stub", "index": 0, "max_output_channels": 2}])
-sys.modules["sounddevice"] = _sd
+@pytest.fixture(autouse=True)
+def _fake_output_stream(monkeypatch):
+    monkeypatch.setattr(_audio.sounddevice, "OutputStream", _FakeStream)
 
-# Loaded by path rather than as fmri_gym.audio: the package __init__ imports
-# pygame, and the point of this check is that it needs no hardware at all.
-_spec = importlib.util.spec_from_file_location(
-    "fmri_gym_audio_under_test", "fmri_gym/audio.py")
-_audio = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_audio)
 
 MAX_OFFSET = _audio._MAX_OFFSET
 # How far ahead of the DAC a callback runs. A real card's figure is measured at
@@ -241,14 +229,17 @@ CRAFTER = [(0.4, "score", 17640), (1.2, "hit", 2646), (1.6, "hit", 2646),
 # Doom with the audio buffer on: one equal chunk every tic, 35 a second.
 DOOM = [(i / 35, f"tic{i}", 1260) for i in range(40)]
 
-if __name__ == "__main__":
-    bad = 0
+@pytest.mark.parametrize("title, block_size, puts, seconds", [
     # Both games, each at the host's choice of slot and at a slot the size of
     # one of its own chunks: the splicing must not care which it gets.
-    bad += report("crafter, host picks the slot", 0, CRAFTER, 8.0)
-    bad += report("crafter, slot the length of a score cue", 17640, CRAFTER, 8.0)
-    bad += report("doom, host picks the slot", 0, DOOM, 2.0)
-    bad += report("doom, slot the length of one tic", 1260, DOOM, 2.0)
-    bad += episode_boundary()
-    print(f"\ndefects: {bad}")
-    sys.exit(1 if bad else 0)
+    ("crafter, host picks the slot", 0, CRAFTER, 8.0),
+    ("crafter, slot the length of a score cue", 17640, CRAFTER, 8.0),
+    ("doom, host picks the slot", 0, DOOM, 2.0),
+    ("doom, slot the length of one tic", 1260, DOOM, 2.0),
+])
+def test_chunks_play_whole_once_in_order(title, block_size, puts, seconds):
+    assert report(title, block_size, puts, seconds) == 0
+
+
+def test_stop_drops_the_cue_in_flight():
+    assert episode_boundary() == 0

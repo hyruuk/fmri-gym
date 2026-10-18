@@ -134,7 +134,7 @@ reading crafter's own tables, and touches neither the world nor
 
 Reimplementing engine branches is the part of this file that can go stale
 without anyone noticing, so it is checked rather than asserted:
-``docs/crafter_cue_check.py`` runs each press twice against a deep copy of the
+``tests/test_crafter_cues.py`` runs each press twice against a deep copy of the
 live env -- once as pressed, once as ``noop`` -- and calls the prediction wrong
 if the two resulting states disagree with it. 4545 presses, 0 mismatches on
 2026-09-28. Re-run it after a crafter version bump.

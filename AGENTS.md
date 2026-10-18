@@ -2,6 +2,10 @@
 
 Please read this before writing code.
 
+## Where things are explained
+
+This file is the rules: the four below, and the shape of the repo. The step-by-step procedures live as skills, one folder each under `.claude/skills/<name>/SKILL.md`, which is plain Markdown anyone can open: `testing` (run the suite, read a failure, what CI does), `add-backend` (the checklist for a new game engine and the traps), `pull-request` (branch, local checks, the description, CI). Claude Code and Cursor load them from `.claude/skills/`; Codex reads `.agents/skills/`, where each entry is a symlink to the same folder. A procedure belongs in a skill and a rule belongs here; neither belongs in both. The test suite describes itself in `tests/README.md`.
+
 ## The shape of the repo
 
 ```text
@@ -18,7 +22,10 @@ fmri_gym/adapters/<BACKEND>.py   YOU   one small wrapper per game engine
 configs/dbp_games/<GAME>.json    YOU   one curriculum per game
 gym/<GAME>/                      YOU   a Gymnasium env for a game that ships none, or a rough one
 gym/replay_state/                      ReplayState: a savestate by replay, for any env
-external/<BACKEND>/              (gitignored) a game's own repo, cloned at the commit the README pins
+external/<BACKEND>/              a game's own repo, a submodule at the commit the README pins
+tests/                                 the suite: every backend played, logged, replayed, run headless (tests/README.md)
+.claude/skills/<NAME>/SKILL.md         the procedures (testing, add-backend, pull-request); .agents/skills links to them
+.github/workflows/tests.yml            CI: the suite on every pull request that is ready for review
 ```
 
 The core is engine-agnostic: `run.py` never imports a game engine, never touches `env.unwrapped`, and never mentions a game by name. Everything engine-specific goes through an `EnvAdapter`.
@@ -78,34 +85,9 @@ The worst outcome this code can produce is not a crash. It is a session that run
 - **A default that changes what the recording gets is allowed only if it is visible**: on the experimenter screen, on the console, and in the manifest (see `Triggers.status()` / `triggers.defaulted`). A silent default is a bug.
 - **Test switches announce themselves** (`--dummy-trigger` prints what it skips and lands in the manifest). Degrading gracefully is for the frame loop mid-session, not for set-up.
 
-## Adding a new backend: the checklist
+## Adding a backend, testing it, opening the PR
 
-0. Check that no existing backend already plays your game, possibly out of the box: `ale` takes any Atari ROM, `retro` any libretro core, `gym` any registered Gymnasium env, `vizdoom` any Doom scenario. If one does, all you need is a config.
-1. `fmri_gym/adapters/<BACKEND>.py` — module docstring (what the engine is, why it was chosen, what its observation/action spaces look like, what is not supported), then a subclass of `EnvAdapter` overriding only the hooks you actually need. Everything else is inherited; do not re-state the defaults.
-2. `fmri_gym/adapters/__init__.py` — one `if backend == ...:` branch with a lazy import.
-3. `configs/dbp_games/<BACKEND>__<GAME>.json` — a runnable curriculum, with a `_note` field for any install step that isn't a plain `pip install`, and a `_keys_note` that says what the action indices in its `keys` mean. Lay it out like the others: one `_field` per line, the message's `text` one screen line per line, fixations as one-liners, and the game block on a few lines with `keys` (and `menu`) inline — not one key per line.
-4. `pyproject.toml` — one extra under `[project.optional-dependencies]` (and a mention in `dbp` / `all` if it belongs there), then `uv lock` to refresh `uv.lock`. A game without a Gymnasium env gets one first, as its own small package under `gym/<GAME>/` (`pyproject.toml`, `README.md`, `<game>_gym/{__init__,env}.py`, a `gym.register` id), listed in `[tool.uv.sources]`; the extra installs that package. It wraps the game, it does not contain it (see Rule 1).
-5. `README.md` — only if the backend needs setup beyond `pip install` (a repo checkout, a binary, an env var).
-
-Then check your work by actually running it:
-
-```bash
-uv run fmri-play --subject sub-test --dummy-trigger --ses 1 --run 1 \
-    --curriculum configs/dbp_games/<BACKEND>__<GAME>.json
-ruff check fmri_gym fmri_play.py
-```
-
-and confirm the block's folder holds an `events.jsonl` whose `frame` lines (`action`, `reward`) and `episode_start` seeds look right (`fmri_gym.replay.frame_arrays`). There is no test suite yet; a run against a real config is the test.
-
-## Things that are easy to get wrong
-
-- **Key names are pygame names, upper-cased, without `K_`** (`"LEFT"`, `"SPACE"`, `"Z"`). Add unlisted keys to `_PYGAME_KEY_NAMES` in `keys.py` rather than mapping keycodes yourself; `validate_config` refuses a config that names a key outside that table.
-- **Every game phase writes its whole `keys` map; there is no default.** A `MultiBinary` env takes button indices (held keys combine), anything else takes the action itself and a real-time phase also needs the `""` entry, the action for no key held. One class per action space in `adapters/keymap.py`. Don't add a per-backend default or a merge step: the map depends on the site's input device, not on the engine.
-- **Copy observations you keep.** Several envs reuse their observation buffers, so `capture` must `.copy()` anything it stores (see `minihack.py`).
-- **`render()` is not always free of side effects.** An engine that draws from the same RNG its dynamics use spends a draw on every render, so one extra call shifts everything after it and the run silently stops matching its own log. Return the frame `step` already produced rather than rendering again — crafter's night noise is the live example, and it is why `gym/crafter` caches the observation and hands that back.
-- **Reproducibility is the product.** A block must be replayable from `episode_seeds` + `actions`. If the env has no savestate of its own, wrap it in `replay_state_gym.ReplayState` (`gym/replay_state/`: the seed and the actions since, restored by replay) and make sure `reset(seed=...)` really determines the episode. **Test it rather than assume it**: `uv run python tools/verify_replay.py --curriculum <config>` records a block with the random policy, replays it in a *second process* under another `PYTHONHASHSEED` and compares every frame and every savestate anchor bit for bit. A second process because the usual culprit is hash order, which is fixed for the life of one interpreter and would let a replay inside the recording process pass. Crafter passes every surface check (a seed argument, a seeded `RandomState`, deterministic worldgen) and still diverges, because one creature list is built from a Python `set` and the despawn pick therefore follows object `id()`, which moves with `PYTHONHASHSEED`. Sorting that list is the whole fix, and it lives in a fork the env package pins (`gym/crafter/pyproject.toml`: `crafter @ git+https://github.com/chengfanbrain/crafter.git@deterministic`), not in the adapter: when the bug is in the engine, fix the engine and pin the build, or the rig starts owning game behaviour.
-- **Turn-based games** (grid worlds, puzzles) need `"turn_based": true` in the config. 
-- **Slow real-time games** (a grid world that must keep ticking, so `turn_based` is out) need `"latched_keys": true`: the default real-time path polls *held* keys, and at a few frames per second a tap that begins and ends between two frames is never seen.
+The checklist for a new backend and the traps that make one look fine and replay wrong are the `add-backend` skill. The suite is `uv run pytest --changed` before every push and runs on every pull request marked ready for review (the `testing` skill; `tests/README.md`). A backend is not done until its block replays bit for bit in a second process: `uv run python -m tests.verify_replay --curriculum <config>` is the check, and the suite runs it on every backend it selects. The road from a branch to a merged PR, and what the description must say, is the `pull-request` skill.
 
 ## Widely accepted references
 
