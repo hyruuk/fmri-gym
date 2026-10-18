@@ -413,8 +413,9 @@ They assume `sub-01` and a 1024x768 window, and take the subject's next free ses
                                 // truncated, playing (the block's clock) -- see EnvAdapter.outcome
  "max_duration": 300.0,         // hard wall-clock safety cap (episode mode)
  "outcome_duration": 2.0,       // seconds "Final score: N" + the outcome show after each episode
- "rewind_on_death": 1,          // optional: a death sends the world back this many frames and play
-                                // goes on, as a new episode starting from that state (its
+ "rewind_on": ["lost"],         // optional, with rewind_frames: an episode ending this way (won,
+ "rewind_frames": 1,            // lost, terminated) sends the world back rewind_frames frames and
+                                // play goes on, as a new episode starting from that state (its
                                 // episode_start carries it as initial_state; it does not count
                                 // towards n_episodes). Session policy, not a rule of the game, so
                                 // agents/agent_play.py ignores it. Needs a backend whose capture

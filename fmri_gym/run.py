@@ -62,7 +62,7 @@ END_FIXATION_S = 10.0
 #: the run's own (folded in from the run label and the command line).
 RESUMABLE_CHANGES = frozenset({"duration", "max_duration", "n_episodes", "advancing_outcomes",
                                "outcome_duration", "instructions", "keys", "menu", "seed",
-                               "audio", "rewind_on_death"})
+                               "audio", "rewind_on", "rewind_frames"})
 
 
 class Clock:
@@ -610,7 +610,7 @@ class Run:
             starts from.
         :param recent_states: if given, emptied, then filled with the
             savestate after every frame (it keeps the last ``maxlen``), for a
-            block that rewinds on death.
+            block that rewinds (``rewind_on``).
         :raises ValueError: ``recent_states`` with a backend whose ``capture``
             returns no savestate.
         :return: the episode's ``episode_end`` record, as recorded:
@@ -709,7 +709,7 @@ class Run:
                                  want_blob=save_state or recent_states is not None)
             if recent_states is not None:
                 if fs.blob is None:
-                    raise ValueError(f"rewind_on_death: the {adapter.name} adapter's capture "
+                    raise ValueError(f"rewind_on: the {adapter.name} adapter's capture "
                                      "returns no savestate to go back to")
                 recent_states.append(fs.blob)
             # The frame trigger goes out on the flip that shows this frame.
@@ -841,11 +841,12 @@ class Run:
         block_time_elapsed = phase.get("block_time_elapsed", 0.0)
         num_completed_episodes = phase.get("num_completed_episodes", 0)
         initial_state = phase.pop("initial_state", None)    # logged on episode_start
-        # A death sends the world back this many frames and play goes on, as a
-        # new episode from that state: session policy, not a rule of the game,
-        # so a model played on the same env dies as the game says.
-        rewind = phase.get("rewind_on_death")
-        recent_states = None if rewind is None else deque(maxlen=rewind + 1)
+        # An episode ending in one of `rewind_on` sends the world back
+        # `rewind_frames` frames and play goes on, as a new episode from that
+        # state: session policy, not a rule of the game, so a model played on
+        # the same env ends as the game says.
+        rewind_on = phase.get("rewind_on", [])
+        recent_states = (deque(maxlen=phase["rewind_frames"] + 1) if rewind_on else None)
         # Turn-based games (grid worlds: FrozenLake, CliffWalking, Taxi, ...) must
         # advance ONE step per deliberate key PRESS, not once per frame. In a
         # real-time loop they'd auto-step every frame with the noop action (which
@@ -917,10 +918,9 @@ class Run:
                 recent_states=recent_states)
             episodes.append(episode_result)
             outcome = episode_result["outcome"]
-            # The oldest state kept is `rewind` frames before the death; one
+            # The oldest state kept is `rewind_frames` before the ending; one
             # sooner than that goes back to where the episode started.
-            rewound = (recent_states is not None and episode_result["terminated"]
-                       and outcome in ("lost", "terminated"))
+            rewound = outcome in rewind_on
             initial_state = None
             if rewound:
                 initial_state = (recent_states[0] if len(recent_states) == recent_states.maxlen

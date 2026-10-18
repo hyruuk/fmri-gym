@@ -222,11 +222,28 @@ def _phase_problems(phase: dict) -> list[str]:
         out.extend(menu_problems(phase["menu"]))
     if "instructions" in phase:
         out.extend(_instructions_problems(phase["instructions"]))
-    rewind = phase.get("rewind_on_death")
-    if rewind is not None and (isinstance(rewind, bool) or not isinstance(rewind, int)
-                               or rewind < 1):
-        out.append(f"rewind_on_death: expected the frames to go back on a death, >= 1, "
-                   f"got {rewind!r}")
+    out.extend(_rewind_problems(phase))
+    return out
+
+
+#: Outcomes a block may rewind on: the game's own endings. Not `truncated`,
+#: the env's step cap, which a rewound episode would hit again for ever.
+REWINDABLE = frozenset({"won", "lost", "terminated"})
+
+
+def _rewind_problems(phase: dict) -> list[str]:
+    """``rewind_on`` (outcomes) and ``rewind_frames`` (how far back) come as a pair."""
+    if "rewind_on" not in phase and "rewind_frames" not in phase:
+        return []
+    names, frames = phase.get("rewind_on"), phase.get("rewind_frames")
+    out = []
+    if not isinstance(names, list) or not names or not all(isinstance(n, str) for n in names):
+        out.append(f"rewind_on: expected a list of outcome names, got {names!r}")
+    elif set(names) - REWINDABLE:
+        out.append(f"rewind_on: {sorted(set(names) - REWINDABLE)} cannot be rewound; the "
+                   f"game's own endings are {sorted(REWINDABLE)}")
+    if isinstance(frames, bool) or not isinstance(frames, int) or frames < 1:
+        out.append(f"rewind_frames: expected the frames to go back, >= 1, got {frames!r}")
     return out
 
 
