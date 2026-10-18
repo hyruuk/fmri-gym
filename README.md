@@ -46,6 +46,8 @@ pip install -e ".[dbp]"            # private default index? add --index-url http
 python fmri_play.py --subject sub-01 --dummy-trigger --curriculum configs/dbp_games/atari__pong.json --ses 1 --run 1
 ```
 
+To check an install, or a change, play the suite: `uv run pytest --changed` plays the backends your branch touches through the adapter, a recorded block, a bit-exact replay and a headless run of the real loop, and `uv run pytest --backend crafter` plays one by name; a backend this machine cannot play is skipped with the fix in the reason. CI runs the same on every pull request marked ready for review. `tests/README.md` has the map.
+
 Atari ROMs ship with `ale-py`. For the `retro` backend you must supply and import game ROMs once — see [Running stable-retro games](#running-stable-retro-games). For the `vgdl` backend see [Running VGDL games](#running-vgdl-games); for Rush Hour, [Running Rush-Hour](#running-rush-hour); for SuperTuxKart, [Running SuperTuxKart](#running-supertuxkart-stk).
 
 ## Quick start
@@ -656,11 +658,11 @@ Most engines keep their state where Python cannot reach it (a NetHack library lo
 Whether an engine really is deterministic is measured, not assumed:
 
 ```sh
-uv run python tools/verify_replay.py --curriculum configs/dbp_games/minihack__room5x5.json --max-frames 200 --n-episodes 2
-PYTHONHASHSEED=7 uv run python tools/verify_replay.py --check data/sub-01/ses-001/beh/<run>   # a run that exists
+uv run python -m tests.verify_replay --curriculum configs/dbp_games/minihack__room5x5.json --max-frames 200 --n-episodes 2
+PYTHONHASHSEED=7 uv run python -m tests.verify_replay --check data/sub-01/ses-001/beh/<run>   # a run that exists
 ```
 
-The first form records the curriculum's game blocks with the random policy (`agents/agent_play.py`, no window) and then, in a second process under another `PYTHONHASHSEED`, rebuilds every frame from the log and compares pixels, logged variables, reward and termination bit for bit, then restores every savestate anchor and plays on from it to the next. Measured 2026-10-17 on macOS, two episodes each, all bit-exact: minihack (150 frames, 150 anchors), nethack (120, 120), baba_auto (120, 120), rushhour (160, 160), vizdoom (300, 10), coom (300, 10), aigamestore game1 levels 1-9 (120 and 12 each), crafter (232, 10). stk could not be run there (Linux x86_64 only) and is unverified. The check is what found nethack's `capture` logging each frame's variables one frame late (a view of NLE's reused buffer, pickled after the loop had moved on) and ViZDoom's first episode after `init()` sounding different from one after `new_episode()`.
+The first form records the curriculum's game blocks with the random policy (`agents/agent_play.py`, no window) and then, in a second process under another `PYTHONHASHSEED`, rebuilds every frame from the log and compares pixels, logged variables, reward, termination and each frame's sound chunk bit for bit, then restores every savestate anchor and plays on from it to the next. The test suite runs the same check on every backend it selects (`tests/README.md`). Measured 2026-10-17 on macOS, two episodes each, all bit-exact: minihack (150 frames, 150 anchors), nethack (120, 120), baba_auto (120, 120), rushhour (160, 160), vizdoom (300, 10), coom (300, 10), aigamestore game1 levels 1-9 (120 and 12 each), crafter (232, 10). stk could not be run there (Linux x86_64 only) and is unverified. The check is what found nethack's `capture` logging each frame's variables one frame late (a view of NLE's reused buffer, pickled after the loop had moved on) and ViZDoom's first episode after `init()` sounding different from one after `new_episode()`.
 
 ## Playing a block with a model
 

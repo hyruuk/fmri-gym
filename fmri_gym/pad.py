@@ -1114,7 +1114,8 @@ def scope_main() -> None:
                                  else round(min(1.0, _DIAGONAL + step * 2), 2))
                 flash, flash_until = f"axis_diagonal {_DIAGONAL}", now + 1.5
             elif e.key == pygame.K_c:
-                hist.clear(); log.clear()
+                hist.clear()
+                log.clear()
 
         if now % 1 < 0.02:                  # pick up an edit to either file
             for p, was in list(watched.items()):

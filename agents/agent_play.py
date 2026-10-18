@@ -72,7 +72,7 @@ def build_policy(args, adapter) -> Policy:
 
 def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
                  seed: int, episode_id: int, state_stride: int, fps: float,
-                 turn_based: bool, max_frames: int) -> tuple[dict, int]:
+                 turn_based: bool, max_frames: int, n_chunks: int = 0) -> tuple[dict, int, int]:
     """Run one episode under ``policy``, logging every frame.
 
     Mirrors ``Run._episode`` field for field, minus everything that is about a
@@ -91,8 +91,10 @@ def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
         by itself are not put to the policy either
         (:meth:`~fmri_gym.adapters.base.EnvAdapter.autoplay`).
     :param max_frames: stop the episode after this many frames.
-    :return: the episode's ``episode_end`` record, as logged, and the number
-        of frames the policy pressed nothing on.
+    :param n_chunks: sound chunks the block has logged so far, so this
+        episode's ``audio_chunk`` numbers carry on from them.
+    :return: the episode's ``episode_end`` record, as logged, the number of
+        frames the policy pressed nothing on, and the block's chunk count after it.
     """
     policy.reset()
     observation, info = adapter.reset(seed)
@@ -102,6 +104,7 @@ def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
     score = 0.0                         # the episode's cumulative reward
     ep_frame = skipped = 0
     auto = None                         # see EnvAdapter.autoplay
+    chunks = n_chunks                   # sound chunks the block logged before this episode
     while not (terminated or truncated) and ep_frame + skipped < max_frames:
         if auto is not None:
             # The env is in a state it takes no action in, so the policy is not
@@ -142,7 +145,15 @@ def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
         }
         if isinstance(info, dict) and "env_action" in info:
             fields["env_action"] = info["env_action"]
+        # The engine's sound for this frame goes to the log as a subject's does
+        # (audio.h5, the chunk's number in audio_chunk); nobody hears it here.
+        sound = adapter.sound()
+        fields["audio_chunk"] = -1
+        if sound is not None and len(sound.pcm):
+            fields["audio_chunk"] = chunks
+            chunks += 1
         logger.log_frame(fields, frame=adapter.render(), state=fs.blob)
+        logger.log_audio(sound if fields["audio_chunk"] >= 0 else None)
         ep_frame += 1
 
     # Same vocabulary the human blocks log, from the same method: "playing" is
@@ -151,7 +162,7 @@ def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
     end = {"episode_id": episode_id, "outcome": outcome, "terminated": bool(terminated),
            "truncated": bool(truncated), "score": score, "n_pacing_resets": 0}
     logger.log(type="episode_end", **end)
-    return end, skipped
+    return end, skipped, chunks
 
 
 def play_block(phase: dict, index: int, args, logger: Logger,
@@ -177,14 +188,14 @@ def play_block(phase: dict, index: int, args, logger: Logger,
 
     data_dir = logger.open_block(index, backend, phase["game"], phase, base_seed)
     episodes: list[dict] = []           # each episode's episode_end record
-    skipped = 0
+    skipped = chunks = 0
     for episode_id in range(args.n_episodes):
         before = logger.n_frames
-        end, n_skipped = play_episode(
+        end, n_skipped, chunks = play_episode(
             adapter, policy, logger, clock, seed=base_seed + episode_id,
             episode_id=episode_id, state_stride=state_stride,
             fps=phase["fps"], turn_based=bool(phase.get("turn_based", False)),
-            max_frames=args.max_frames)
+            max_frames=args.max_frames, n_chunks=chunks)
         episodes.append(end)
         skipped += n_skipped
         print(f"  episode {episode_id} (seed {base_seed + episode_id}): "

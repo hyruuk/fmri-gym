@@ -4,9 +4,8 @@
 crafter's ``Player.update``. That is the one place in the adapter that can
 drift away from the engine silently: a crafter release that changed a tool
 requirement would leave a subject hearing "no effect" for a press that worked.
-Run this from the repo root after any crafter version bump.
-
-    python docs/crafter_cue_check.py
+It runs with the crafter backend's tests (``pytest --backend crafter``),
+so a crafter version bump meets it; ``--thorough`` runs the full random sweep.
 
 Ground truth without reimplementing anything a second time: deep-copy the env
 twice, set the player's action to the pressed one on one copy and to `noop` on
@@ -29,36 +28,34 @@ Part 2 is not optional. Over 12 x 400 random presses the sweep faced a creature
 and pressed `do` eleven times, so the hit branch is almost all part 2's, and an
 earlier version of this file skipped those cases without saying so.
 
-Last run 2026-09-28 against chengfanbrain/crafter@deterministic, on the
-restructured main (crafter-gym, the two registered env ids): 4545 presses
-checked, 0 mismatches.
 """
 
+from __future__ import annotations
+
 import pickle
-import sys
 import types
 from collections import Counter
 
 import numpy as np
+import pytest
 
-# Headless box: no PortAudio. Nothing under test plays a sound, but importing
-# the package pulls in fmri_gym.audio, which imports sounddevice at module
-# scope. Stub it so the import resolves.
-_sd = types.ModuleType("sounddevice")
-_sd.default = types.SimpleNamespace(dtype=["float32", "float32"])
-_sd.OutputStream = object
-sys.modules.setdefault("sounddevice", _sd)
+pytestmark = pytest.mark.backend("crafter")
 
-import crafter_gym
+crafter = co = CrafterAdapter = None     # bound by _load_engine, once the gate lets the test run
 
-# Not `import crafter`: with the repo root on sys.path, crafter's optional
-# `import gym` finds fmri-gym's own gym/ directory instead of old gym and dies
-# on it. `crafter_gym.import_crafter` is the env package's answer to that, and
-# the adapter under test goes through the same door.
-crafter = crafter_gym.import_crafter()
-from crafter import objects as co
 
-from fmri_gym.adapters.crafter import CrafterAdapter
+def _load_engine() -> None:
+    """Import crafter once the backend gate has let the test run (the extra may be absent)."""
+    global crafter, co, CrafterAdapter
+    import crafter_gym
+
+    from fmri_gym.adapters.crafter import CrafterAdapter
+    # Not `import crafter`: with the repo root on sys.path, crafter's optional
+    # `import gym` finds fmri-gym's own gym/ directory instead of old gym and dies
+    # on it. `crafter_gym.import_crafter` is the env package's answer to that, and
+    # the adapter under test goes through the same door.
+    crafter = crafter_gym.import_crafter()
+    from crafter import objects as co
 
 ENV_KWARGS = {"size": (64, 64), "length": 0}
 # What the base adapter needs to build a keymap. No key is pressed here: the
@@ -263,18 +260,13 @@ def directed(cov, bad):
     check(env, A["do"], cov, bad, "ripe plant")
 
 
-if __name__ == "__main__":
+def test_predicted_cues_match_the_engine(plan):
+    """Every press's predicted cue against the engine's own outcome, random and directed."""
+    _load_engine()
     cov, bad = Counter(), []
-    random_sweep(seeds=range(1, 13), steps=400, cov=cov, bad=bad)
-    n_random = sum(cov.values())
-    print(f"random sweep done: {n_random} presses, {len(bad)} mismatches",
-          flush=True)
+    random_sweep(seeds=range(1, 13) if plan.thorough else range(1, 2), steps=400,
+                 cov=cov, bad=bad)
     directed(cov, bad)
-    print(f"random sweep: {n_random} presses over 12 seeds x 400 steps")
-    print(f"total checked: {sum(cov.values())}   mismatches: {len(bad)}")
-    print("\nbranch coverage:")
-    for tag, n in sorted(cov.items()):
-        print(f"  {n:6d}  {tag}")
-    for row in bad[:40]:
-        print("MISMATCH", row)
-    sys.exit(1 if bad else 0)
+    coverage = "\n".join(f"  {n:6d}  {tag}" for tag, n in sorted(cov.items()))
+    assert not bad, (f"{len(bad)} of {sum(cov.values())} presses mispredicted; first 20:\n"
+                     + "\n".join(str(row) for row in bad[:20]) + f"\ncoverage:\n{coverage}")
