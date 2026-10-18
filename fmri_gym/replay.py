@@ -9,21 +9,32 @@ An episode that carried on from an earlier run starts from the savestate its
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, NamedTuple
 
 import numpy as np
 
 from .logging import read_events, read_state
 
 
-def reconstruction_plan(block: str, episode_id: int | None = None) -> dict:
+class ReconstructionPlan(NamedTuple):
+    """One episode's start and every action it took, from its block's log."""
+
+    episode_id: int
+    #: the seed its reset took
+    seed: int
+    #: the savestate restored over that reset, or ``None`` for the seed alone
+    initial_state: bytes | None
+    #: each frame's logged ``action``, in order
+    actions: list
+
+
+def reconstruction_plan(block: str, episode_id: int | None = None) -> ReconstructionPlan:
     """One episode's seed and actions.
 
     :param block: the block's folder.
     :param episode_id: which episode; ``None`` = the last one started (the
         crash-recovery case).
-    :return: ``{"episode_id", "seed", "initial_state", "actions"}``;
-        ``initial_state`` is the savestate bytes the episode started from, or ``None``.
+    :return: what replays the episode.
     :raises ValueError: if the block has no episode.
     """
     events = read_events(block)
@@ -35,14 +46,14 @@ def reconstruction_plan(block: str, episode_id: int | None = None) -> dict:
     actions = [e["action"] for e in events
                if e["type"] == "frame" and e["episode_id"] == episode_id]
     state = starts[episode_id].get("initial_state")  # blocks logged before it was a field lack it
-    return {"episode_id": episode_id, "seed": starts[episode_id]["seed"],
-            "initial_state": None if state is None else read_state(state), "actions": actions}
+    return ReconstructionPlan(episode_id, starts[episode_id]["seed"],
+                              None if state is None else read_state(state), actions)
 
 
 def reconstruct_episode(
     block: str, episode_id: int | None = None, adapter: Any = None,
     n_actions: int | None = None,
-) -> tuple[Any, dict]:
+) -> tuple[Any, ReconstructionPlan]:
     """Replay one episode through an adapter, leaving it at the episode's last frame.
 
     :param block: the block's folder.
@@ -58,10 +69,10 @@ def reconstruct_episode(
         from .adapters import get_adapter
         start = read_events(block)[0]
         adapter = get_adapter(start["backend"], start["phase"])
-    adapter.reset(plan["seed"])
-    if plan["initial_state"] is not None:
-        adapter.restore(plan["initial_state"])
-    actions = plan["actions"] if n_actions is None else plan["actions"][:n_actions]
+    adapter.reset(plan.seed)
+    if plan.initial_state is not None:
+        adapter.restore(plan.initial_state)
+    actions = plan.actions if n_actions is None else plan.actions[:n_actions]
     for action in actions:
         obs, _, _, _, info = adapter.step(action)
         adapter.capture(obs, info, want_blob=False)

@@ -48,6 +48,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 if TYPE_CHECKING:
+    from .audio import AudioBlockLog
     from .run import Clock
 
 FORMAT = "fmri-gym-log"
@@ -177,17 +178,18 @@ class Logger:
         self._queue.put({"op": "audio", "block": self._block,
                          "pcm": np.array(sound.pcm), "sample_rate": sound.sample_rate})
 
-    def close_block(self, **summary: Any) -> None:
+    def close_block(self, audio: AudioBlockLog | None = None, **summary: Any) -> None:
         """Append the ``block_end`` line and release the block's files.
 
-        :param summary: the line's fields (episode and frame counts, totals,
-            …); ``audio`` (:meth:`~.audio.Audio.block_log`), if given, is
-            written to ``audio.h5`` instead of the line.
+        :param audio: the block's sound timing (:meth:`~.audio.Audio.block_log`),
+            written to ``audio.h5`` rather than the line; ``None`` for a block
+            that played none.
+        :param summary: the line's fields (episode and frame counts, totals, …).
         """
-        audio = summary.pop("audio", None)
         self.log(type="block_end", **summary)
-        if audio:
-            self._queue.put({"op": "audio_summary", "block": self._block, "audio": audio})
+        if audio is not None:
+            self._queue.put({"op": "audio_summary", "block": self._block,
+                             "audio": audio.record()})
         self._queue.put({"op": "close", "block": self._block})
         self._block = None
 

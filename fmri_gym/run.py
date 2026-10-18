@@ -29,7 +29,7 @@ import sys
 import time
 from collections import Counter, deque
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -39,7 +39,7 @@ from . import bids, pad
 from .adapters import get_adapter
 from .audio import Audio
 from .bids import BlockProgress, ResumePosition
-from .config import fold_cli_options
+from .config import GamePhase, fold_cli_options
 from .display import Display, check_monitor
 from .keys import get_events, held_key_names, key_name
 from .menu import Menu
@@ -65,6 +65,31 @@ END_FIXATION_S = 10.0
 RESUMABLE_CHANGES = frozenset({"duration", "max_duration", "n_episodes", "advancing_outcomes",
                                "outcome_duration", "instructions", "keys", "menu", "seed",
                                "audio", "rewind_on", "rewind_frames"})
+
+
+@dataclass(frozen=True, slots=True)
+class EpisodeResult:
+    """How one episode ended: what its ``episode_end`` record holds."""
+
+    #: the episode's index within its block
+    episode_id: int
+    #: one of the adapter's names (:meth:`~.adapters.base.EnvAdapter.outcome`:
+    #: ``"won"``, ``"lost"``, ``"terminated"``, ``"truncated"``, or
+    #: ``"playing"`` when the block's clock cut it off), or the subject's own:
+    #: ``"quit"`` for ESC / window close, ``"reset"`` / ``"forfeit"`` for the
+    #: choice in the menu
+    outcome: str
+    #: the last step's flags
+    terminated: bool
+    truncated: bool
+    #: the episode's cumulative reward
+    score: float
+    #: stalls that dropped the frame debt (the ``pacing_reset`` lines)
+    n_pacing_resets: int
+
+    def record(self) -> dict:
+        """The ``episode_end`` line's fields."""
+        return asdict(self)
 
 
 class Clock:
@@ -614,37 +639,27 @@ class Run:
     def _episode(
         self,
         adapter: EnvAdapter,
+        gp: GamePhase,
         *,
         seed: int,
         episode_id: int,
-        turn_based: bool,
-        latched: bool,
-        live_hud: bool,
-        dt: float,
-        state_stride: int,
         block_end: float,
-        play_sound: bool,
         menu: Menu | None,
-        outcome_duration: float,
         initial_state: bytes | None = None,
         recent_states: deque | None = None,
-    ) -> dict:
+    ) -> EpisodeResult:
         """Run one episode, logging every frame.
 
         :param adapter: wrapped env for reset/step/render/sound/capture.
+        :param gp: the phase's settings; read here are ``turn_based``
+            (advance only on mapped keydowns), ``latched`` (real-time: let a
+            fresh keydown win over held keys), ``live_hud`` (turn-based:
+            redraw the HUD through the wait), ``dt``, ``state_stride``,
+            ``audio`` and ``outcome_duration``.
         :param seed: RNG seed for this episode's ``reset``.
         :param episode_id: index of this episode within the game block.
-        :param turn_based: if True, advance only on mapped keydowns.
-        :param latched: real-time only: let a fresh keydown win over held keys.
-        :param live_hud: turn-based only: redraw the HUD while waiting for the
-            press, so its clock is not the one the last press left behind.
-        :param dt: target seconds per frame (``1 / fps``).
-        :param state_stride: record a full savestate every this many frames.
         :param block_end: ``perf_counter`` deadline for the game block.
-        :param play_sound: pass the adapter's sound to the speakers (the
-            phase's ``audio``); muting never changes what is logged.
         :param menu: the block's :class:`~.menu.Menu`, or ``None``.
-        :param outcome_duration: seconds the final score and outcome are shown.
         :param initial_state: a savestate to restore over the reset, so the
             episode starts where an earlier run's stopped; logged on
             ``episode_start``, since it, not the seed, is what the episode
@@ -654,21 +669,16 @@ class Run:
             block that rewinds (``rewind_on``).
         :raises ValueError: ``recent_states`` with a backend whose ``capture``
             returns no savestate.
-        :return: the episode's ``episode_end`` record, as recorded:
-            ``episode_id``, ``outcome`` (one of the adapter's,
-            :meth:`~.adapters.base.EnvAdapter.outcome`: ``"won"``, ``"lost"``,
-            ``"terminated"``, ``"truncated"``, or ``"playing"`` when the
-            block's clock cut it off; or ``"quit"`` for ESC / window close,
-            ``"reset"`` / ``"forfeit"`` for the subject's choice in the menu),
-            ``terminated``, ``truncated``, ``score`` and ``n_pacing_resets``.
+        :return: how the episode ended, as its ``episode_end`` record says.
         """
         terminated = truncated = False
         outcome = ""
         score = 0.0                     # the episode's cumulative reward
         n_pacing_resets = 0
         ep_frame = 0
+        dt = gp.dt
         key_to_action = (adapter.keymap.turn_actions()
-                         if turn_based or latched else None)
+                         if gp.turn_based or gp.latched else None)
 
         def redraw() -> float:
             """Present the frame again, for its HUD. Never steps, logs or triggers."""
@@ -680,7 +690,7 @@ class Run:
         # loop ends on runs on regardless. Off unless the phase asks: a game
         # whose HUD says nothing about time has nothing to gain, and a
         # real-time wait is one frame long and repaints anyway.
-        repaint = redraw if turn_based and live_hud else None
+        repaint = redraw if gp.turn_based and gp.live_hud else None
         # Set while the env is in a state it takes no action in, to the action
         # to step it with; see EnvAdapter.autoplay. Only a turn-based block
         # cares: a real-time one steps through such a stretch anyway.
@@ -711,12 +721,12 @@ class Run:
             # turn-based block: the env is not waiting on the subject, so the
             # wait is one tick and the keys polled through it are logged but
             # not acted on.
-            waits_for_press = turn_based and auto is None
+            waits_for_press = gp.turn_based and auto is None
             deadline = block_end if waits_for_press else next_t
             action, user_quit = _poll_keys_until(
                 self.display, deadline, self.clock, self.logger,
                 key_to_action if waits_for_press else None, menu,
-                latch=latched and not turn_based,
+                latch=gp.latched and not gp.turn_based,
                 repaint=repaint if waits_for_press else None)
             if user_quit:
                 outcome = "quit"
@@ -734,18 +744,18 @@ class Run:
                 continue                        # block ended without a press
             if auto is not None:
                 action = auto                   # the env is not taking ours
-            elif not turn_based and action is None:
+            elif not gp.turn_based and action is None:
                 # No latched press this frame (or the phase never asked for
                 # one): the action is whatever is held down at the tick.
                 action = adapter.keymap.resolve(held_key_names())
 
             observation, reward, terminated, truncated, info = adapter.step(action)
-            auto = adapter.autoplay(info) if turn_based else None
+            auto = adapter.autoplay(info) if gp.turn_based else None
             t_step = self.clock.run_time()
             score += float(reward)
             # A savestate at each episode's first frame (the replay anchor), then
             # every stride; frames between are the anchor plus the logged actions.
-            save_state = ep_frame % state_stride == 0
+            save_state = ep_frame % gp.state_stride == 0
             fs = adapter.capture(observation, info,
                                  want_blob=save_state or recent_states is not None)
             if recent_states is not None:
@@ -755,12 +765,12 @@ class Run:
                 recent_states.append(fs.blob)
             # The frame trigger goes out on the flip that shows this frame.
             self.display.call_on_flip(self.triggers.frame)
-            flip_t, frame, sound = self._show(adapter, play_sound, score, block_end)
+            flip_t, frame, sound = self._show(adapter, gp.audio, score, block_end)
             # More than a frame behind (a stall): drop the debt, or it is repaid
             # as a burst of one-refresh frames. The frame of slack is what a
             # vsync-locked flip normally lands after its tick.
             # TODO(#43): why frames fall behind at all is not established.
-            if turn_based:
+            if gp.turn_based:
                 # Anchor the next tick to this flip. A turn-based wait leaves
                 # next_t far behind -- the deadline it waits on is the block's,
                 # not the tick -- so an autoplayed stretch starting from the
@@ -786,7 +796,7 @@ class Run:
                 fields["env_action"] = info["env_action"]
             if self.triggers.enabled:
                 fields["trigger"] = self.triggers.last_frame
-            if play_sound:
+            if gp.audio:
                 # The chunk this frame's sound was queued as (-1: none); when it
                 # reached the DAC is in the block_end record's audio onsets.
                 fields["audio_chunk"] = self.audio.last_chunk
@@ -796,13 +806,13 @@ class Run:
 
         ## Final outcome
         outcome, message = _final_outcome(adapter, outcome, terminated, truncated)
-        result = {"episode_id": episode_id, "outcome": outcome, "terminated": bool(terminated),
-               "truncated": bool(truncated), "score": score, "n_pacing_resets": n_pacing_resets}
-        self.logger.log(type="episode_end", **result)
-        if message and outcome_duration > 0 and not self._time_up():
+        result = EpisodeResult(episode_id, outcome, bool(terminated), bool(truncated), score,
+                               n_pacing_resets)
+        self.logger.log(type="episode_end", **result.record())
+        if message and gp.outcome_duration > 0 and not self._time_up():
             self.audio.stop()               # the episode's last sounds, still queued
             self.display.draw_text(f"Final score: {score:g}\n{message}")
-            _wait_for_duration(self.display, outcome_duration, until=self._run_end)
+            _wait_for_duration(self.display, gp.outcome_duration, until=self._run_end)
         return result
 
     def _instructions(self, phase: dict, resumed: bool) -> dict | None:
@@ -850,96 +860,44 @@ class Run:
         Creates the env via the phase's backend adapter, plays until duration /
         episode count / quit, then writes its log and a manifest phase entry.
 
-        :param phase: game-phase config (``backend``, ``game``, ``mode``,
-            ``duration`` / ``n_episodes`` and ``advancing_outcomes``, ``fps``,
-            ``seed``, ``state_stride``, ``turn_based``, ``latched_keys``,
-            ``live_hud``, ``keys``, ``outcome_duration``, ``instructions``, …).
+        :param phase: game-phase config: the fields of
+            :class:`~fmri_gym.config.GamePhase`, ``keys``, ``instructions``,
+            ``menu``, and the backend's own.
         :param index: phase index in the curriculum (for the manifest).
         :param progress: what an earlier run that stopped this block left of
             it; ``None`` plays the block from its beginning.
         :raises KeyboardInterrupt: if the subject quits mid-block.
         """
         ## Config
-        backend = phase.get("backend", "gym")
-        mode = phase.get("mode", "duration")
-        duration = phase.get("duration", 30.0)
-        n_episodes = phase.get("n_episodes", 1)
-        # A blocking block: only an episode whose outcome is listed (usually
-        # ["won"]) counts toward n_episodes; any other replays the same instance
-        # (the seed follows the count), so the subject stays on a level until
-        # they clear it, max_duration runs out, or they forfeit from the menu.
-        # None: every episode counts, whatever its outcome.
-        advancing = phase.get("advancing_outcomes")
-        outcome_duration = float(phase.get("outcome_duration", 2.0))
-        base_seed = phase.get("seed", 1000 + index)
-        # 1 = a savestate every frame (default); larger trades savestate density
-        # for disk -- retro states are ~1 MB/frame.
-        state_stride = max(1, int(phase.get("state_stride", 1)))
-        cap = duration if mode == "duration" else phase.get("max_duration", 300.0)
+        gp = GamePhase.from_phase(phase, index)
         # A block an earlier run stopped goes on with the time and episodes it has left.
         block_time_elapsed = 0.0 if progress is None else progress.block_time_elapsed
         num_completed_episodes = 0 if progress is None else progress.num_completed_episodes
         initial_state = None if progress is None else progress.initial_state
-        # An episode ending in one of `rewind_on` sends the world back
-        # `rewind_frames` frames and play goes on, as a new episode from that
-        # state: session policy, not a rule of the game, so a model played on
-        # the same env ends as the game says.
-        rewind_on = phase.get("rewind_on", [])
-        recent_states = (deque(maxlen=phase["rewind_frames"] + 1) if rewind_on else None)
-        # Turn-based games (grid worlds: FrozenLake, CliffWalking, Taxi, ...) must
-        # advance ONE step per deliberate key PRESS, not once per frame. In a
-        # real-time loop they'd auto-step every frame with the noop action (which
-        # for e.g. FrozenLake is action 0 = LEFT), so the agent "moves on its own"
-        # and a single held key fires many times. turn_based fixes both.
-        turn_based = bool(phase.get("turn_based", False))
-        # Real-time blocks poll HELD keys, so a press that starts and ends
-        # between two frames is never seen -- at a grid world's few frames per
-        # second that loses most taps. `latched_keys` lets a fresh keydown win
-        # instead, falling back to the held-key poll (so holding a key still
-        # repeats). Off by default: backends whose actions are key COMBINATIONS
-        # must keep polling, and this is exactly what they do today.
-        latched = bool(phase.get("latched_keys", False))
-        # A turn-based block draws a frame only when the subject presses, so
-        # the seconds its HUD shows stop between presses while the clock the
-        # block actually ends on does not. `live_hud` redraws the standing
-        # frame a few times a second through the wait, which changes nothing
-        # but the pixels: no step, no log row, no trigger, no sound. Off by
-        # default, so a block that has run this way keeps running this way.
-        live_hud = bool(phase.get("live_hud", False))
-        if live_hud and not turn_based:
-            raise ValueError(f'game phase {index}: "live_hud" is for turn_based '
-                             "blocks, whose wait is unbounded; a real-time block "
-                             "already redraws every frame")
-        play_sound = phase.get("audio", True)
-        if not isinstance(play_sound, bool):
-            raise ValueError(f'game phase {index}: "audio" must be true or false, '
-                             f"got {play_sound!r}")
-        # Every game phase states its own fps (validate_config refuses one that
-        # does not): what the block plays at is the config's business, not a
-        # default that changes with the engine underneath it.
-        fps = phase["fps"]
-        dt = 1.0 / fps
+        # The savestates a rewinding block keeps (GamePhase.rewind_on): the
+        # oldest is rewind_frames before the ending.
+        recent_states = deque(maxlen=gp.rewind_frames + 1) if gp.rewind_on else None
         instructions = self._instructions(phase, resumed=progress is not None)
 
         # Some backends (nle, browser games) take several seconds to start;
         # show a Loading screen so the previous fixation "+" doesn't freeze.
-        self.display.draw_text(
-            f"Loading {phase.get('text') or phase.get('game', 'game')} …")
-        adapter = get_adapter(backend, phase)
-        speed = {} if turn_based else self._speed(adapter, fps, index, phase["game"])
-        data_dir = self.logger.open_block(index, backend, phase["game"], phase, base_seed)
+        self.display.draw_text(f"Loading {phase.get('text') or gp.game} …")
+        adapter = get_adapter(gp.backend, phase)
+        speed = {} if gp.turn_based else self._speed(adapter, gp.fps, index, gp.game)
+        data_dir = self.logger.open_block(index, gp.backend, gp.game, phase, gp.seed)
 
         ## Init loop over episodes
         locked = self.display.vsync and self.display.refresh_rate
         flip_period = 1 / self.display.refresh_rate if locked else None
-        self.audio.start(frame_period=None if turn_based else dt, flip_period=flip_period)
+        self.audio.start(frame_period=None if gp.turn_based else gp.dt,
+                         flip_period=flip_period)
         onset = self.clock.run_time()
         block_start = time.perf_counter()
-        own_end = block_start + cap - block_time_elapsed
+        own_end = block_start + gp.cap - block_time_elapsed
         block_end = min(own_end, self._run_end)
         # The hold-a-key pause menu (reset / forfeit / resume), if the phase has one.
         menu = Menu(phase["menu"], block_start) if "menu" in phase else None
-        episodes: list[dict] = []       # each episode's episode_end record
+        episodes: list[EpisodeResult] = []
         outcome = ""
 
         ## Loop over episodes within game block
@@ -948,18 +906,15 @@ class Run:
             ## Run one episode
             # Seeded by episodes played, so a restart from the menu replays
             # the very instance the subject gave up on (a start-over).
-            episode_result = self._episode(
-                adapter, seed=base_seed + num_completed_episodes, episode_id=len(episodes),
-                turn_based=turn_based, latched=latched, live_hud=live_hud,
-                dt=dt, state_stride=state_stride,
-                block_end=block_end, play_sound=play_sound, menu=menu,
-                outcome_duration=outcome_duration, initial_state=initial_state,
+            result = self._episode(
+                adapter, gp, seed=gp.seed + num_completed_episodes, episode_id=len(episodes),
+                block_end=block_end, menu=menu, initial_state=initial_state,
                 recent_states=recent_states)
-            episodes.append(episode_result)
-            outcome = episode_result["outcome"]
+            episodes.append(result)
+            outcome = result.outcome
             # The oldest state kept is `rewind_frames` before the ending; one
             # sooner than that goes back to where the episode started.
-            rewound = outcome in rewind_on
+            rewound = outcome in gp.rewind_on
             initial_state = None
             if rewound:
                 initial_state = (recent_states[0] if len(recent_states) == recent_states.maxlen
@@ -971,40 +926,41 @@ class Run:
             # in a blocking block, one whose outcome does not advance; nor one
             # a clock or ESC stopped, which a later run may carry on; nor a
             # death that is rewound.
+            advances = gp.advancing_outcomes is None or outcome in gp.advancing_outcomes
             num_completed_episodes += (outcome not in ("reset", "playing", "quit")
-                                       and not rewound
-                                       and (advancing is None or outcome in advancing))
-            if mode == "episode" and num_completed_episodes >= n_episodes:
+                                       and not rewound and advances)
+            if gp.mode == "episode" and num_completed_episodes >= gp.n_episodes:
                 break
         user_quit = (outcome == "quit")
         # Stopped before the block's own end (its clock, its episodes, a
         # forfeit) -- by the run's clock or ESC -- so a later run can carry it on.
         block_did_not_finish = user_quit or (
             self._time_up() and time.perf_counter() < own_end and outcome != "forfeit"
-            and not (mode == "episode" and num_completed_episodes >= n_episodes))
+            and not (gp.mode == "episode" and num_completed_episodes >= gp.n_episodes))
 
         self.triggers.block_end()
 
         # Logging
         block_extra = adapter.block_extra() # run before closing the adapter to get the last state
         audio_log = self.audio.block_log()
-        if audio_log:
-            audio_log["onsets"] = [[chunk, self.clock.from_perf(t)] for chunk, t in audio_log["onsets"]]
+        if audio_log is not None:
+            audio_log = audio_log.in_run_time(self.clock.from_perf)
         summary = {
             "n_episodes": len(episodes), "n_frames": self.logger.n_frames,
-            "outcomes": dict(Counter(e["outcome"] for e in episodes)),
-            "n_pacing_resets": sum(e["n_pacing_resets"] for e in episodes),
-            "total_reward": sum(e["score"] for e in episodes),
+            "outcomes": dict(Counter(e.outcome for e in episodes)),
+            "n_pacing_resets": sum(e.n_pacing_resets for e in episodes),
+            "total_reward": sum(e.score for e in episodes),
             "block_time_elapsed": block_time_elapsed + time.perf_counter() - block_start,
             "num_completed_episodes": num_completed_episodes,
             "block_did_not_finish": block_did_not_finish,
         }
         self.logger.close_block(**summary, audio=audio_log, extra=block_extra)
         self.logger.log_phase({
-            "index": index, "type": "game", "backend": backend,
-            "game": phase["game"], "mode": mode,
+            "index": index, "type": "game", "backend": gp.backend,
+            "game": gp.game, "mode": gp.mode,
             "onset": onset, "offset": self.clock.run_time(), **summary,
-            **({"advancing_outcomes": advancing} if advancing is not None else {}),
+            **({"advancing_outcomes": list(gp.advancing_outcomes)}
+               if gp.advancing_outcomes is not None else {}),
             "data_dir": data_dir, **speed,
             **({"menu": menu.describe()} if menu else {}),
             **({"instructions": instructions} if instructions else {}),

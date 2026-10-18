@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import copy
 import json
+from dataclasses import dataclass
 from typing import Any
 
 from .keys import KEY_NAMES
@@ -48,6 +49,118 @@ TRIGGER_PRESETS: dict[str, dict] = {
 
 #: An episode's possible outcomes: EnvAdapter.outcome's names, and the subject's own endings.
 OUTCOMES = frozenset({"won", "lost", "terminated", "truncated", "playing", "forfeit", "reset"})
+
+
+@dataclass(frozen=True, slots=True)
+class GamePhase:
+    """A game phase's settings as the loop plays them, read off its dict once.
+
+    The dict itself stays what the adapter is built from and what the block's
+    log keeps, since its backend-specific keys are the adapter's business;
+    this is the part the loop reads, every field with its default, so the
+    defaults are stated in one place and a wrong value is refused before the
+    block starts (:func:`validate_config` builds one per game phase).
+    """
+
+    backend: str
+    #: the env id, as the backend reads it
+    game: str
+    #: ``"duration"``: the block lasts ``duration`` seconds; ``"episode"``: it
+    #: lasts ``n_episodes`` episodes, or ``max_duration`` seconds at most
+    mode: str
+    duration: float
+    n_episodes: int
+    max_duration: float
+    #: A blocking block: only an episode whose outcome is listed (usually
+    #: ``["won"]``) counts toward ``n_episodes``; any other replays the same
+    #: instance (the seed follows the count), so the subject stays on a level
+    #: until they clear it, ``max_duration`` runs out, or they forfeit from
+    #: the menu. ``None``: every episode counts, whatever its outcome.
+    advancing_outcomes: tuple[str, ...] | None
+    #: seconds the final score and outcome stay on screen after an episode
+    outcome_duration: float
+    #: the block's base seed: its episode ``e`` plays ``seed + e``
+    seed: int
+    #: a savestate every this many frames: 1 keeps one per frame, larger
+    #: trades savestate density for disk (retro states are ~1 MB/frame)
+    state_stride: int
+    #: Turn-based games (grid worlds: FrozenLake, CliffWalking, Taxi, ...)
+    #: advance ONE step per deliberate key PRESS, not once per frame. In a
+    #: real-time loop they would auto-step every frame with the noop action
+    #: (which for e.g. FrozenLake is action 0 = LEFT), so the agent "moves on
+    #: its own" and a single held key fires many times.
+    turn_based: bool
+    #: Real-time blocks poll HELD keys, so a press that starts and ends
+    #: between two frames is never seen -- at a grid world's few frames per
+    #: second that loses most taps. ``latched_keys`` lets a fresh keydown win
+    #: instead, falling back to the held-key poll (so holding a key still
+    #: repeats). Off by default: backends whose actions are key COMBINATIONS
+    #: must keep polling.
+    latched: bool
+    #: A turn-based block draws a frame only when the subject presses, so
+    #: the seconds its HUD shows stop between presses while the clock the
+    #: block actually ends on does not. ``live_hud`` redraws the standing
+    #: frame a few times a second through the wait, which changes nothing
+    #: but the pixels: no step, no log row, no trigger, no sound. Off by
+    #: default, so a block that has run this way keeps running this way.
+    live_hud: bool
+    #: pass the adapter's sound to the speakers; muting never changes what is logged
+    audio: bool
+    #: the block's steps per second. Every game phase states its own: what
+    #: the block plays at is the config's business, not a default that
+    #: changes with the engine underneath it.
+    fps: float
+    #: An episode ending in one of these outcomes sends the world back
+    #: ``rewind_frames`` frames and play goes on, as a new episode from that
+    #: state: session policy, not a rule of the game, so a model played on
+    #: the same env ends as the game says. Empty: no ending is rewound.
+    rewind_on: tuple[str, ...]
+    #: how far back a rewound episode goes; ``None`` when nothing is rewound
+    rewind_frames: int | None
+
+    @property
+    def dt(self) -> float:
+        """Seconds per frame."""
+        return 1.0 / self.fps
+
+    @property
+    def cap(self) -> float:
+        """Seconds the block lasts at most."""
+        return self.duration if self.mode == "duration" else self.max_duration
+
+    @classmethod
+    def from_phase(cls, phase: dict, index: int) -> GamePhase:
+        """Read a game phase's dict, filling in the defaults.
+
+        :param phase: the phase, of type ``game``, with the fields
+            :func:`validate_config` insists on (``game``, ``fps``, ``keys``).
+        :param index: its index in the curriculum, which the default seed is from.
+        :raises ValueError: ``live_hud`` on a real-time block, or an ``audio``
+            that is not true or false.
+        """
+        turn_based = bool(phase.get("turn_based", False))
+        live_hud = bool(phase.get("live_hud", False))
+        if live_hud and not turn_based:
+            raise ValueError('"live_hud" is for turn_based blocks, whose wait is unbounded; '
+                             "a real-time block already redraws every frame")
+        audio = phase.get("audio", True)
+        if not isinstance(audio, bool):
+            raise ValueError(f'"audio" must be true or false, got {audio!r}')
+        advancing = phase.get("advancing_outcomes")
+        return cls(
+            backend=phase.get("backend", "gym"), game=phase["game"],
+            mode=phase.get("mode", "duration"), duration=phase.get("duration", 30.0),
+            n_episodes=phase.get("n_episodes", 1),
+            max_duration=phase.get("max_duration", 300.0),
+            advancing_outcomes=None if advancing is None else tuple(advancing),
+            outcome_duration=float(phase.get("outcome_duration", 2.0)),
+            seed=phase.get("seed", 1000 + index),
+            state_stride=max(1, int(phase.get("state_stride", 1))),
+            turn_based=turn_based, latched=bool(phase.get("latched_keys", False)),
+            live_hud=live_hud, audio=audio, fps=phase["fps"],
+            rewind_on=tuple(phase.get("rewind_on", ())),
+            rewind_frames=phase.get("rewind_frames"))
+
 
 def check_shape(config: Any, where: str) -> dict:
     """Enforce the one config shape.
@@ -138,7 +251,7 @@ def validate_config(config: dict) -> list[str]:
     if not config["curriculum"]:
         problems.append("curriculum: needs at least one phase")
     for i, phase in enumerate(config["curriculum"]):
-        problems.extend(f"phase {i}: {p}" for p in _phase_problems(phase))
+        problems.extend(f"phase {i}: {p}" for p in _phase_problems(phase, i))
     problems.extend(_opening_problems(config["curriculum"]))
     problems.extend(trigger_problems(config.get("triggers")))
     problems.extend(trigger_key_clashes(config))
@@ -188,7 +301,7 @@ def _opening_problems(curriculum: list[dict]) -> list[str]:
     return out
 
 
-def _phase_problems(phase: dict) -> list[str]:
+def _phase_problems(phase: dict, index: int) -> list[str]:
     if phase["type"].startswith("check_"):
         from .checks import phase_problems
         return phase_problems(phase)
@@ -223,6 +336,11 @@ def _phase_problems(phase: dict) -> list[str]:
     if "instructions" in phase:
         out.extend(_instructions_problems(phase["instructions"]))
     out.extend(_rewind_problems(phase))
+    if not out:     # the fields above are what from_phase takes as given
+        try:
+            GamePhase.from_phase(phase, index)
+        except ValueError as exc:
+            out.append(str(exc))
     return out
 
 

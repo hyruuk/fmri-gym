@@ -470,8 +470,8 @@ def _log_clicks(audio: Audio, chunks: list[int], clicked: list[int], arrays: dic
     else:
         audio.stop()
     summary["audio_out"] = audio.describe()
-    if log and "flip_on" in arrays:
-        started = dict(log["onsets"])
+    if log is not None and "flip_on" in arrays:
+        started = dict(log.onsets)
         dac = np.array([started.get(c, np.nan) for c in chunks])
         idx = np.asarray(clicked, dtype=int)
         arrays["click_flash"], arrays["click_dac"] = idx, dac

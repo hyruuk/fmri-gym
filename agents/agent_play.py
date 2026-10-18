@@ -28,7 +28,8 @@ from collections import Counter
 from policies import Policy, RandomPolicy, VLMPolicy
 
 from fmri_gym import Clock, Logger, get_adapter
-from fmri_gym.config import load_config, validate_config
+from fmri_gym.config import GamePhase, load_config, validate_config
+from fmri_gym.run import EpisodeResult
 
 
 def no_key_action(adapter) -> tuple:
@@ -72,7 +73,8 @@ def build_policy(args, adapter) -> Policy:
 
 def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
                  seed: int, episode_id: int, state_stride: int, fps: float,
-                 turn_based: bool, max_frames: int, n_chunks: int = 0) -> tuple[dict, int, int]:
+                 turn_based: bool, max_frames: int, n_chunks: int = 0,
+                 ) -> tuple[EpisodeResult, int, int]:
     """Run one episode under ``policy``, logging every frame.
 
     Mirrors ``Run._episode`` field for field, minus everything that is about a
@@ -93,8 +95,8 @@ def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
     :param max_frames: stop the episode after this many frames.
     :param n_chunks: sound chunks the block has logged so far, so this
         episode's ``audio_chunk`` numbers carry on from them.
-    :return: the episode's ``episode_end`` record, as logged, the number of
-        frames the policy pressed nothing on, and the block's chunk count after it.
+    :return: how the episode ended, as logged, the number of frames the
+        policy pressed nothing on, and the block's chunk count after it.
     """
     policy.reset()
     observation, info = adapter.reset(seed)
@@ -159,9 +161,8 @@ def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
     # Same vocabulary the human blocks log, from the same method: "playing" is
     # the budget cutting the episode off, where a subject's block clock would.
     outcome, _ = adapter.outcome(terminated, truncated)
-    end = {"episode_id": episode_id, "outcome": outcome, "terminated": bool(terminated),
-           "truncated": bool(truncated), "score": score, "n_pacing_resets": 0}
-    logger.log(type="episode_end", **end)
+    end = EpisodeResult(episode_id, outcome, bool(terminated), bool(truncated), score, 0)
+    logger.log(type="episode_end", **end.record())
     return end, skipped, chunks
 
 
@@ -176,37 +177,35 @@ def play_block(phase: dict, index: int, args, logger: Logger,
     :param clock: the run's clock.
     :return: the block's folder name.
     """
-    backend = phase.get("backend", "gym")
-    base_seed = phase.get("seed", 1000 + index)
-    state_stride = max(1, int(phase.get("state_stride", 1)))
+    gp = GamePhase.from_phase(phase, index)
     # A policy has no ears. Whatever the block's config plays to a subject as a
     # sound, it reads as a line of text, so the two players are told the same
     # things; scanner configs keep that line off the screen to hold the gaze on
     # the frame. Adapters without cues ignore the key.
-    adapter = get_adapter(backend, {**phase, "cue_overlay": True})
+    adapter = get_adapter(gp.backend, {**phase, "cue_overlay": True})
     policy = build_policy(args, adapter)
 
-    data_dir = logger.open_block(index, backend, phase["game"], phase, base_seed)
-    episodes: list[dict] = []           # each episode's episode_end record
+    data_dir = logger.open_block(index, gp.backend, gp.game, phase, gp.seed)
+    episodes: list[EpisodeResult] = []
     skipped = chunks = 0
     for episode_id in range(args.n_episodes):
         before = logger.n_frames
         end, n_skipped, chunks = play_episode(
-            adapter, policy, logger, clock, seed=base_seed + episode_id,
-            episode_id=episode_id, state_stride=state_stride,
-            fps=phase["fps"], turn_based=bool(phase.get("turn_based", False)),
-            max_frames=args.max_frames, n_chunks=chunks)
+            adapter, policy, logger, clock, seed=gp.seed + episode_id,
+            episode_id=episode_id, state_stride=gp.state_stride,
+            fps=gp.fps, turn_based=gp.turn_based, max_frames=args.max_frames,
+            n_chunks=chunks)
         episodes.append(end)
         skipped += n_skipped
-        print(f"  episode {episode_id} (seed {base_seed + episode_id}): "
-              f"{logger.n_frames - before} frames, {end['outcome']}, score {end['score']:g}")
+        print(f"  episode {episode_id} (seed {gp.seed + episode_id}): "
+              f"{logger.n_frames - before} frames, {end.outcome}, score {end.score:g}")
 
     extra = adapter.block_extra()
     adapter.close()
     summary = {
         "n_episodes": len(episodes), "n_frames": logger.n_frames,
-        "outcomes": dict(Counter(e["outcome"] for e in episodes)),
-        "total_reward": sum(e["score"] for e in episodes),
+        "outcomes": dict(Counter(e.outcome for e in episodes)),
+        "total_reward": sum(e.score for e in episodes),
         # Which policy produced the block belongs in the block, not in a folder
         # name: a model's log and a human's are otherwise alike by design.
         "policy": args.policy, "policy_model": args.model if args.policy == "vlm" else "",
@@ -215,9 +214,9 @@ def play_block(phase: dict, index: int, args, logger: Logger,
         "skipped_frames": skipped, "invalid_replies": policy.invalid,
         "dropped_calls": policy.dropped,
     }
-    logger.close_block(**summary, audio={}, extra=extra)
-    logger.log_phase({"index": index, "type": "game", "backend": backend,
-                      "game": phase["game"], **summary, "data_dir": data_dir})
+    logger.close_block(**summary, extra=extra)
+    logger.log_phase({"index": index, "type": "game", "backend": gp.backend,
+                      "game": gp.game, **summary, "data_dir": data_dir})
     return data_dir
 
 
