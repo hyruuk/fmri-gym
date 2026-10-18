@@ -1,12 +1,20 @@
 """MiniHack adapter (facebookresearch/minihack, NetHack Learning Environment).
 
 MiniHack's default observation is ASCII/tty and env.render() returns None, so we
-request a pixel observation and display that. By default we show `pixel_crop` --
-a 144x144 square window centered on the agent -- because the full `pixel`
-observation is the entire 80-column NetHack terminal (336x1264, ~3.8:1) in which
-a small room fills only a few percent of the frame, so aspect-fitting it makes
-the game look tiny. Set the phase field "full_screen": true to display the whole
-`pixel` frame instead. Actions are 8 compass directions (N,E,S,W,NE,SE,SW,NW ->
+request a pixel observation and display that. The phase field ``view`` picks
+which one:
+
+- ``"map"`` (the default): the level's map, cut from the whole-terminal
+  ``pixel`` frame by ``minihack_levels.MapView`` and fixed across the episode,
+  so the level holds still and the agent moves. A level without a fixed map
+  (``RANDOM_CORRIDORS``) gets the whole terminal.
+- ``"agent"``: MiniHack's own ``pixel_crop``, a 9x9-tile window centred on the
+  agent, so the agent holds still and the level slides. What a task that
+  wants the view to follow the player asks for.
+- ``"screen"``: the whole ``pixel`` frame, the 80-column NetHack terminal
+  (336x1264, ~3.8:1), in which a small room is a few percent of the picture.
+
+Actions are 8 compass directions (N,E,S,W,NE,SE,SW,NW ->
 Discrete(8), indices 0..7), which a phase's ``keys`` index; some tasks append
 more (Eat: 29 = eat). Play ``turn_based``: there is no no-op (0 is "move N").
 
@@ -30,22 +38,30 @@ import numpy as np
 
 from .base import EnvAdapter, FrameState
 
+#: the phase's ``view``: how the pixel frame is cut (see the module docstring)
+_VIEWS = ("map", "agent", "screen")
+
 
 class MiniHackAdapter(EnvAdapter):
     name: str = "minihack"
 
     def _make(self, spec: dict) -> gym.Env:
         import minihack  # noqa: F401  (registers MiniHack-* env ids)
-        from minihack_levels import NLESeeding
+        from minihack_levels import MapView, NLESeeding
         from replay_state_gym import ReplayState
-        # Prefer the agent-centered square crop for display; the full terminal
-        # ("pixel") only looks good with "full_screen": true.
-        self._pixel_key = "pixel" if spec.get("full_screen") else "pixel_crop"
+        view = spec.get("view", "map")
+        if view not in _VIEWS:
+            raise ValueError(f"minihack phase 'view' is one of {_VIEWS}, not {view!r}")
+        self._pixel_key = "pixel" if view == "screen" else "pixel_crop"
         keys = tuple(spec.get("observation_keys",
                               (self._pixel_key, "glyphs", "blstats", "message")))
         if self._pixel_key not in keys:
             keys = (self._pixel_key,) + keys
+        if view == "map" and "pixel" not in keys:
+            keys = ("pixel",) + keys  # MapView cuts pixel_crop from it
         env = gym.make(spec["game"], observation_keys=keys, fix_moon_phase=True)
+        if view == "map":
+            env = MapView(env)
         self._last = None
         return ReplayState(NLESeeding(env))
 

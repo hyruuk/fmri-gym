@@ -18,5 +18,6 @@ for name, layout in LAYOUTS.items():
     )
 
 from .seeding import NLESeeding  # noqa: E402
+from .view import MapView  # noqa: E402
 
-__all__ = ["LAYOUTS", "NLESeeding"]
+__all__ = ["LAYOUTS", "MapView", "NLESeeding"]
