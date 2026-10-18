@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING
 
 import pygame
@@ -40,6 +41,33 @@ OPTIONS = ("reset", "forfeit", "resume")
 _LABELS = {"reset": "Restart the level", "forfeit": "Give up this level", "resume": "Resume"}
 _DEFAULTS = {"hold": 5.0, "after": 15.0, "options": list(OPTIONS),
              "move": ["UP", "DOWN"], "confirm": "RETURN"}
+
+
+@dataclass(frozen=True, slots=True)
+class MenuSettings:
+    """A phase's ``menu`` field with its defaults filled in and its key names upper-cased."""
+
+    #: the key held to open the menu
+    key: str
+    #: seconds it has to be held
+    hold: float
+    #: seconds into the block before the menu is available
+    after: float
+    #: the options offered, in the order shown
+    options: tuple[str, ...]
+    #: the keys that move the choice: to the previous option, to the next
+    move: tuple[str, str]
+    #: the key that confirms the choice
+    confirm: str
+
+    @classmethod
+    def from_dict(cls, spec: dict) -> MenuSettings:
+        """Read a phase's ``menu`` dict (already validated by :func:`menu_problems`)."""
+        cfg = {**_DEFAULTS, **spec}
+        prev_key, next_key = cfg["move"]
+        return cls(key=cfg["key"].upper(), hold=float(cfg["hold"]), after=float(cfg["after"]),
+                   options=tuple(cfg["options"]), move=(prev_key.upper(), next_key.upper()),
+                   confirm=cfg["confirm"].upper())
 
 
 def menu_problems(spec: object) -> list[str]:
@@ -81,14 +109,8 @@ class Menu:
 
     def __init__(self, spec: dict, block_start: float,
                  held: Callable[[], frozenset[str]] = held_key_names) -> None:
-        cfg = {**_DEFAULTS, **spec}
-        self.key = cfg["key"].upper()
-        self.hold = float(cfg["hold"])
-        self.after = float(cfg["after"])
-        self.available_from = block_start + self.after
-        self.options = list(cfg["options"])
-        self.prev_key, self.next_key = (k.upper() for k in cfg["move"])
-        self.confirm_key = cfg["confirm"].upper()
+        self.settings = MenuSettings.from_dict(spec)
+        self.available_from = block_start + self.settings.after
         self._held = held
         self._held_since: float | None = None
         self.pending = False        # the hold completed; the pop-up is due
@@ -96,9 +118,7 @@ class Menu:
 
     def describe(self) -> dict:
         """The settings in force and every pop-up so far, for the manifest."""
-        return {"key": self.key, "hold": self.hold, "after": self.after,
-                "options": self.options, "move": [self.prev_key, self.next_key],
-                "confirm": self.confirm_key, "events": self.events}
+        return {**asdict(self.settings), "events": self.events}
 
     def armed(self) -> bool:
         """Poll the hold; ``True`` (once, and :attr:`pending`) when it completes.
@@ -107,12 +127,12 @@ class Menu:
         available, and starts over on every release.
         """
         now = time.perf_counter()
-        if self.key not in self._held() or now < self.available_from:
+        if self.settings.key not in self._held() or now < self.available_from:
             self._held_since = None
             return False
         if self._held_since is None:
             self._held_since = now
-        if now - self._held_since < self.hold or self.pending:
+        if now - self._held_since < self.settings.hold or self.pending:
             return False
         self.pending = True
         return True
@@ -127,6 +147,7 @@ class Menu:
         :return: the chosen option, or ``"quit"`` on window close / ESC.
         """
         self.pending, self._held_since = False, None
+        s = self.settings
         opened = run_time()
         choice = 0
         while True:
@@ -145,19 +166,20 @@ class Menu:
                              down=event.type == pygame.KEYDOWN)
                 if event.type != pygame.KEYDOWN:
                     continue
-                if name == self.prev_key:
-                    choice = (choice - 1) % len(self.options)
-                elif name == self.next_key:
-                    choice = (choice + 1) % len(self.options)
-                elif name == self.confirm_key:
-                    chosen = self.options[choice]
+                if name == s.move[0]:
+                    choice = (choice - 1) % len(s.options)
+                elif name == s.move[1]:
+                    choice = (choice + 1) % len(s.options)
+                elif name == s.confirm:
+                    chosen = s.options[choice]
                     self.events.append({"opened": opened, "closed": run_time(), "choice": chosen})
                     return chosen
             display.idle(time.perf_counter() + 0.005, poll=0.005)
 
     def _draw(self, display: Display, choice: int) -> None:
         """Render the option list with ``choice`` marked."""
-        rows = [f"{'>' if i == choice else ' '}  {_LABELS[o]}" for i, o in enumerate(self.options)]
+        s = self.settings
+        rows = [f"{'>' if i == choice else ' '}  {_LABELS[o]}" for i, o in enumerate(s.options)]
         display.draw_text("Paused\n\n" + "\n".join(rows) + "\n\n"
-                          f"({self.prev_key}/{self.next_key} to choose, {self.confirm_key} to select)",
+                          f"({s.move[0]}/{s.move[1]} to choose, {s.confirm} to select)",
                           align="left")

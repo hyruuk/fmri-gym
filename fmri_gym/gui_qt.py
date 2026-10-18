@@ -79,7 +79,7 @@ QPushButton#run:pressed { background: #2459b8; }
 """
 
 
-def run_editor(config: dict, path: str | None, launch: dict,
+def run_editor(config: dict, path: str | None, launch: gui.Launch,
                session: str | None = None) -> list[str] | None:
     """Show the editor and block until it closes; see :func:`fmri_gym.gui.edit_config`.
 
@@ -322,7 +322,7 @@ class _KeyCapture(QtWidgets.QDialog):
 class _Editor(QtWidgets.QMainWindow):
     """The window: menu, tabs, bottom bar. ``to_run`` is what Play left to run."""
 
-    def __init__(self, config: dict, path: str | None, launch: dict,
+    def __init__(self, config: dict, path: str | None, launch: gui.Launch,
                  session: str | None = None) -> None:
         super().__init__()
         #: What Play left for fmri-edit to become (gui.edit_config); None: closed instead.
@@ -368,7 +368,7 @@ class _Editor(QtWidgets.QMainWindow):
 
     # -- construction ------------------------------------------------------
 
-    def _build_tabs(self, launch: dict) -> None:
+    def _build_tabs(self, launch: gui.Launch) -> None:
         # Launch first: who, where and on which screen is the first thing set at the desk.
         pages = {title: build() for title, build in (
             ("Launch", lambda: self._tab_launch(launch)),
@@ -670,7 +670,7 @@ class _Editor(QtWidgets.QMainWindow):
         QtWidgets.QVBoxLayout(box).addWidget(inner)
         return box
 
-    def _tab_launch(self, launch: dict) -> QtWidgets.QWidget:
+    def _tab_launch(self, launch: gui.Launch) -> QtWidgets.QWidget:
         page = QtWidgets.QWidget()
         self.launch_page = page
         layout = QtWidgets.QVBoxLayout(page)
@@ -684,7 +684,7 @@ class _Editor(QtWidgets.QMainWindow):
                                      "refresh rate. Calibrate the photodiode on the same one.")
         after_fullscreen = [f.key for f in gui.LAUNCH_FIELDS].index("fullscreen") + 1
         self.launch_form.layout().insertRow(after_fullscreen, "--monitor", self.monitor_pick)
-        self._window_size = launch["size"]  # kept while fullscreen shows the monitor's instead
+        self._window_size = launch.size  # kept while fullscreen shows the monitor's instead
         self._loading_launch = False
         self._set_launch(launch)
         self.launch_form.widgets["fullscreen"].toggled.connect(lambda _on: self._sync_size())
@@ -703,22 +703,21 @@ class _Editor(QtWidgets.QMainWindow):
         layout.addStretch(1)
         return page
 
-    def _set_launch(self, launch: dict) -> None:
+    def _set_launch(self, launch: gui.Launch) -> None:
         """Show launch flags, a monitor this machine lacks included (Check then says so)."""
         # Setting the fullscreen box and the monitor fires _sync_size half-way, when the size
         # row still shows the previous launch's: suspended here, and done once at the end.
         self._loading_launch = True
         try:
-            self.launch_form.set(launch)
-            at = self.monitor_pick.findData(launch["monitor"])
+            self.launch_form.set(asdict(launch))
+            at = self.monitor_pick.findData(launch.monitor)
             if at < 0:
-                self.monitor_pick.addItem(f"{launch['monitor']}: not connected here",
-                                          launch["monitor"])
+                self.monitor_pick.addItem(f"{launch.monitor}: not connected here", launch.monitor)
                 at = self.monitor_pick.count() - 1
             self.monitor_pick.setCurrentIndex(at)
         finally:
             self._loading_launch = False
-        self._window_size = launch["size"]
+        self._window_size = launch.size
         self._sync_size(keep_typed=False)
 
     def _monitor(self) -> tuple[int, int, int] | None:
@@ -749,14 +748,14 @@ class _Editor(QtWidgets.QMainWindow):
         self.launch_form.set_choices("size", fits)
         box.setEditText(self._window_size)
 
-    def _launch_values(self) -> dict:
+    def _launch_values(self) -> gui.Launch:
         """The launch flags. ``--size`` is the window's, also while fullscreen shows the monitor's.
 
         :raises ValueError: if the subject is blank or the size malformed (gui.launch_values).
         """
         self._sync_size()  # remembers a size being typed
         form = self.launch_form.get() | {"size": self._window_size}
-        return gui.launch_values(form) | {"monitor": self.monitor_pick.currentData()}
+        return gui.launch_values(form, self.monitor_pick.currentData())
 
     # -- model <-> widgets -------------------------------------------------
 
@@ -1296,8 +1295,8 @@ class _Editor(QtWidgets.QMainWindow):
         """
         step = self.steps[self.step_index]
         launch = self._launch_values()
-        subject, root = bids.subject_label(launch["subject"]), launch["data_root"]
-        ses = launch["ses"] or bids.next_session(root, subject)
+        subject, root = bids.subject_label(launch.subject), launch.data_root
+        ses = launch.ses or bids.next_session(root, subject)
         label = bids.run_label(subject, ses, bids.task_label(step["config"]),
                                gui.run_number(self.steps, self.step_index))
         return bids.phase_seed(label, self.edit_index), label
@@ -1708,7 +1707,7 @@ class _Editor(QtWidgets.QMainWindow):
                             f"({labels}); pick one on the Launch tab")
         return problems
 
-    def _checked_launch(self) -> dict | None:
+    def _checked_launch(self) -> gui.Launch | None:
         """The launch flags if the session and they are runnable, else ``None`` (after a dialog)."""
         problems = self._check()
         if problems:
@@ -1738,8 +1737,8 @@ class _Editor(QtWidgets.QMainWindow):
         else:
             # fmri-play states its numbers; a blank --ses is the next free one,
             # resolved here, as the script's SES= line resolves it for a session.
-            ses = launch["ses"] or bids.next_session(launch["data_root"],
-                                                     bids.subject_label(launch["subject"]))
+            ses = launch.ses or bids.next_session(launch.data_root,
+                                                  bids.subject_label(launch.subject))
             self.to_run = gui.play_command(self.steps[self.step_index]["config"], launch,
                                            f"{ses:03d}", gui.run_number(self.steps, 0))
         self.close()

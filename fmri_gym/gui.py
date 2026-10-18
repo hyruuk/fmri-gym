@@ -39,7 +39,7 @@ import os
 import re
 import shlex
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any, Sequence
 
 from . import bids
@@ -77,14 +77,34 @@ class Field:
     default: Any = None
 
 
+@dataclass(frozen=True, slots=True)
+class Launch:
+    """The flags of one launch: what a run's command carries besides its config.
+
+    The fields are ``fmri_play``'s flags under their argparse names (``--no-vsync``
+    is ``no_vsync``), as the Launch tab's form and a session script's lines
+    spell them; a value is written on the line only when it is not the default.
+    """
+
+    subject: str
+    #: the session number, or ``None`` for the subject's next free one
+    ses: int | None
+    data_root: str
+    #: the window as ``<w>x<h>``, kept as typed: ``--size`` takes the text
+    size: str
+    monitor: int
+    fullscreen: bool
+    no_vsync: bool
+    no_audio: bool
+    dummy_trigger: bool
+
+
 #: What the Launch tab starts at, and so what a run's command carries unless the
 #: tab (or an opened session script) says otherwise. Fullscreen, as a session in
 #: the scanner needs; untick it to pilot at the desk.
-DEFAULT_LAUNCH: dict[str, Any] = {
-    "subject": "sub-test", "ses": None, "data_root": "data", "size": "1024x768",
-    "monitor": 0, "fullscreen": True, "no_vsync": False, "no_audio": False,
-    "dummy_trigger": False,
-}
+DEFAULT_LAUNCH = Launch(subject="sub-test", ses=None, data_root="data", size="1024x768",
+                        monitor=0, fullscreen=True, no_vsync=False, no_audio=False,
+                        dummy_trigger=False)
 
 #: Keys are the argparse names of ``fmri_play.py``'s flags; labels are the flags.
 LAUNCH_FIELDS = [
@@ -453,10 +473,11 @@ def translate_keys(game_map: dict[str, Any], layout: dict[str, str]) -> dict[str
     return out
 
 
-def launch_values(form: dict) -> dict:
-    """The Launch form as the flag values ``fmri_play`` reads, every flag present.
+def launch_values(form: dict, monitor: int) -> Launch:
+    """The Launch form as the flags ``fmri_play`` reads, every flag present.
 
     :param form: what :func:`field_values` returned for :data:`LAUNCH_FIELDS`.
+    :param monitor: the monitor picked beside the form.
     :raises ValueError: if the subject is blank, or the size is not ``<w>x<h>``.
     """
     if "subject" not in form:
@@ -465,7 +486,7 @@ def launch_values(form: dict) -> dict:
         raise ValueError(f"--size: expected <width>x<height> such as 1024x768, got "
                          f"{form.get('size', '')!r}")
     off = {f.key: False for f in LAUNCH_FIELDS if f.kind == "bool"}
-    return {"ses": None, "data_root": "data", **off, **form}
+    return Launch(**{"ses": None, "data_root": DATA_ROOT, **off, **form, "monitor": monitor})
 
 
 def trigger_mismatches(steps: list[dict], configs: dict[str, dict]) -> list[str]:
@@ -624,7 +645,7 @@ SES_VAR = '"$SES"'
 _PINNED = re.compile(r"SES=\$\{1:-(\d+)\}$")
 
 
-def write_session(steps: list[dict], launch: dict) -> str:
+def write_session(steps: list[dict], launch: Launch) -> str:
     """A session script: one line per run, in order.
 
     ::
@@ -646,9 +667,8 @@ def write_session(steps: list[dict], launch: dict) -> str:
     fails or is quit.
 
     :param steps: ``{"config" | "command", "skip"}`` dicts, in order.
-    :param launch: subject, ses (``None``: the next free one), data_root, size,
-        monitor and the :data:`SWITCHES`; written on every run's line (the
-        data root and monitor only when not the default).
+    :param launch: the flags written on every run's line (the data root and
+        monitor only when not the default).
     :return: the script.
     """
     lines = [*HEADER, _ses_line(launch)]
@@ -675,7 +695,7 @@ def run_number(steps: list[dict], index: int) -> int:
                    if "config" in step and bids.task_label(step["config"]) == task)
 
 
-def read_session(text: str) -> tuple[list[dict], dict | None]:
+def read_session(text: str) -> tuple[list[dict], Launch | None]:
     """The steps and launch flags of a session script (see :func:`write_session`).
 
     An ``fmri-play`` line the editor could not write back as it is -- other
@@ -689,7 +709,7 @@ def read_session(text: str) -> tuple[list[dict], dict | None]:
     body = [line for line in text.splitlines() if line.strip() and line not in HEADER]
     ses_line = next((line for line in body if line.startswith("SES=")), "")
     pinned = _PINNED.search(ses_line)
-    launch: dict | None = None
+    launch: Launch | None = None
     steps: list[dict] = []
     for line in body:
         if line is ses_line:
@@ -705,38 +725,38 @@ def read_session(text: str) -> tuple[list[dict], dict | None]:
             steps.pop()  # a run number of its own: not one the editor can write
         steps.append({"command": bare, "skip": skip})
     if launch is not None:
-        launch["ses"] = int(pinned[1]) if pinned else None
+        launch = replace(launch, ses=int(pinned[1]) if pinned else None)
     return steps, launch
 
 
-def play_command(config_path: str, launch: dict, ses: str, run: int) -> list[str]:
+def play_command(config_path: str, launch: Launch, ses: str, run: int) -> list[str]:
     """The command that plays one run: ``fmri-play``, its config and the launch flags.
 
     The editor's Play runs this; a session script holds one per line.
 
     :param config_path: the run's config file.
-    :param launch: the launch flags (see :data:`DEFAULT_LAUNCH`).
+    :param launch: the launch flags.
     :param ses: the ``--ses`` value -- a number, or :data:`SES_VAR` in a script.
     :param run: the ``--run`` value (see :func:`run_number`).
     :return: the command, word by word.
     """
-    root = [] if launch["data_root"] == DATA_ROOT else ["--data-root", launch["data_root"]]
-    monitor = ["--monitor", str(launch["monitor"])] if launch["monitor"] else []
-    switches = [f"--{key.replace('_', '-')}" for key in SWITCHES if launch[key]]
-    return [*PLAY.split(), "--curriculum", config_path, "--subject", launch["subject"], *root,
+    root = [] if launch.data_root == DATA_ROOT else ["--data-root", launch.data_root]
+    monitor = ["--monitor", str(launch.monitor)] if launch.monitor else []
+    switches = [f"--{key.replace('_', '-')}" for key in SWITCHES if getattr(launch, key)]
+    return [*PLAY.split(), "--curriculum", config_path, "--subject", launch.subject, *root,
             "--ses", ses, "--run", str(run),
-            "--size", launch["size"], *monitor, *switches]
+            "--size", launch.size, *monitor, *switches]
 
 
-def _ses_line(launch: dict) -> str:
+def _ses_line(launch: Launch) -> str:
     """``SES=``: the script's own argument, else the number pinned here or the next free one."""
-    if launch["ses"] is not None:
-        return f"SES=${{1:-{launch['ses']:03d}}}"
-    root = [] if launch["data_root"] == DATA_ROOT else ["--data-root", launch["data_root"]]
-    return f"SES=${{1:-$({_shell([*SES_TOOL.split(), '--subject', launch['subject'], *root])})}}"
+    if launch.ses is not None:
+        return f"SES=${{1:-{launch.ses:03d}}}"
+    root = [] if launch.data_root == DATA_ROOT else ["--data-root", launch.data_root]
+    return f"SES=${{1:-$({_shell([*SES_TOOL.split(), '--subject', launch.subject, *root])})}}"
 
 
-def _play_line(config_path: str, launch: dict, run: int) -> str:
+def _play_line(config_path: str, launch: Launch, run: int) -> str:
     return _shell(play_command(config_path, launch, SES_VAR, run))
 
 
@@ -750,7 +770,7 @@ class _Parser(argparse.ArgumentParser):
         raise ValueError(message)
 
 
-def _parse_play_line(line: str) -> tuple[str, dict, int] | None:
+def _parse_play_line(line: str) -> tuple[str, Launch, int] | None:
     """``(config path, launch, run)`` if ``line`` is a run's line the editor can write.
 
     :return: ``None`` if it is not one -- another command, or flags the editor
@@ -773,7 +793,7 @@ def _parse_play_line(line: str) -> tuple[str, dict, int] | None:
     if args.pop("ses") != "$SES":
         return None  # a run pinned to a session of its own: not one the editor can write
     run = args.pop("run")
-    return args.pop("curriculum"), args, run
+    return args.pop("curriculum"), Launch(ses=None, **args), run
 
 
 def edit_config(config: dict, path: str | None,
@@ -797,7 +817,7 @@ def edit_config(config: dict, path: str | None,
         raise ImportError("fmri-edit needs PySide6: `uv sync --extra gui` (name the other "
                           "extras you use too, or uv removes them), or `pip install "
                           "PySide6-Essentials`") from exc
-    return run_editor(config, path, dict(DEFAULT_LAUNCH), session)
+    return run_editor(config, path, DEFAULT_LAUNCH, session)
 
 
 def main() -> None:

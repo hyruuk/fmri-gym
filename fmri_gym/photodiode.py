@@ -61,7 +61,7 @@ import os
 import random
 import sys
 import time
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple
 
 import numpy as np
 import pygame
@@ -413,14 +413,14 @@ def main() -> None:
     if recorder is not None and "flip_on" in arrays:
         _readout(*recorder.signal(), arrays, summary)
     summary["triggers"] = triggers.describe()
-    summary["checks"] = {"photodiode": _light_verdict(arrays, summary),
-                         "audio": _sound_verdict(arrays, args.audio_click, audio_error)}
+    checks = {"photodiode": _light_verdict(arrays, summary),
+              "audio": _sound_verdict(arrays, args.audio_click, audio_error)}
+    summary["checks"] = {name: v._asdict() for name, v in checks.items()}
     np.savez_compressed(os.path.join(outdir, "photodiode.npz"), **arrays)
     with open(os.path.join(outdir, "photodiode.json"), "w") as f:
         json.dump(summary, f, indent=2, default=str)
     _report(summary, arrays, outdir)
-    failures = [f"{name}: {v['why']}" for name, v in summary["checks"].items()
-                if v["status"] == "fail"]
+    failures = [f"{name}: {v.why}" for name, v in checks.items() if v.status == "fail"]
     if failures:
         raise RuntimeError("; ".join(failures))
 
@@ -538,7 +538,16 @@ def _missed(arrays: dict, key: str, noun: str = "flashes") -> str | None:
             f"(#{', #'.join(map(str, missed[:10]))}{', ...' if missed.size > 10 else ''})")
 
 
-def _light_verdict(arrays: dict, summary: dict) -> dict[str, str | None]:
+class Verdict(NamedTuple):
+    """A rig-check test's verdict, as the manifest and the report record it."""
+
+    #: ``pass``, ``fail``, ``offline`` (read in the recording) or ``not run``
+    status: str
+    #: what to look at, for a verdict that is not a pass; else ``None``
+    why: str | None
+
+
+def _light_verdict(arrays: dict, summary: dict) -> Verdict:
     """Pass, fail or offline for the photodiode, and why.
 
     A single flash the diode did not see fails: it is a white frame that never
@@ -546,20 +555,19 @@ def _light_verdict(arrays: dict, summary: dict) -> dict[str, str | None]:
     either way the offsets describe a rig other than the one the session gets.
     """
     if "flip_on" not in arrays:
-        return {"status": "fail", "why": "interrupted before the last flash; nothing measured"}
+        return Verdict("fail", "interrupted before the last flash; nothing measured")
     if summary["readout"] != "soundcard":
-        return {"status": "offline", "why": "match the trigger codes to the diode edges in "
-                                            "the recording (match_edges)"}
+        return Verdict("offline", "match the trigger codes to the diode edges in the "
+                                  "recording (match_edges)")
     if _hears_clicks(arrays):
-        return {"status": "fail", "why": "input 0 saw only the flashes that had a click: it "
-                                         "hears the sound, not the light (a microphone, or "
-                                         "crosstalk from the audio output)"}
+        return Verdict("fail", "input 0 saw only the flashes that had a click: it hears the "
+                               "sound, not the light (a microphone, or crosstalk from the "
+                               "audio output)")
     missed = _missed(arrays, "offset_s")
     if missed:
-        return {"status": "fail", "why": f"the photodiode missed {missed}; check its "
-                                         "placement and input gain, and the display for "
-                                         "late flips"}
-    return {"status": "pass", "why": None}
+        return Verdict("fail", f"the photodiode missed {missed}; check its placement and "
+                               "input gain, and the display for late flips")
+    return Verdict("pass", None)
 
 
 def _hears_clicks(arrays: dict) -> bool:
@@ -579,25 +587,25 @@ def _hears_clicks(arrays: dict) -> bool:
     return bool(without < 0.5 and with_click > without + 0.5)
 
 
-def _sound_verdict(arrays: dict, asked: bool, error: str | None) -> dict[str, str | None]:
+def _sound_verdict(arrays: dict, asked: bool, error: str | None) -> Verdict:
     """Pass, fail or not run for the sound, and why: every click reached the DAC (and was
     heard, with a microphone)."""
     if not asked:
-        return {"status": "not run", "why": None}
+        return Verdict("not run", None)
     if error:
-        return {"status": "fail", "why": f"the audio output did not open ({error})"}
+        return Verdict("fail", f"the audio output did not open ({error})")
     if "flip_on" not in arrays:
-        return {"status": "fail", "why": "interrupted before the last flash; nothing measured"}
+        return Verdict("fail", "interrupted before the last flash; nothing measured")
     if "click_dac" not in arrays:
-        return {"status": "fail", "why": "no click was logged at the DAC"}
+        return Verdict("fail", "no click was logged at the DAC")
     missed = _missed(arrays, "click_dac", "clicks")
     if missed:
-        return {"status": "fail", "why": f"no DAC time for {missed}: the output dropped them"}
+        return Verdict("fail", f"no DAC time for {missed}: the output dropped them")
     missed = _missed(arrays, "sound_offset_s", "clicks") if "sound_offset_s" in arrays else None
     if missed:
-        return {"status": "fail", "why": f"the microphone missed {missed}; check it sits at "
-                                         "the ear end and its input gain"}
-    return {"status": "pass", "why": None}
+        return Verdict("fail", f"the microphone missed {missed}; check it sits at the ear end "
+                               "and its input gain")
+    return Verdict("pass", None)
 
 
 def _drift(o: dict) -> str:
