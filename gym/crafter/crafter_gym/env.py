@@ -132,6 +132,21 @@ class CrafterEnv(gym.Env):
         return (self._frame, float(reward),
                 bool(done and dead), bool(done and not dead), info)
 
+    def redraw(self) -> np.ndarray:
+        """Draw the current state again, as the latest frame.
+
+        For a wrapper that changes how the game looks right after a reset
+        (:mod:`crafter_gym.levels`): ``crafter.Env.reset`` renders in the same
+        call that generates the world. Only at the start of an episode: at
+        night the engine draws its view noise from the world's RNG, so a
+        redraw mid-episode would shift every later draw and break replay; at
+        step 0 it is daylight and the render draws nothing.
+
+        :return: the new frame, which :meth:`render` now returns too.
+        """
+        self._frame = self.game.render()
+        return self._frame
+
     def render(self) -> np.ndarray | None:
         """Return the latest frame -- the observation is the picture."""
         return self._frame

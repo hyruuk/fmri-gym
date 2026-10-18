@@ -27,7 +27,7 @@ from __future__ import annotations
 import math
 import sys
 import time
-from collections import Counter
+from collections import Counter, deque
 from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any
@@ -62,7 +62,7 @@ END_FIXATION_S = 10.0
 #: the run's own (folded in from the run label and the command line).
 RESUMABLE_CHANGES = frozenset({"duration", "max_duration", "n_episodes", "advancing_outcomes",
                                "outcome_duration", "instructions", "keys", "menu", "seed",
-                               "audio"})
+                               "audio", "rewind_on", "rewind_frames"})
 
 
 class Clock:
@@ -586,6 +586,7 @@ class Run:
         menu: Menu | None,
         outcome_duration: float,
         initial_state: bytes | None = None,
+        recent_states: deque | None = None,
     ) -> dict:
         """Run one episode, logging every frame.
 
@@ -607,6 +608,11 @@ class Run:
             episode starts where an earlier run's stopped; logged on
             ``episode_start``, since it, not the seed, is what the episode
             starts from.
+        :param recent_states: if given, emptied, then filled with the
+            savestate after every frame (it keeps the last ``maxlen``), for a
+            block that rewinds (``rewind_on``).
+        :raises ValueError: ``recent_states`` with a backend whose ``capture``
+            returns no savestate.
         :return: the episode's ``episode_end`` record, as recorded:
             ``episode_id``, ``outcome`` (one of the adapter's,
             :meth:`~.adapters.base.EnvAdapter.outcome`: ``"won"``, ``"lost"``,
@@ -640,6 +646,8 @@ class Run:
         auto: Any = None
 
         ## Reset environment and show initial state
+        if recent_states is not None:
+            recent_states.clear()
         observation, info = adapter.reset(seed)
         if initial_state is not None:
             adapter.restore(initial_state)
@@ -697,7 +705,13 @@ class Run:
             # A savestate at each episode's first frame (the replay anchor), then
             # every stride; frames between are the anchor plus the logged actions.
             save_state = ep_frame % state_stride == 0
-            fs = adapter.capture(observation, info, want_blob=save_state)
+            fs = adapter.capture(observation, info,
+                                 want_blob=save_state or recent_states is not None)
+            if recent_states is not None:
+                if fs.blob is None:
+                    raise ValueError(f"rewind_on: the {adapter.name} adapter's capture "
+                                     "returns no savestate to go back to")
+                recent_states.append(fs.blob)
             # The frame trigger goes out on the flip that shows this frame.
             self.display.call_on_flip(self.triggers.frame)
             flip_t, frame, sound = self._show(adapter, play_sound, score, block_end)
@@ -735,7 +749,7 @@ class Run:
                 # The chunk this frame's sound was queued as (-1: none); when it
                 # reached the DAC is in the block_end record's audio onsets.
                 fields["audio_chunk"] = self.audio.last_chunk
-            self.logger.log_frame(fields, frame=frame, state=fs.blob)
+            self.logger.log_frame(fields, frame=frame, state=fs.blob if save_state else None)
             self.logger.log_audio(sound)
             ep_frame += 1
 
@@ -827,6 +841,12 @@ class Run:
         block_time_elapsed = phase.get("block_time_elapsed", 0.0)
         num_completed_episodes = phase.get("num_completed_episodes", 0)
         initial_state = phase.pop("initial_state", None)    # logged on episode_start
+        # An episode ending in one of `rewind_on` sends the world back
+        # `rewind_frames` frames and play goes on, as a new episode from that
+        # state: session policy, not a rule of the game, so a model played on
+        # the same env ends as the game says.
+        rewind_on = phase.get("rewind_on", [])
+        recent_states = (deque(maxlen=phase["rewind_frames"] + 1) if rewind_on else None)
         # Turn-based games (grid worlds: FrozenLake, CliffWalking, Taxi, ...) must
         # advance ONE step per deliberate key PRESS, not once per frame. In a
         # real-time loop they'd auto-step every frame with the noop action (which
@@ -885,6 +905,7 @@ class Run:
 
         ## Loop over episodes within game block
         while outcome not in ("quit", "forfeit") and time.perf_counter() < block_end:
+            started_from = initial_state
             ## Run one episode
             # Seeded by episodes played, so a restart from the menu replays
             # the very instance the subject gave up on (a start-over).
@@ -893,17 +914,26 @@ class Run:
                 turn_based=turn_based, latched=latched, live_hud=live_hud,
                 dt=dt, state_stride=state_stride,
                 block_end=block_end, play_sound=play_sound, menu=menu,
-                outcome_duration=outcome_duration, initial_state=initial_state)
-            initial_state = None
+                outcome_duration=outcome_duration, initial_state=initial_state,
+                recent_states=recent_states)
             episodes.append(episode_result)
             outcome = episode_result["outcome"]
+            # The oldest state kept is `rewind_frames` before the ending; one
+            # sooner than that goes back to where the episode started.
+            rewound = outcome in rewind_on
+            initial_state = None
+            if rewound:
+                initial_state = (recent_states[0] if len(recent_states) == recent_states.maxlen
+                                 else started_from)
             # An episode's last sounds are still queued when it ends; drop them
             # so they do not play over the next episode or the next fixation.
             self.audio.stop()
             # An episode the subject restarted from the menu was not played; nor,
             # in a blocking block, one whose outcome does not advance; nor one
-            # a clock or ESC stopped, which a later run may carry on.
+            # a clock or ESC stopped, which a later run may carry on; nor a
+            # death that is rewound.
             num_completed_episodes += (outcome not in ("reset", "playing", "quit")
+                                       and not rewound
                                        and (advancing is None or outcome in advancing))
             if mode == "episode" and num_completed_episodes >= n_episodes:
                 break
