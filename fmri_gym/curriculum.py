@@ -11,12 +11,21 @@ folder, window and the test switches are the run config
 
 There is one shape. A bare list, an unknown top-level key or an unknown phase
 type is refused at start-up, with the reason.
+
+A phase may start from a shared one: ``"include": "common/freedoom1.json"``
+names a file (relative to the curriculum's own) holding one phase object, and
+the phase's other keys are laid over it (:func:`overlay`). Curricula of one
+game then write the setup once and only what differs per level. Shared
+phases live in folders named ``common`` (:data:`PHASE_DIR`), which hold no
+curricula. Includes are resolved when the file is loaded, so everything
+downstream, the manifest included, sees each phase written out in full.
 """
 
 from __future__ import annotations
 
 import copy
 import json
+import os
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -29,6 +38,10 @@ from .triggers import TriggerError, TriggerSettings
 PHASE_TYPES = ("fixation", "message", "game", "survey", "check_display", "check_frames",
                "check_triggers", "check_controls", "check_photodiode")
 SECTIONS = ("curriculum", "triggers")
+#: A phase's key naming the file of the shared phase it starts from.
+INCLUDE = "include"
+#: Folders of this name hold shared phases, which are included, not played.
+PHASE_DIR = "common"
 #: Exit status of ``fmri_play`` when the run was quit (ESC) before its end; a
 #: session script (``set -e``) stops on it instead of starting the next run.
 EXIT_QUIT = 3
@@ -195,15 +208,61 @@ def check_shape(curriculum: Any, where: str) -> dict:
 
 
 def load_curriculum(path: str) -> dict:
-    """Load a curriculum file.
+    """Load a curriculum file, each phase's ``include`` resolved.
 
     :param path: JSON file path.
-    :return: the curriculum dict.
+    :return: the curriculum dict, every phase in full.
     :raises ValueError: if the file does not have the curriculum shape
         (see :func:`check_shape`).
     """
     with open(path) as f:
-        return check_shape(json.load(f), path)
+        curriculum = json.load(f)
+    if isinstance(curriculum, dict) and isinstance(curriculum.get("curriculum"), list):
+        curriculum["curriculum"] = [_resolve(phase, path, frozenset())
+                                    for phase in curriculum["curriculum"]]
+    return check_shape(curriculum, path)
+
+
+def is_phase_file(path: str) -> bool:
+    """Whether ``path`` is a shared phase (in a :data:`PHASE_DIR` folder), not a curriculum."""
+    return os.path.basename(os.path.dirname(os.path.abspath(path))) == PHASE_DIR
+
+
+def overlay(base: dict, top: dict) -> dict:
+    """``top`` laid over ``base``: an object in both merges key by key, anything else replaces.
+
+    So a phase can change one line of its instructions, or add a key to its
+    ``keys``, and keep the rest; a list (the instructions' ``text``) is
+    replaced whole, and a key cannot be taken away.
+    """
+    merged = dict(base)
+    for key, value in top.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = overlay(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _resolve(phase: Any, path: str, seen: frozenset[str]) -> Any:
+    """``phase`` laid over the phase its ``include`` names, which may include another.
+
+    :raises ValueError: if the include is not a path to a JSON object, or comes back round.
+    """
+    if not isinstance(phase, dict) or INCLUDE not in phase:
+        return phase
+    name = phase[INCLUDE]
+    target = os.path.normpath(os.path.join(os.path.dirname(path), str(name)))
+    if not isinstance(name, str) or not os.path.isfile(target):
+        raise ValueError(f'{path}: "{INCLUDE}" must name a file next to it, got {name!r}')
+    if target in seen:
+        raise ValueError(f"{path}: {name} includes itself, through {sorted(seen)}")
+    with open(target) as f:
+        base = json.load(f)
+    if not isinstance(base, dict):
+        raise ValueError(f"{target}: a shared phase is one JSON object")
+    base = _resolve(base, target, seen | {target})
+    return overlay(base, {k: v for k, v in phase.items() if k != INCLUDE})
 
 
 def save_curriculum(curriculum: dict, path: str) -> None:

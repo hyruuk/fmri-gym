@@ -17,7 +17,7 @@ from fmri_gym.adapters.base import Sound
 from fmri_gym.audio import AudioBlockLog
 from fmri_gym.bids import task_label
 from fmri_gym.adapters.keymap import make_keymap
-from fmri_gym.curriculum import validate_curriculum
+from fmri_gym.curriculum import is_phase_file, load_curriculum, validate_curriculum
 from fmri_gym.logging import (
     AUDIO_FILENAME, FRAMES_FILENAME, Logger, read_audio, read_events, read_frames, read_state,
 )
@@ -143,6 +143,54 @@ def test_validate_config_accepts_a_plain_game_phase():
 ])
 def test_task_label_names_the_backend_folder_under_curricula(path, label):
     assert task_label(path) == label
+
+
+def _write(path: Path, content: dict) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(content))
+    return path
+
+
+def test_include_lays_the_phase_over_its_shared_one(tmp_path):
+    shared = {**PHASE, "instructions": {"title": "CartPole", "text": ["a", "b"],
+                                 "keys_to_dismiss": ["SPACE"]},
+              "env_kwargs": {"x": 1, "y": 2}}
+    _write(tmp_path / "common" / "cartpole.json", shared)
+    path = _write(tmp_path / "level.json", {"curriculum": [
+        {"type": "fixation", "duration": 1.0},
+        {"include": "common/cartpole.json", "fps": 15,
+         "instructions": {"title": "Level 2"}, "env_kwargs": {"y": 3}},
+    ]})
+    game = load_curriculum(str(path))["curriculum"][1]
+    assert "include" not in game
+    assert game["fps"] == 15 and game["keys"] == PHASE["keys"]
+    assert game["instructions"] == {"title": "Level 2", "text": ["a", "b"],
+                                    "keys_to_dismiss": ["SPACE"]}
+    assert game["env_kwargs"] == {"x": 1, "y": 3}
+    assert validate_curriculum({"curriculum": [game]}) == []
+    assert is_phase_file(str(tmp_path / "common" / "cartpole.json"))
+    assert not is_phase_file(str(path))
+
+
+def test_include_nests_relative_to_each_file(tmp_path):
+    _write(tmp_path / "common" / "base.json", PHASE)
+    _write(tmp_path / "common" / "slow.json", {"include": "base.json", "fps": 10})
+    path = _write(tmp_path / "run.json", {"curriculum": [{"include": "common/slow.json"}]})
+    assert load_curriculum(str(path))["curriculum"][0] == {**PHASE, "fps": 10}
+
+
+@pytest.mark.parametrize("include, shared, problem", [
+    ("common/missing.json", None, "must name a file"),
+    (3, None, "must name a file"),
+    ("common/loop.json", {"include": "loop.json"}, "includes itself"),
+    ("common/list.json", [PHASE], "one JSON object"),
+])
+def test_include_refuses(tmp_path, include, shared, problem):
+    if shared is not None:
+        _write(tmp_path / str(include), shared)
+    path = _write(tmp_path / "run.json", {"curriculum": [{"include": include}]})
+    with pytest.raises(ValueError, match=problem):
+        load_curriculum(str(path))
 
 
 @pytest.mark.parametrize("paths, direct, core", [

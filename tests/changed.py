@@ -21,6 +21,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from fmri_gym.curriculum import is_phase_file
 from tests.backends import BACKENDS, REPO, game_phases, phase_backend
 
 #: Paths (repo-relative prefixes) whose change concerns every backend.
@@ -99,12 +100,16 @@ def _adapter(stem: str, selection: Selection) -> None:
 
 
 def _config_backends(path: Path) -> set[str]:
-    """The backends a config's game phases name; none for a file that is gone or broken."""
+    """The backends a config's game phases name, or a shared phase's; none for a file that
+    is gone or broken."""
     if not path.exists():
         return set()
     try:
+        if is_phase_file(str(path)):
+            with open(path) as f:
+                return {phase_backend(json.load(f))}
         return {phase_backend(g) for g in game_phases(path)}
-    except (json.JSONDecodeError, AttributeError):
+    except (ValueError, AttributeError):
         return set()     # test_configs reports the broken file
 
 
