@@ -48,6 +48,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 if TYPE_CHECKING:
+    from .audio import AudioBlockLog
     from .run import Clock
 
 FORMAT = "fmri-gym-log"
@@ -62,19 +63,19 @@ FLUSH_INTERVAL = 1.0
 class Logger:
     """Writes one run's ``manifest.json`` and its per-block logs."""
 
-    def __init__(self, outdir: str, subject: str, curriculum: list[dict], clock: Clock) -> None:
+    def __init__(self, outdir: str, subject: str, phases: list[dict], clock: Clock) -> None:
         """Create the run's output directory, an empty manifest and the writer process.
 
         :param outdir: the run's folder.
         :param subject: subject identifier stored in the manifest and each block.
-        :param curriculum: full curriculum list stored in the manifest.
+        :param phases: the curriculum's phases, stored whole in the manifest (``curriculum``).
         :param clock: the run's clock (used for trigger epoch / perf times).
         """
         self.outdir = outdir
         self.clock = clock
         os.makedirs(outdir, exist_ok=True)
         self.manifest: dict = {
-            "subject": subject, "curriculum": curriculum, "start_epoch": None, "phases": [],
+            "subject": subject, "curriculum": phases, "start_epoch": None, "phases": [],
         }
         self._block: str | None = None
         #: frames recorded in the open block so far.
@@ -177,17 +178,18 @@ class Logger:
         self._queue.put({"op": "audio", "block": self._block,
                          "pcm": np.array(sound.pcm), "sample_rate": sound.sample_rate})
 
-    def close_block(self, **summary: Any) -> None:
+    def close_block(self, audio: AudioBlockLog | None = None, **summary: Any) -> None:
         """Append the ``block_end`` line and release the block's files.
 
-        :param summary: the line's fields (episode and frame counts, totals,
-            …); ``audio`` (:meth:`~.audio.Audio.block_log`), if given, is
-            written to ``audio.h5`` instead of the line.
+        :param audio: the block's sound timing (:meth:`~.audio.Audio.block_log`),
+            written to ``audio.h5`` rather than the line; ``None`` for a block
+            that played none.
+        :param summary: the line's fields (episode and frame counts, totals, …).
         """
-        audio = summary.pop("audio", None)
         self.log(type="block_end", **summary)
-        if audio:
-            self._queue.put({"op": "audio_summary", "block": self._block, "audio": audio})
+        if audio is not None:
+            self._queue.put({"op": "audio_summary", "block": self._block,
+                             "audio": audio.record()})
         self._queue.put({"op": "close", "block": self._block})
         self._block = None
 

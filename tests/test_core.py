@@ -14,8 +14,9 @@ import pytest
 from gymnasium import spaces
 
 from fmri_gym.adapters.base import Sound
+from fmri_gym.audio import AudioBlockLog
 from fmri_gym.adapters.keymap import make_keymap
-from fmri_gym.config import validate_config
+from fmri_gym.curriculum import validate_curriculum
 from fmri_gym.logging import (
     AUDIO_FILENAME, FRAMES_FILENAME, Logger, read_audio, read_events, read_frames, read_state,
 )
@@ -48,7 +49,8 @@ def test_logger_round_trip(tmp_path):
                          frame=frames[i], state=states[i])
         logger.log_audio(Sound(chunks[i], 44100.0) if i < 2 else None)
     logger.log(type="episode_end", episode_id=0, outcome="truncated", score=1.5)
-    logger.close_block(n_episodes=1, n_frames=3, audio={}, extra=None)
+    logger.close_block(n_episodes=1, n_frames=3, extra=None,
+                       audio=AudioBlockLog(onsets=[], delay_ms=0.0, resyncs=0, trimmed_samples=0))
     logger.log_phase({"index": 0, "type": "game", "data_dir": name})
     manifest = json.loads(Path(logger.save_manifest()).read_text())
     logger.close()
@@ -74,7 +76,7 @@ def test_logger_round_trip(tmp_path):
     arrays = frame_arrays(block)
     assert list(arrays["action"]) == [0, 1, 0] and arrays["obs"].shape == (3, 2)
     plan = reconstruction_plan(block)
-    assert plan["seed"] == 7 and plan["actions"] == [0, 1, 0]
+    assert plan.seed == 7 and plan.actions == [0, 1, 0]
     assert manifest["phases"][0]["data_dir"] == name
     assert (tmp_path / "manifest.json").exists()
 
@@ -123,12 +125,12 @@ def test_keymap_refuses_an_action_outside_the_space():
     ({**PHASE, "fps": 0}, "fps"),
 ])
 def test_validate_config_refuses(phase, problem):
-    problems = validate_config({"curriculum": [phase]})
+    problems = validate_curriculum({"curriculum": [phase]})
     assert problems and any(problem in p for p in problems), problems
 
 
 def test_validate_config_accepts_a_plain_game_phase():
-    assert validate_config({"curriculum": [PHASE]}) == []
+    assert validate_curriculum({"curriculum": [PHASE]}) == []
 
 
 @pytest.mark.parametrize("paths, direct, core", [

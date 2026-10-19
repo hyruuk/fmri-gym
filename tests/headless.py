@@ -38,7 +38,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame  # noqa: E402
 
 from fmri_gym import keys  # noqa: E402
-from fmri_gym.config import load_config  # noqa: E402
+from fmri_gym.curriculum import load_curriculum  # noqa: E402
 
 #: Seconds a scripted press is held: long enough for a real-time poll to see it,
 #: short enough never to open a hold-to-pause menu.
@@ -88,9 +88,9 @@ class KeyScript:
         pygame.event.post(pygame.event.Event(kind, key=code, mod=0, unicode=unicode, scancode=0))
 
 
-def script_for(config_path: str, rate: float, seed: int) -> KeyScript:
+def script_for(curriculum_path: str, rate: float, seed: int) -> KeyScript:
     """A :class:`KeyScript` over the keys of the config's game phases."""
-    phases = [p for p in load_config(config_path)["curriculum"] if p["type"] == "game"]
+    phases = [p for p in load_curriculum(curriculum_path)["curriculum"] if p["type"] == "game"]
     names = sorted({k for p in phases for combo in p["keys"] for k in combo.split("+") if k})
     dismiss = sorted({k for p in phases
                       for k in (p.get("instructions") or {}).get("keys_to_dismiss", [])})

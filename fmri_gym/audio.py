@@ -31,6 +31,8 @@ import os
 import platform
 import time
 from collections import deque
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, replace
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -75,6 +77,30 @@ _MAX_STRETCH = 2e-3                     # 3.5 cents of pitch, 2 ms of correction
 _GAIN = 0.1                             # of the smoothed error, corrected per chunk
 _BLOCKSIZE = 256                        # samples per callback
 _DELAY_STEP = 0.010                     # the audio delay is rounded up to this
+
+
+@dataclass(frozen=True, slots=True)
+class AudioBlockLog:
+    """One block's sound timing, for its log (:meth:`Audio.block_log`)."""
+
+    #: ``(chunk, time)``: when each queued chunk started playing, on the
+    #: ``perf_counter`` clock (the run's after :meth:`in_run_time`); a chunk
+    #: that never played has no entry
+    onsets: list[tuple[int, float]]
+    #: milliseconds from a frame's flip to its sound's first sample at the DAC
+    delay_ms: float
+    #: chunks placed at their onset rather than gaplessly, after a stall
+    resyncs: int
+    #: samples cut from chunks that were already late when placed
+    trimmed_samples: int
+
+    def in_run_time(self, from_perf: Callable[[float], float]) -> AudioBlockLog:
+        """The same log with every onset converted by ``from_perf`` (the run's clock)."""
+        return replace(self, onsets=[(chunk, from_perf(t)) for chunk, t in self.onsets])
+
+    def record(self) -> dict:
+        """The fields as ``audio.h5`` takes them (:meth:`~fmri_gym.logging.Logger.close_block`)."""
+        return asdict(self)
 
 
 def _resample(pcm: np.ndarray, n: int) -> np.ndarray:
@@ -421,17 +447,12 @@ class Audio:
             self.stream.max_offset = self._max_offset
             self.stream.log = self._log
 
-    def block_log(self) -> dict[str, Any]:
-        """The block's sound timing for its log, or ``{}`` if it played none.
-
-        :return: ``onsets``: ``(chunk, perf_counter)`` pairs, when each queued
-            chunk started playing (a chunk that never played has none);
-            ``delay_ms``, ``resyncs`` and ``trimmed_samples``.
-        """
+    def block_log(self) -> AudioBlockLog | None:
+        """The block's sound timing for its log, or ``None`` if it played none."""
         if not self._queued:
-            return {}
-        return {"onsets": list(self._log["onsets"]), "delay_ms": self.delay * 1000,
-                "resyncs": self._log["resyncs"], "trimmed_samples": self._log["trimmed"]}
+            return None
+        return AudioBlockLog(list(self._log["onsets"]), self.delay * 1000,
+                             self._log["resyncs"], self._log["trimmed"])
 
     def _check_rate(self, sound: Sound) -> None:
         """Add one step's sound to the block's rate check; raise once it is off.

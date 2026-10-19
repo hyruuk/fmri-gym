@@ -31,7 +31,7 @@ from gymnasium import spaces
 class Keymap(ABC):
     """The combos and what they resolve to; subclasses say what a value means.
 
-    :param keys: the phase's ``keys`` (``validate_config`` has already checked
+    :param keys: the phase's ``keys`` (``validate_curriculum`` has already checked
         that its names are real keys).
     :param space: the env's action space, which the values are checked against.
     :raises ValueError: a value that is not an action of the space.

@@ -1,6 +1,6 @@
 """One run: the engine-agnostic experiment loop that plays one curriculum.
 
-A run is what one config file describes and one ``fmri-play`` plays (the
+A run is what one curriculum file describes and one ``fmri-play`` plays (the
 BIDS ``run-NNN`` of its folder). A session -- ``ses-NNN``, several runs -- is
 a shell script of those commands and never a Python loop, so nothing here
 knows about more than the curriculum it was given.
@@ -29,6 +29,7 @@ import sys
 import time
 from collections import Counter, deque
 from collections.abc import Callable
+from dataclasses import asdict, dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -37,7 +38,9 @@ import pygame
 from . import bids, pad
 from .adapters import get_adapter
 from .audio import Audio
-from .config import fold_cli_options
+from .bids import BlockProgress, RunProgress
+from .config import RunConfig
+from .curriculum import BlockMode, GamePhase, fold_cli_options
 from .display import Display, check_monitor
 from .keys import get_events, held_key_names, key_name
 from .menu import Menu
@@ -57,12 +60,37 @@ _SAME_SPEED = 2e-3
 HUD_REPAINT_S = 0.2
 #: Seconds of fixation that close a run given a duration.
 END_FIXATION_S = 10.0
-#: Game-phase fields a config may change between runs and still carry a block
-#: on; any other change makes it a different game. ``seed`` and ``audio`` are
-#: the run's own (folded in from the run label and the command line).
+#: Game-phase fields a curriculum may change between runs and still carry a
+#: block on; any other change makes it a different game. ``seed`` and ``audio``
+#: are the run's own (folded in from the run label and the run config).
 RESUMABLE_CHANGES = frozenset({"duration", "max_duration", "n_episodes", "advancing_outcomes",
                                "outcome_duration", "instructions", "keys", "menu", "seed",
                                "audio", "rewind_on", "rewind_frames"})
+
+
+@dataclass(frozen=True, slots=True)
+class EpisodeResult:
+    """How one episode ended: what its ``episode_end`` record holds."""
+
+    #: the episode's index within its block
+    episode_id: int
+    #: one of the adapter's names (:meth:`~.adapters.base.EnvAdapter.outcome`:
+    #: ``"won"``, ``"lost"``, ``"terminated"``, ``"truncated"``, or
+    #: ``"playing"`` when the block's clock cut it off), or the subject's own:
+    #: ``"quit"`` for ESC / window close, ``"reset"`` / ``"forfeit"`` for the
+    #: choice in the menu
+    outcome: str
+    #: the last step's flags
+    terminated: bool
+    truncated: bool
+    #: the episode's cumulative reward
+    score: float
+    #: stalls that dropped the frame debt (the ``pacing_reset`` lines)
+    n_pacing_resets: int
+
+    def record(self) -> dict:
+        """The ``episode_end`` line's fields."""
+        return asdict(self)
 
 
 class Clock:
@@ -289,41 +317,43 @@ def _final_outcome(
     return outcome, message
 
 
-def _resume_position(
-    data_root: str, subject: str, config_path: str, curriculum: list[dict]
-) -> dict | None:
-    """Where ``--resume`` starts: the subject's last position in this config, checked against it.
+def _run_progress(
+    data_root: str, subject: str, curriculum_path: str, phases: list[dict]
+) -> RunProgress | None:
+    """Where ``--resume`` starts: the subject's progress in this curriculum, checked against it.
 
     :param data_root: the BIDS tree's root.
     :param subject: ``sub-<label>``.
-    :param config_path: the config file; its name is the task label.
-    :param curriculum: the config's phases.
+    :param curriculum_path: the curriculum file; its name is the task label.
+    :param phases: the curriculum's phases.
     :return: :func:`~fmri_gym.bids.last_position`, or ``None`` (said on stderr)
-        when no earlier run of this config got past its opening phases.
-    :raises ValueError: if that run played the config to its end, or its
-        last game phase differs in this config by more than :data:`RESUMABLE_CHANGES`.
+        when no earlier run of this curriculum got past its opening phases.
+    :raises ValueError: if that run played the curriculum to its end, or its
+        last game phase differs in this curriculum by more than
+        :data:`RESUMABLE_CHANGES`.
     """
-    position = bids.last_position(data_root, subject, config_path)
-    if position is None:
-        print("resume: no earlier run of this config got past its opening phases; starting "
+    progress = bids.last_position(data_root, subject, curriculum_path)
+    if progress is None:
+        print("resume: no earlier run of this curriculum got past its opening phases; starting "
               "at the beginning", file=sys.stderr)
         return None
-    run, index, last = position["run"], position["index"], position["last_game"]
-    if index >= len(curriculum):
-        raise ValueError(f"--resume: {run} played this config to its end; start it over "
-                         "without --resume")
-    if last is not None:
-        then = last["phase"]
-        now = curriculum[last["index"]] if last["index"] < len(curriculum) else {}
+    run_label, last_game = progress.run_label, progress.last_game
+    if progress.phase_index >= len(phases):
+        raise ValueError(f"--resume: {run_label} played this curriculum to its end; start it "
+                         "over without --resume")
+    if last_game is not None:
+        then = last_game.phase
+        now = phases[last_game.phase_index] if last_game.phase_index < len(phases) else {}
         changed = sorted(k for k in then.keys() | now.keys() if then.get(k) != now.get(k)
                          and k not in RESUMABLE_CHANGES and not k.startswith("_"))
         if changed:
-            raise ValueError(f"--resume: phase {last['index']}, the last game {run} played, is "
-                             f"not the same game in this config ({', '.join(changed)} changed). "
-                             "Put it back, or start over without --resume")
-    print(f"resume: carrying on from {run} at phase {index}"
-          + (" mid-block" if "block_time_elapsed" in position else ""), file=sys.stderr)
-    return position
+            raise ValueError(f"--resume: phase {last_game.phase_index}, the last game "
+                             f"{run_label} played, is not the same game in this curriculum "
+                             f"({', '.join(changed)} changed). Put it back, or start over "
+                             "without --resume")
+    print(f"resume: carrying on from {run_label} at phase {progress.phase_index}"
+          + (" mid-block" if progress.block_progress is not None else ""), file=sys.stderr)
+    return progress
 
 
 class Run:
@@ -332,19 +362,19 @@ class Run:
     def __init__(
         self,
         subject: str,
-        curriculum: list[dict],
+        phases: list[dict],
         display: Display,
         outdir: str,
         audio: Audio | None = None,
         triggers: Triggers | None = None,
         dummy_trigger: bool = False,
         duration: float | None = None,
-        resume: dict | None = None,
+        resume: RunProgress | None = None,
     ) -> None:
         """Set up clock, logger, and phase dispatch for one subject.
 
         :param subject: subject identifier used in log paths / manifest.
-        :param curriculum: ordered list of phase dicts (``type``, timings, …).
+        :param phases: the curriculum's phases, in order (dicts: ``type``, timings, …).
         :param display: shared pygame display used by all phases.
         :param outdir: the run's folder, for its manifest and block logs.
         :param audio: shared audio output used by all phases; one is created if
@@ -356,79 +386,80 @@ class Run:
         :param dummy_trigger: if ``True``, skip real experimenter/scanner waits.
         :param duration: the run's seconds from the trigger, the closing
             fixation included; ``None`` plays the curriculum to its end.
-        :param resume: where to start in the curriculum
-            (:func:`~fmri_gym.bids.last_position`); ``None`` starts at its beginning.
+        :param resume: where to start in the curriculum, and what the block
+            there has left (:func:`~fmri_gym.bids.last_position`); ``None``
+            starts at its beginning.
         """
         self.subject = subject
-        self.curriculum = curriculum
+        self.phases = phases
         self.display = display
         self.audio = audio or Audio()
         self.dummy_trigger = dummy_trigger
         self.clock = Clock()
-        self.logger = Logger(outdir, subject, curriculum, self.clock)
+        self.logger = Logger(outdir, subject, phases, self.clock)
         self.logger.set_extra("display", display.describe())
         self.logger.set_extra("dummy_trigger", dummy_trigger)
         self.logger.set_extra("audio", self.audio.describe())
         self.outdir = outdir
-        self.triggers = triggers or Triggers.from_config(None)
+        self.triggers = triggers or Triggers.from_dict(None)
         self.sync = self.triggers.sync
         self.duration = duration
         self.resume = resume
         #: ``perf_counter`` at which the phases stop for the closing fixation.
         self._run_end = math.inf
         self.logger.set_extra("duration", duration)
-        self.logger.set_extra("resumed_from", None if resume is None else
-                              {k: v for k, v in resume.items() if k != "initial_state"})
+        self.logger.set_extra("resumed_from", None if resume is None else resume.record())
 
     @classmethod
-    def from_config(cls, config: dict, args: Any) -> "Run":
-        """Everything one run needs, from its config and the command line.
+    def from_config_and_curriculum(cls, config: RunConfig, curriculum: dict[str, Any]) -> "Run":
+        """Everything one run needs, from its run config and its curriculum.
 
         Works out where the run writes and what seeds it plays, then opens the
         trigger line, the audio output and the window -- in that order, so a
         bad section, an unopenable port or an unusable output stops the run
         before anything is on screen. Each says on stderr what it got.
 
-        :param config: the run's config, already checked (``validate_config``).
-        :param args: ``fmri_play``'s parsed flags.
+        :param config: the command line, as the run reads it.
+        :param curriculum: the curriculum, already checked
+            (:func:`~fmri_gym.curriculum.validate_curriculum`).
         :return: the run, ready to :meth:`play`.
         :raises ValueError: on a BIDS name or number, a monitor or a window
             size this machine or this subject refuses; a duration no longer
-            than the closing fixation; a position to resume from that this
-            config cannot carry on (see :func:`_resume_position`).
+            than the closing fixation; a progress to resume from that this
+            curriculum cannot carry on (see :func:`_run_progress`).
         """
-        curriculum = config["curriculum"]
-        if args.duration is not None and args.duration <= END_FIXATION_S:
-            raise ValueError(f"--duration {args.duration:g}: a run closes on {END_FIXATION_S:g} s "
-                             "of fixation, so it must be longer than that")
-        width, height = (int(x) for x in args.size.lower().split("x"))
-        out = bids.run_output(args.data_root, args.subject, args.curriculum,
-                              args.ses, args.run)
+        phases = curriculum["curriculum"]
+        if config.duration is not None and config.duration <= END_FIXATION_S:
+            raise ValueError(f"--duration {config.duration:g}: a run closes on "
+                             f"{END_FIXATION_S:g} s of fixation, so it must be longer than that")
+        out = bids.run_output(config.data_root, config.subject, config.curriculum_path,
+                              config.ses, config.run)
         if out.attempt > 1:
             print(f"{out.label} already has data: this is attempt {out.attempt} at it, and "
                   "writes beside the others", file=sys.stderr)
         print(f"output: {out.folder}", file=sys.stderr)
         resume = None
-        if args.resume:
-            resume = _resume_position(args.data_root, args.subject, args.curriculum, curriculum)
-        seeds = bids.fold_seeds(curriculum, out.label)
-        check_monitor(args.monitor)
-        fold_cli_options(curriculum, args)
+        if config.resume:
+            resume = _run_progress(config.data_root, config.subject, config.curriculum_path,
+                                   phases)
+        seeds = bids.fold_seeds(phases, out.label)
+        check_monitor(config.monitor)
+        fold_cli_options(phases, has_audio=config.has_audio)
 
-        triggers = Triggers.from_config(config.get("triggers"))
+        triggers = Triggers.from_dict(curriculum.get("triggers"))
         print(f"triggers: {triggers.status()}", file=sys.stderr)
-        if args.dummy_trigger:
+        if config.dummy_trigger:
             print("triggers: --dummy-trigger: the experimenter and scanner waits are skipped; "
                   "this is a test run, not a session", file=sys.stderr)
-        audio = Audio(enabled=not args.no_audio)
+        audio = Audio(enabled=config.has_audio)
         print(f"audio: {audio.status()}", file=sys.stderr)
-        pad_status = pad.init(not getattr(args, "no_pad", False))
+        pad_status = pad.init(config.has_pad)
         print(f"pad: {pad_status}", file=sys.stderr)
-        display = Display(size=(width, height), fullscreen=args.fullscreen,
-                          vsync=not args.no_vsync, monitor=args.monitor)
-        run = cls(args.subject, curriculum, display, out.folder, audio=audio,
-                  triggers=triggers, dummy_trigger=args.dummy_trigger,
-                  duration=args.duration, resume=resume)
+        display = Display(size=config.size, fullscreen=config.is_fullscreen,
+                          vsync=config.has_vsync, monitor=config.monitor)
+        run = cls(config.subject, phases, display, out.folder, audio=audio,
+                  triggers=triggers, dummy_trigger=config.dummy_trigger,
+                  duration=config.duration, resume=resume)
         run.logger.set_extra("run", {"label": out.label, "attempt": out.attempt})
         run.logger.set_extra("seeds", seeds)
         run.logger.set_extra("pad", pad_status)   # which controller answered, and as what
@@ -573,37 +604,28 @@ class Run:
     def _episode(
         self,
         adapter: EnvAdapter,
+        game_phase: GamePhase,
         *,
         seed: int,
         episode_id: int,
-        turn_based: bool,
-        latched: bool,
-        live_hud: bool,
-        dt: float,
-        state_stride: int,
         block_end: float,
-        play_sound: bool,
         menu: Menu | None,
-        outcome_duration: float,
         initial_state: bytes | None = None,
         recent_states: deque | None = None,
-    ) -> dict:
+    ) -> EpisodeResult:
         """Run one episode, logging every frame.
 
         :param adapter: wrapped env for reset/step/render/sound/capture.
+        :param game_phase: the phase's settings; read here are
+            ``is_turn_based`` (advance only on mapped keydowns),
+            ``has_latched_keys`` (real-time: let a fresh keydown win over held
+            keys), ``has_live_hud`` (turn-based: redraw the HUD through the
+            wait), ``frame_period``, ``state_stride``, ``has_audio`` and
+            ``show_outcome_duration``.
         :param seed: RNG seed for this episode's ``reset``.
         :param episode_id: index of this episode within the game block.
-        :param turn_based: if True, advance only on mapped keydowns.
-        :param latched: real-time only: let a fresh keydown win over held keys.
-        :param live_hud: turn-based only: redraw the HUD while waiting for the
-            press, so its clock is not the one the last press left behind.
-        :param dt: target seconds per frame (``1 / fps``).
-        :param state_stride: record a full savestate every this many frames.
         :param block_end: ``perf_counter`` deadline for the game block.
-        :param play_sound: pass the adapter's sound to the speakers (the
-            phase's ``audio``); muting never changes what is logged.
         :param menu: the block's :class:`~.menu.Menu`, or ``None``.
-        :param outcome_duration: seconds the final score and outcome are shown.
         :param initial_state: a savestate to restore over the reset, so the
             episode starts where an earlier run's stopped; logged on
             ``episode_start``, since it, not the seed, is what the episode
@@ -613,21 +635,16 @@ class Run:
             block that rewinds (``rewind_on``).
         :raises ValueError: ``recent_states`` with a backend whose ``capture``
             returns no savestate.
-        :return: the episode's ``episode_end`` record, as recorded:
-            ``episode_id``, ``outcome`` (one of the adapter's,
-            :meth:`~.adapters.base.EnvAdapter.outcome`: ``"won"``, ``"lost"``,
-            ``"terminated"``, ``"truncated"``, or ``"playing"`` when the
-            block's clock cut it off; or ``"quit"`` for ESC / window close,
-            ``"reset"`` / ``"forfeit"`` for the subject's choice in the menu),
-            ``terminated``, ``truncated``, ``score`` and ``n_pacing_resets``.
+        :return: how the episode ended, as its ``episode_end`` record says.
         """
         terminated = truncated = False
         outcome = ""
         score = 0.0                     # the episode's cumulative reward
         n_pacing_resets = 0
         ep_frame = 0
+        dt = game_phase.frame_period
         key_to_action = (adapter.keymap.turn_actions()
-                         if turn_based or latched else None)
+                         if game_phase.is_turn_based or game_phase.has_latched_keys else None)
 
         def redraw() -> float:
             """Present the frame again, for its HUD. Never steps, logs or triggers."""
@@ -639,7 +656,7 @@ class Run:
         # loop ends on runs on regardless. Off unless the phase asks: a game
         # whose HUD says nothing about time has nothing to gain, and a
         # real-time wait is one frame long and repaints anyway.
-        repaint = redraw if turn_based and live_hud else None
+        repaint = redraw if game_phase.is_turn_based and game_phase.has_live_hud else None
         # Set while the env is in a state it takes no action in, to the action
         # to step it with; see EnvAdapter.autoplay. Only a turn-based block
         # cares: a real-time one steps through such a stretch anyway.
@@ -670,12 +687,12 @@ class Run:
             # turn-based block: the env is not waiting on the subject, so the
             # wait is one tick and the keys polled through it are logged but
             # not acted on.
-            waits_for_press = turn_based and auto is None
+            waits_for_press = game_phase.is_turn_based and auto is None
             deadline = block_end if waits_for_press else next_t
             action, user_quit = _poll_keys_until(
                 self.display, deadline, self.clock, self.logger,
                 key_to_action if waits_for_press else None, menu,
-                latch=latched and not turn_based,
+                latch=game_phase.has_latched_keys and not game_phase.is_turn_based,
                 repaint=repaint if waits_for_press else None)
             if user_quit:
                 outcome = "quit"
@@ -693,18 +710,18 @@ class Run:
                 continue                        # block ended without a press
             if auto is not None:
                 action = auto                   # the env is not taking ours
-            elif not turn_based and action is None:
+            elif not game_phase.is_turn_based and action is None:
                 # No latched press this frame (or the phase never asked for
                 # one): the action is whatever is held down at the tick.
                 action = adapter.keymap.resolve(held_key_names())
 
             observation, reward, terminated, truncated, info = adapter.step(action)
-            auto = adapter.autoplay(info) if turn_based else None
+            auto = adapter.autoplay(info) if game_phase.is_turn_based else None
             t_step = self.clock.run_time()
             score += float(reward)
             # A savestate at each episode's first frame (the replay anchor), then
             # every stride; frames between are the anchor plus the logged actions.
-            save_state = ep_frame % state_stride == 0
+            save_state = ep_frame % game_phase.state_stride == 0
             fs = adapter.capture(observation, info,
                                  want_blob=save_state or recent_states is not None)
             if recent_states is not None:
@@ -714,12 +731,12 @@ class Run:
                 recent_states.append(fs.blob)
             # The frame trigger goes out on the flip that shows this frame.
             self.display.call_on_flip(self.triggers.frame)
-            flip_t, frame, sound = self._show(adapter, play_sound, score, block_end)
+            flip_t, frame, sound = self._show(adapter, game_phase.has_audio, score, block_end)
             # More than a frame behind (a stall): drop the debt, or it is repaid
             # as a burst of one-refresh frames. The frame of slack is what a
             # vsync-locked flip normally lands after its tick.
             # TODO(#43): why frames fall behind at all is not established.
-            if turn_based:
+            if game_phase.is_turn_based:
                 # Anchor the next tick to this flip. A turn-based wait leaves
                 # next_t far behind -- the deadline it waits on is the block's,
                 # not the tick -- so an autoplayed stretch starting from the
@@ -745,7 +762,7 @@ class Run:
                 fields["env_action"] = info["env_action"]
             if self.triggers.enabled:
                 fields["trigger"] = self.triggers.last_frame
-            if play_sound:
+            if game_phase.has_audio:
                 # The chunk this frame's sound was queued as (-1: none); when it
                 # reached the DAC is in the block_end record's audio onsets.
                 fields["audio_chunk"] = self.audio.last_chunk
@@ -755,13 +772,14 @@ class Run:
 
         ## Final outcome
         outcome, message = _final_outcome(adapter, outcome, terminated, truncated)
-        result = {"episode_id": episode_id, "outcome": outcome, "terminated": bool(terminated),
-               "truncated": bool(truncated), "score": score, "n_pacing_resets": n_pacing_resets}
-        self.logger.log(type="episode_end", **result)
-        if message and outcome_duration > 0 and not self._time_up():
+        result = EpisodeResult(episode_id, outcome, bool(terminated), bool(truncated), score,
+                               n_pacing_resets)
+        self.logger.log(type="episode_end", **result.record())
+        if message and game_phase.show_outcome_duration > 0 and not self._time_up():
             self.audio.stop()               # the episode's last sounds, still queued
             self.display.draw_text(f"Final score: {score:g}\n{message}")
-            _wait_for_duration(self.display, outcome_duration, until=self._run_end)
+            _wait_for_duration(self.display, game_phase.show_outcome_duration,
+                               until=self._run_end)
         return result
 
     def _instructions(self, phase: dict, resumed: bool) -> dict | None:
@@ -803,104 +821,57 @@ class Run:
             self.audio.play(sound, flip_t)
         return flip_t, frame, sound
 
-    def _game(self, phase: dict, index: int) -> None:
+    def _game(self, phase: dict, index: int, block_progress: BlockProgress | None = None) -> None:
         """Run a game block (one or more episodes) and save frame-level data.
 
         Creates the env via the phase's backend adapter, plays until duration /
         episode count / quit, then writes its log and a manifest phase entry.
 
-        :param phase: game-phase config (``backend``, ``game``, ``mode``,
-            ``duration`` / ``n_episodes`` and ``advancing_outcomes``, ``fps``,
-            ``seed``, ``state_stride``, ``turn_based``, ``latched_keys``,
-            ``live_hud``,
-            ``keys``, ``outcome_duration``, ``instructions``, …; and, when the
-            run carries on a block an earlier run stopped, its
-            ``block_time_elapsed``, ``num_completed_episodes`` and the
-            ``initial_state`` of the episode it was in).
+        :param phase: the game phase's dict: the fields of
+            :class:`~fmri_gym.curriculum.GamePhase`, ``keys``,
+            ``instructions``, ``menu``, and the backend's own.
         :param index: phase index in the curriculum (for the manifest).
+        :param block_progress: what an earlier run that stopped this block
+            left of it; ``None`` plays the block from its beginning.
         :raises KeyboardInterrupt: if the subject quits mid-block.
         """
-        ## Config
-        backend = phase.get("backend", "gym")
-        mode = phase.get("mode", "duration")
-        duration = phase.get("duration", 30.0)
-        n_episodes = phase.get("n_episodes", 1)
-        # A blocking block: only an episode whose outcome is listed (usually
-        # ["won"]) counts toward n_episodes; any other replays the same instance
-        # (the seed follows the count), so the subject stays on a level until
-        # they clear it, max_duration runs out, or they forfeit from the menu.
-        # None: every episode counts, whatever its outcome.
-        advancing = phase.get("advancing_outcomes")
-        outcome_duration = float(phase.get("outcome_duration", 2.0))
-        base_seed = phase.get("seed", 1000 + index)
-        # 1 = a savestate every frame (default); larger trades savestate density
-        # for disk -- retro states are ~1 MB/frame.
-        state_stride = max(1, int(phase.get("state_stride", 1)))
-        cap = duration if mode == "duration" else phase.get("max_duration", 300.0)
+        ## Settings
+        game_phase = GamePhase.from_dict(phase, index)
         # A block an earlier run stopped goes on with the time and episodes it has left.
-        block_time_elapsed = phase.get("block_time_elapsed", 0.0)
-        num_completed_episodes = phase.get("num_completed_episodes", 0)
-        initial_state = phase.pop("initial_state", None)    # logged on episode_start
-        # An episode ending in one of `rewind_on` sends the world back
-        # `rewind_frames` frames and play goes on, as a new episode from that
-        # state: session policy, not a rule of the game, so a model played on
-        # the same env ends as the game says.
-        rewind_on = phase.get("rewind_on", [])
-        recent_states = (deque(maxlen=phase["rewind_frames"] + 1) if rewind_on else None)
-        # Turn-based games (grid worlds: FrozenLake, CliffWalking, Taxi, ...) must
-        # advance ONE step per deliberate key PRESS, not once per frame. In a
-        # real-time loop they'd auto-step every frame with the noop action (which
-        # for e.g. FrozenLake is action 0 = LEFT), so the agent "moves on its own"
-        # and a single held key fires many times. turn_based fixes both.
-        turn_based = bool(phase.get("turn_based", False))
-        # Real-time blocks poll HELD keys, so a press that starts and ends
-        # between two frames is never seen -- at a grid world's few frames per
-        # second that loses most taps. `latched_keys` lets a fresh keydown win
-        # instead, falling back to the held-key poll (so holding a key still
-        # repeats). Off by default: backends whose actions are key COMBINATIONS
-        # must keep polling, and this is exactly what they do today.
-        latched = bool(phase.get("latched_keys", False))
-        # A turn-based block draws a frame only when the subject presses, so
-        # the seconds its HUD shows stop between presses while the clock the
-        # block actually ends on does not. `live_hud` redraws the standing
-        # frame a few times a second through the wait, which changes nothing
-        # but the pixels: no step, no log row, no trigger, no sound. Off by
-        # default, so a block that has run this way keeps running this way.
-        live_hud = bool(phase.get("live_hud", False))
-        if live_hud and not turn_based:
-            raise ValueError(f'game phase {index}: "live_hud" is for turn_based '
-                             "blocks, whose wait is unbounded; a real-time block "
-                             "already redraws every frame")
-        play_sound = phase.get("audio", True)
-        if not isinstance(play_sound, bool):
-            raise ValueError(f'game phase {index}: "audio" must be true or false, '
-                             f"got {play_sound!r}")
-        # Every game phase states its own fps (validate_config refuses one that
-        # does not): what the block plays at is the config's business, not a
-        # default that changes with the engine underneath it.
-        fps = phase["fps"]
-        dt = 1.0 / fps
-        instructions = self._instructions(phase, resumed="block_time_elapsed" in phase)
+        block_time_elapsed = (0.0 if block_progress is None
+                              else block_progress.block_time_elapsed)
+        num_completed_episodes = (0 if block_progress is None
+                                  else block_progress.num_completed_episodes)
+        initial_state = (None if block_progress is None
+                         else block_progress.episode_initial_state)
+        # The savestates a rewinding block keeps (GamePhase.rewind_on): the
+        # oldest is rewind_frames before the ending.
+        recent_states = (deque(maxlen=game_phase.rewind_frames + 1)
+                         if game_phase.rewind_on else None)
+        instructions = self._instructions(phase, resumed=block_progress is not None)
 
         # Some backends (nle, browser games) take several seconds to start;
         # show a Loading screen so the previous fixation "+" doesn't freeze.
-        self.display.draw_text(
-            f"Loading {phase.get('text') or phase.get('game', 'game')} …")
-        adapter = get_adapter(backend, phase)
-        speed = {} if turn_based else self._speed(adapter, fps, index, phase["game"])
-        data_dir = self.logger.open_block(index, backend, phase["game"], phase, base_seed)
+        self.display.draw_text(f"Loading {phase.get('text') or game_phase.game} …")
+        adapter = get_adapter(game_phase.backend, phase)
+        speed = ({} if game_phase.is_turn_based
+                 else self._speed(adapter, game_phase.fps, index, game_phase.game))
+        data_dir = self.logger.open_block(index, game_phase.backend, game_phase.game, phase,
+                                          game_phase.seed)
 
         ## Init loop over episodes
         locked = self.display.vsync and self.display.refresh_rate
         flip_period = 1 / self.display.refresh_rate if locked else None
-        self.audio.start(frame_period=None if turn_based else dt, flip_period=flip_period)
+        self.audio.start(
+            frame_period=None if game_phase.is_turn_based else game_phase.frame_period,
+            flip_period=flip_period)
         onset = self.clock.run_time()
         block_start = time.perf_counter()
-        own_end = block_start + cap - block_time_elapsed
+        own_end = block_start + game_phase.duration - block_time_elapsed
         block_end = min(own_end, self._run_end)
         # The hold-a-key pause menu (reset / forfeit / resume), if the phase has one.
         menu = Menu(phase["menu"], block_start) if "menu" in phase else None
-        episodes: list[dict] = []       # each episode's episode_end record
+        episodes: list[EpisodeResult] = []
         outcome = ""
 
         ## Loop over episodes within game block
@@ -909,18 +880,15 @@ class Run:
             ## Run one episode
             # Seeded by episodes played, so a restart from the menu replays
             # the very instance the subject gave up on (a start-over).
-            episode_result = self._episode(
-                adapter, seed=base_seed + num_completed_episodes, episode_id=len(episodes),
-                turn_based=turn_based, latched=latched, live_hud=live_hud,
-                dt=dt, state_stride=state_stride,
-                block_end=block_end, play_sound=play_sound, menu=menu,
-                outcome_duration=outcome_duration, initial_state=initial_state,
-                recent_states=recent_states)
-            episodes.append(episode_result)
-            outcome = episode_result["outcome"]
+            result = self._episode(
+                adapter, game_phase, seed=game_phase.seed + num_completed_episodes,
+                episode_id=len(episodes), block_end=block_end, menu=menu,
+                initial_state=initial_state, recent_states=recent_states)
+            episodes.append(result)
+            outcome = result.outcome
             # The oldest state kept is `rewind_frames` before the ending; one
             # sooner than that goes back to where the episode started.
-            rewound = outcome in rewind_on
+            rewound = outcome in game_phase.rewind_on
             initial_state = None
             if rewound:
                 initial_state = (recent_states[0] if len(recent_states) == recent_states.maxlen
@@ -932,40 +900,43 @@ class Run:
             # in a blocking block, one whose outcome does not advance; nor one
             # a clock or ESC stopped, which a later run may carry on; nor a
             # death that is rewound.
+            advances = game_phase.advance_on is None or outcome in game_phase.advance_on
             num_completed_episodes += (outcome not in ("reset", "playing", "quit")
-                                       and not rewound
-                                       and (advancing is None or outcome in advancing))
-            if mode == "episode" and num_completed_episodes >= n_episodes:
+                                       and not rewound and advances)
+            if (game_phase.mode is BlockMode.EPISODE
+                    and num_completed_episodes >= game_phase.n_episodes):
                 break
         user_quit = (outcome == "quit")
         # Stopped before the block's own end (its clock, its episodes, a
         # forfeit) -- by the run's clock or ESC -- so a later run can carry it on.
         block_did_not_finish = user_quit or (
             self._time_up() and time.perf_counter() < own_end and outcome != "forfeit"
-            and not (mode == "episode" and num_completed_episodes >= n_episodes))
+            and not (game_phase.mode is BlockMode.EPISODE
+                     and num_completed_episodes >= game_phase.n_episodes))
 
         self.triggers.block_end()
 
         # Logging
         block_extra = adapter.block_extra() # run before closing the adapter to get the last state
         audio_log = self.audio.block_log()
-        if audio_log:
-            audio_log["onsets"] = [[chunk, self.clock.from_perf(t)] for chunk, t in audio_log["onsets"]]
+        if audio_log is not None:
+            audio_log = audio_log.in_run_time(self.clock.from_perf)
         summary = {
             "n_episodes": len(episodes), "n_frames": self.logger.n_frames,
-            "outcomes": dict(Counter(e["outcome"] for e in episodes)),
-            "n_pacing_resets": sum(e["n_pacing_resets"] for e in episodes),
-            "total_reward": sum(e["score"] for e in episodes),
+            "outcomes": dict(Counter(e.outcome for e in episodes)),
+            "n_pacing_resets": sum(e.n_pacing_resets for e in episodes),
+            "total_reward": sum(e.score for e in episodes),
             "block_time_elapsed": block_time_elapsed + time.perf_counter() - block_start,
             "num_completed_episodes": num_completed_episodes,
             "block_did_not_finish": block_did_not_finish,
         }
         self.logger.close_block(**summary, audio=audio_log, extra=block_extra)
         self.logger.log_phase({
-            "index": index, "type": "game", "backend": backend,
-            "game": phase["game"], "mode": mode,
+            "index": index, "type": "game", "backend": game_phase.backend,
+            "game": game_phase.game, "mode": game_phase.mode.value,
             "onset": onset, "offset": self.clock.run_time(), **summary,
-            **({"advancing_outcomes": advancing} if advancing is not None else {}),
+            **({"advancing_outcomes": list(game_phase.advance_on)}
+               if game_phase.advance_on is not None else {}),
             "data_dir": data_dir, **speed,
             **({"menu": menu.describe()} if menu else {}),
             **({"instructions": instructions} if instructions else {}),
@@ -1002,7 +973,7 @@ class Run:
 
         A resumed run skips the phases an earlier run played, except the
         ``include_on_resume`` opening ones, and hands the block it carries on
-        its progress in the phase dict. A run with a duration stops its phases
+        what that run left of it. A run with a duration stops its phases
         :data:`END_FIXATION_S` before the end and closes on a fixation cross.
         Always writes the run's manifest in ``finally``, including after an
         interrupt (partial data).
@@ -1012,12 +983,11 @@ class Run:
             report a run that stopped early.
         """
         user_quit = False
-        start = self.resume["index"] if self.resume else 0
-        carry = {k: v for k, v in (self.resume or {}).items()
-                 if k in ("block_time_elapsed", "num_completed_episodes", "initial_state")}
+        start = 0 if self.resume is None else self.resume.phase_index
+        block_progress = None if self.resume is None else self.resume.block_progress
         handlers = {"fixation": self._fixation, "message": self._message,
                     "game": self._game, "survey": self._survey}
-        if any(p["type"].startswith("check_") for p in self.curriculum):
+        if any(p["type"].startswith("check_") for p in self.phases):
             from . import checks  # rig-check phases: measured with this run's display and lines
             handlers.update({kind: partial(checks.run_check, self)
                              for kind in checks.CHECK_TYPES})
@@ -1027,7 +997,7 @@ class Run:
                 self._run_end = self.clock.t0_perf + self.duration - END_FIXATION_S
 
             reached_end = True
-            for index, phase in enumerate(self.curriculum):
+            for index, phase in enumerate(self.phases):
                 if index < start and not phase.get("include_on_resume", False):
                     continue                    # an earlier run played it
                 if self._time_up():
@@ -1036,7 +1006,10 @@ class Run:
                 handler = handlers.get(phase["type"])
                 if handler is None:
                     raise ValueError(f"unknown phase type: {phase['type']!r}")
-                handler({**phase, **carry} if index == start else phase, index)
+                if index == start and block_progress is not None:
+                    self._game(phase, index, block_progress)  # the block an earlier run stopped
+                    continue
+                handler(phase, index)
 
             if self.duration is not None:
                 self._end_fixation()

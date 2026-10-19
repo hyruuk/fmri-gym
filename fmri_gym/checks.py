@@ -69,7 +69,7 @@ import subprocess
 import sys
 import time
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Iterator, NamedTuple, Sequence
 
 import gymnasium as gym
 import numpy as np
@@ -79,8 +79,8 @@ from gymnasium import spaces
 from . import pad
 from .display import Display, is_locked
 from .keys import _PYGAME_KEY_NAMES, get_events, key_name
-from .photodiode import (CORNERS, AudioRecorder, _clicker, _light_verdict, _log_clicks,
-                         _readout, _sound_verdict, run_flashes)
+from .photodiode import (CORNERS, AudioRecorder, Verdict, _clicker, _light_verdict,
+                         _log_clicks, _readout, _sound_verdict, run_flashes)
 from .run import _wait_for_duration
 from .triggers import LIFECYCLE_EVENTS, Codes, TriggerError, Triggers
 
@@ -97,12 +97,12 @@ _VERDICT_S = 1.5
 _SUMMARY_S = 5.0
 #: The rig file, per machine; ``RIG`` in the environment points elsewhere.
 RIG_FILE = os.environ.get("RIG", "rig.json")
-_PASS = {"status": "pass", "why": None}
+_PASS = Verdict("pass", None)
 
 
-def has_checks(config: dict) -> bool:
-    """Whether the config is a rig check: any of its phases is a check."""
-    return any(p["type"] in CHECK_TYPES for p in config["curriculum"])
+def has_checks(curriculum: dict) -> bool:
+    """Whether the curriculum is a rig check: any of its phases is a check."""
+    return any(p["type"] in CHECK_TYPES for p in curriculum["curriculum"])
 
 
 # ---------------------------------------------------------------------------
@@ -110,45 +110,53 @@ def has_checks(config: dict) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def prepare(config: dict, path: str) -> dict[str, Any]:
+class RigSetup(NamedTuple):
+    """What :func:`prepare` settles before the window opens, for the manifest."""
+
+    #: the rig file's fields (:func:`ensure_rig`)
+    rig: dict[str, str]
+    #: why the curriculum's trigger line did not open; ``None`` when it did
+    trigger_error: str | None
+
+
+def prepare(curriculum: dict, path: str) -> RigSetup:
     """Before the window: the rig file, the trigger settings, and a line the run can open.
 
     The rig file is required (its form opens when it is missing, see
     :func:`ensure_rig`). A rig check as downloaded has
     ``"triggers": null``: no setup is anyone's default, so the first run asks
-    for one -- a preset, or one's own -- and saves it in the config
+    for one -- a preset, or one's own -- and saves it in the curriculum
     (:func:`_ask_triggers`). A trigger line that does not open
     would stop the run before any check; here it fails the triggers check
     instead, and the run goes on with no codes (said on the console and in
     the manifest), so the other checks still run.
 
-    :param config: the run's config; its ``triggers`` section is filled in when
-        it has none, and replaced when its line does not open.
-    :param path: the config's file, where a chosen section is saved.
-    :raises ValueError: when the config has no trigger settings and none is chosen.
-    :return: ``rig`` and ``trigger_error`` (``None`` when the line opened), for
-        the manifest.
+    :param curriculum: the run's curriculum; its ``triggers`` section is
+        filled in when it has none, and replaced when its line does not open.
+    :param path: the curriculum's file, where a chosen section is saved.
+    :raises ValueError: when the curriculum has no trigger settings and none is chosen.
+    :return: the rig, and why the line did not open if it did not.
     """
     rig = ensure_rig(RIG_FILE)
-    if "triggers" in config and config["triggers"] is None:
-        _ask_triggers(config, path)
-    section = config.get("triggers") or {}
+    if "triggers" in curriculum and curriculum["triggers"] is None:
+        _ask_triggers(curriculum, path)
+    section = curriculum.get("triggers") or {}
     try:
-        Triggers.from_config(section).close()
-        return {"rig": rig, "trigger_error": None}
+        Triggers.from_dict(section).close()
+        return RigSetup(rig, None)
     except (TriggerError, OSError) as exc:
         error = f"{type(exc).__name__}: {exc}"
     sync = dict(section.get("sync", {}))
     if sync.get("mode") == "send":
         sync["mode"] = "none"  # send needs a line; waiting for the scanner does not
-    config["triggers"] = {**section, "backend": "null", "sync": sync}
+    curriculum["triggers"] = {**section, "backend": "null", "sync": sync}
     print(f"rig check: the trigger line did not open ({error}); the triggers check fails, "
           "the other checks run without codes", file=sys.stderr)
-    return {"rig": rig, "trigger_error": error}
+    return RigSetup(rig, error)
 
 
-def _ask_triggers(config: dict, path: str) -> None:
-    """Fill in a config's ``"triggers": null`` from the dialog, and save it.
+def _ask_triggers(curriculum: dict, path: str) -> None:
+    """Fill in a curriculum's ``"triggers": null`` from the dialog, and save it.
 
     :raises ValueError: with no screen for the dialog, or when it is cancelled.
     """
@@ -160,9 +168,9 @@ def _ask_triggers(config: dict, path: str) -> None:
     section = choose_triggers(path)
     if section is None:
         raise ValueError(f"rig check: {fix}; it was cancelled")
-    config["triggers"] = section
-    from .config import save_config
-    save_config(config, path)  # before the run folds its flags into it
+    curriculum["triggers"] = section
+    from .curriculum import save_curriculum
+    save_curriculum(curriculum, path)  # before the run folds its flags into it
     print(f"rig check: trigger settings saved in {path}", file=sys.stderr)
 
 
@@ -214,27 +222,27 @@ def run_check(run: Run, phase: dict, index: int) -> None:
     onset = run.clock.run_time()
     summary: dict[str, Any] = {}
     arrays: dict[str, np.ndarray] = {}
-    tests: dict[str, dict] = {}
+    tests: dict[str, Verdict] = {}
     try:
         _CHECKS[kind](run, phase, summary, arrays, tests, index)
     except Exception as exc:  # noqa: BLE001 -- a check that breaks fails its tests; the rest run
         for test in (t for t, k in TESTS.items() if k == kind):
-            tests.setdefault(test, {"status": "fail", "why": f"{type(exc).__name__}: {exc}"})
+            tests.setdefault(test, Verdict("fail", f"{type(exc).__name__}: {exc}"))
     finally:
         if arrays:
             np.savez_compressed(os.path.join(run.outdir, f"block-{index:02d}_{kind}.npz"),
                                 **arrays)
         run.logger.log_phase({"index": index, "type": kind, "onset": onset,
                               "offset": run.clock.run_time(), "summary": summary,
-                              "tests": tests})
+                              "tests": {t: v._asdict() for t, v in tests.items()}})
         for test, v in tests.items():
-            print(f"rig check: {test}: {v['status']}" + (f" -- {v['why']}" if v["why"] else ""),
+            print(f"rig check: {test}: {v.status}" + (f" -- {v.why}" if v.why else ""),
                   file=sys.stderr)
-    lines = [f"{t}: {v['status'].upper()}" + (f"\n  {v['why'][:160]}" if v["why"] else "")
+    lines = [f"{t}: {v.status.upper()}" + (f"\n  {v.why[:160]}" if v.why else "")
              for t, v in tests.items()]
     run.display.draw_text("Rig check\n\n" + "\n".join(lines))
     _wait_for_duration(run.display, _VERDICT_S)
-    if index == max(i for i, p in enumerate(run.curriculum) if p["type"] in CHECK_TYPES):
+    if index == max(i for i, p in enumerate(run.phases) if p["type"] in CHECK_TYPES):
         _summary_screen(run)
 
 
@@ -269,9 +277,9 @@ def _check_display(run: Run, phase: dict, summary: dict, arrays: dict, tests: di
     arrays["intervals_ms"] = np.asarray(stats.pop("intervals_ms"))
     locked = is_locked(info, stats)
     summary.update(display=info, flips={"n": n, **stats}, locked=locked)
-    tests["display"] = _PASS if locked else {
-        "status": "fail", "why": f"flips are NOT locked to the refresh (vsync {info['vsync']}, "
-                                 f"mean {stats['mean_ms']:.2f} ms, SD {stats['sd_ms']:.2f})"}
+    tests["display"] = _PASS if locked else Verdict(
+        "fail", f"flips are NOT locked to the refresh (vsync {info['vsync']}, "
+                f"mean {stats['mean_ms']:.2f} ms, SD {stats['sd_ms']:.2f})")
 
 
 def _check_triggers(run: Run, phase: dict, summary: dict, arrays: dict, tests: dict,
@@ -281,13 +289,13 @@ def _check_triggers(run: Run, phase: dict, summary: dict, arrays: dict, tests: d
     summary["triggers"] = run.triggers.describe()
     error = run.logger.manifest.get("trigger_error")
     if error:
-        tests["triggers"] = {"status": "fail", "why": f"the trigger line did not open: {error}"}
+        tests["triggers"] = Verdict("fail", f"the trigger line did not open: {error}")
         return
     t = run.triggers
     pulses = t.sync.mode == "wait" and not run.dummy_trigger
     if not (t.enabled or pulses):
-        tests["triggers"] = {"status": "not run", "why": "this config neither sends codes nor "
-                                                         "waits for the scanner"}
+        tests["triggers"] = Verdict("not run", "this config neither sends codes nor waits "
+                                               "for the scanner")
         return
     if t.enabled:
         def on_send(label: str, value: int, number: int, total: int) -> None:
@@ -397,7 +405,7 @@ def _check_controls(run: Run, phase: dict, summary: dict, arrays: dict, tests: d
         problems.append(f"pad: {summary['pad']['why']}")
     problems += [_key_problem(k, results.get(k)) for k in keys
                  if not results.get(k, {}).get("pressed")]
-    tests["controls"] = ({"status": "fail", "why": "; ".join(problems)} if problems else _PASS)
+    tests["controls"] = Verdict("fail", "; ".join(problems)) if problems else _PASS
 
 
 #: Under this many degrees between the direction a push was meant for and its
@@ -529,7 +537,7 @@ def _check_photodiode(run: Run, phase: dict, summary: dict, arrays: dict, tests:
     readout = phase.get("readout", "soundcard")
     clicks = phase.get("audio", True) and run.audio.enabled
     if phase.get("audio", True) and not run.audio.enabled:
-        tests["audio"] = {"status": "not run", "why": "the audio output is off (--no-audio)"}
+        tests["audio"] = Verdict("not run", "the audio output is off (--no-audio)")
     summary.update(display=run.display.describe(), readout=readout, mic=phase.get("mic", False),
                    n=phase.get("n", 10), on_ms=phase.get("on_ms", 50.0),
                    gap_ms=[phase.get("gap_min_ms", 150.0), phase.get("gap_max_ms", 250.0)],
@@ -571,11 +579,9 @@ def _recorder(phase: dict, tests: dict) -> AudioRecorder | None:
         recorder.start()
         return recorder
     except Exception as exc:  # noqa: BLE001 -- any device error fails the photodiode, not the rest
-        tests["photodiode"] = {"status": "fail",
-                               "why": f"the sound-card input did not open: {exc}"}
+        tests["photodiode"] = Verdict("fail", f"the sound-card input did not open: {exc}")
         if phase.get("mic"):
-            tests["audio"] = {"status": "fail", "why": f"the microphone's input did not open: "
-                                                       f"{exc}"}
+            tests["audio"] = Verdict("fail", f"the microphone's input did not open: {exc}")
         return None
 
 
@@ -598,7 +604,7 @@ def _check_frames(run: Run, phase: dict, summary: dict, arrays: dict, tests: dic
         summary[f"{key}_total"] = sum(b[key] for b in blocks)
     summary["triggers_ok"] = all(b["triggers"]["ok"] for b in blocks if b["triggers"])
     problems = [p for b in blocks for p in b["problems"]]
-    tests["frames"] = {"status": "fail", "why": "; ".join(problems)} if problems else _PASS
+    tests["frames"] = Verdict("fail", "; ".join(problems)) if problems else _PASS
 
 
 @contextmanager

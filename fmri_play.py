@@ -27,7 +27,8 @@ import signal
 import sys
 
 from fmri_gym import Run, checks
-from fmri_gym.config import EXIT_QUIT, load_config, validate_config
+from fmri_gym.config import RunConfig
+from fmri_gym.curriculum import EXIT_QUIT, load_curriculum, validate_curriculum
 from fmri_gym.display import quit_like_esc
 
 
@@ -47,8 +48,8 @@ def _parser() -> argparse.ArgumentParser:
     """The command line: one run, and how this machine plays it."""
     p = _Parser(description="Run any gym game as an fMRI task.")
     p.add_argument("--subject", default="sub-test", help="BIDS subject: sub-<letters/digits>")
-    p.add_argument("--curriculum", required=True, help="config JSON of the run (see README); "
-                   "fmri-edit writes one without the JSON")
+    p.add_argument("--curriculum", required=True, help="the run's curriculum JSON (see "
+                   "README); fmri-edit writes one without the JSON")
     p.add_argument("--data-root", default="data",
                    help="where the BIDS tree goes: <root>/sub-XX/ses-NNN/beh/<run>/")
     p.add_argument("--ses", type=int, required=True,
@@ -84,18 +85,20 @@ def _parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = _parser().parse_args()
-    config = load_config(args.curriculum)
-    problems = validate_config(config)  # the editor's Check, so a file edited by hand gets it too
+    run_config = RunConfig.from_args(args)
+    curriculum = load_curriculum(run_config.curriculum_path)
+    # The editor's Check, so a file edited by hand gets it too.
+    problems = validate_curriculum(curriculum)
     if problems:
-        raise ValueError(f"{args.curriculum}: " + "; ".join(problems))
+        raise ValueError(f"{run_config.curriculum_path}: " + "; ".join(problems))
 
     rig_check = None
-    if checks.has_checks(config):  # a rig check: its rig file, and a line that opens, first
-        rig_check = checks.prepare(config, args.curriculum)
-    run = Run.from_config(config, args)
+    if checks.has_checks(curriculum):  # a rig check: its rig file, and a line that opens, first
+        rig_check = checks.prepare(curriculum, run_config.curriculum_path)
+    run = Run.from_config_and_curriculum(run_config, curriculum)
     if rig_check is not None:
-        run.logger.set_extra("rig", rig_check["rig"])
-        run.logger.set_extra("trigger_error", rig_check["trigger_error"])
+        run.logger.set_extra("rig", rig_check.rig)
+        run.logger.set_extra("trigger_error", rig_check.trigger_error)
     previous = signal.signal(signal.SIGINT, quit_like_esc)
     try:
         completed = run.play()
@@ -105,7 +108,7 @@ def main() -> None:
         signal.signal(signal.SIGINT, previous)
     if rig_check is not None:
         # A failed test is a finding, listed in the report: the session goes on.
-        checks.finish(run, args.ses, args.data_root)
+        checks.finish(run, run_config.ses, run_config.data_root)
     if not completed:
         # A session script (set -e) must not start the next run after an ESC.
         sys.exit(EXIT_QUIT)
