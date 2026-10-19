@@ -1111,8 +1111,8 @@ COLUMNS: list[tuple[str, tuple[str, ...], str, str | None]] = [
     ("pi", ("rig", "pi"), "PI's initials, from the rig file", None),
     ("modality", ("rig", "modality"), "Recording modality of the rig", None),
     ("date", ("start_time",), "When the check started, ISO 8601 with UTC offset", None),
-    ("task", ("task",), "rigcheck (before a session) or rigchecklong (measuring the rig)",
-     None),
+    ("task", ("task",), "checksrigcheck (before a session) or checksrigchecklong (measuring "
+     "the rig): the curriculum's task label", None),
     ("subject", ("subject",), "BIDS subject the check was filed under (sub-rig: none)", None),
     ("session", ("session",), "BIDS session number", None),
     ("label", ("run", "label"), "BIDS run label of the check", None),
