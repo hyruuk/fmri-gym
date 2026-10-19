@@ -839,7 +839,7 @@ def main() -> None:
     args = p.parse_args()
     if args.session and args.curriculum:
         p.error("--session and --curriculum: the session already names its configs")
-    config = (curriculum.load_curriculum(args.curriculum) if args.curriculum
+    config = (curriculum.load_curriculum(args.curriculum, keep_includes=True) if args.curriculum
               else curriculum.new_curriculum())
     try:
         command = edit_config(config, args.curriculum, session=args.session)

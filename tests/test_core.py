@@ -18,7 +18,8 @@ from fmri_gym.audio import AudioBlockLog
 from fmri_gym.bids import task_label
 from fmri_gym.adapters.keymap import make_keymap
 from fmri_gym.curriculum import (
-    check_shape, is_common_file, load_curriculum, validate_curriculum,
+    check_shape, game_changes, is_common_file, load_curriculum, save_curriculum,
+    shared_overrides, validate_curriculum,
 )
 from fmri_gym.logging import (
     AUDIO_FILENAME, FRAMES_FILENAME, Logger, read_audio, read_events, read_frames, read_state,
@@ -187,6 +188,67 @@ def test_comments_start_with_two_hashes():
         check_shape({"_note": "old", "curriculum": [PHASE]}, "c")
     with pytest.raises(ValueError, match="comment"):
         check_shape({"curriculum": [{**PHASE, "_keys_note": "old"}]}, "c")
+
+
+def _level(tmp_path, monkeypatch) -> Path:
+    """A curriculum in tmp_path/levels/ whose game phase includes ../common/game.json."""
+    monkeypatch.chdir(tmp_path)
+    shared = {k: v for k, v in PHASE.items() if k != "game"}
+    _write(tmp_path / "common" / "game.json",
+           {**shared, "instructions": {"text": ["a"], "keys_to_dismiss": ["SPACE"]}})
+    return _write(tmp_path / "levels" / "one.json", {"curriculum": [
+        {"type": "fixation", "duration": 1.0},
+        {"__include": "../common/game.json", "game": "CartPole-v0",
+         "instructions": {"title": "Level 1"}},
+    ]})
+
+
+def test_an_unchanged_curriculum_saves_as_it_was_written(tmp_path, monkeypatch):
+    path = _level(tmp_path, monkeypatch)
+    loaded = load_curriculum(str(path), keep_includes=True)
+    assert loaded["curriculum"][1]["__include"] == "common/game.json"   # from the working dir
+    assert shared_overrides(loaded) == []
+    written = json.loads(path.read_text())
+    save_curriculum(loaded, str(path))
+    assert json.loads(path.read_text()) == written
+
+
+def test_saving_elsewhere_keeps_the_include_pointing_at_the_shared_phase(tmp_path, monkeypatch):
+    path = _level(tmp_path, monkeypatch)
+    loaded = load_curriculum(str(path), keep_includes=True)
+    save_curriculum(loaded, str(tmp_path / "copy.json"))
+    assert json.loads((tmp_path / "copy.json").read_text())["curriculum"][1]["__include"] == \
+        "common/game.json"
+    assert load_curriculum("copy.json") == load_curriculum(str(path))
+
+
+def test_a_change_to_the_shared_part_is_said_and_saved_as_the_phase_own(tmp_path, monkeypatch):
+    path = _level(tmp_path, monkeypatch)
+    loaded = load_curriculum(str(path), keep_includes=True)
+    loaded["curriculum"][1]["fps"] = 60
+    assert any("fps" in line and "own" in line for line in shared_overrides(loaded))
+    save_curriculum(loaded, str(path))
+    game = json.loads(path.read_text())["curriculum"][1]
+    assert game == {"__include": "../common/game.json", "game": "CartPole-v0",
+                    "instructions": {"title": "Level 1"}, "fps": 60}
+
+
+def test_a_removal_from_the_shared_part_saves_the_phase_in_full(tmp_path, monkeypatch):
+    path = _level(tmp_path, monkeypatch)
+    loaded = load_curriculum(str(path), keep_includes=True)
+    del loaded["curriculum"][1]["instructions"]["text"]
+    assert any("instructions.text" in line and "in full" in line
+               for line in shared_overrides(loaded))
+    save_curriculum(loaded, str(path))
+    game = json.loads(path.read_text())["curriculum"][1]
+    assert "__include" not in game and "text" not in game["instructions"]
+
+
+def test_game_changes_ignore_comments_and_resumable_fields():
+    then = {**PHASE, "duration": 30.0, "## why": "a"}
+    assert game_changes(then, {**PHASE, "duration": 60.0, "## why": "b"}) == []
+    assert game_changes(then, {**PHASE, "game": "Acrobot-v1"}) == ["game"]
+    assert game_changes({**PHASE, "_note": "a"}, PHASE) == ["_note"]
 
 
 @pytest.mark.parametrize("include, shared, problem", [

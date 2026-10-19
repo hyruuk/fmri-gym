@@ -40,7 +40,7 @@ from .adapters import get_adapter
 from .audio import Audio
 from .bids import BlockProgress, RunProgress
 from .config import RunConfig
-from .curriculum import BlockMode, GamePhase, fold_cli_options, is_comment
+from .curriculum import BlockMode, GamePhase, fold_cli_options, game_changes
 from .display import Display, check_monitor
 from .keys import get_events, held_key_names, key_name
 from .menu import Menu
@@ -60,18 +60,6 @@ _SAME_SPEED = 2e-3
 HUD_REPAINT_S = 0.2
 #: Seconds of fixation that close a run given a duration.
 END_FIXATION_S = 10.0
-#: Game-phase fields a curriculum may change between runs and still carry a
-#: block on; any other change makes it a different game. ``seed`` and ``audio``
-#: are the run's own (folded in from the run label and the run config).
-RESUMABLE_CHANGES = frozenset({"duration", "max_duration", "n_episodes", "advancing_outcomes",
-                               "outcome_duration", "instructions", "keys", "menu", "seed",
-                               "audio", "rewind_on", "rewind_frames"})
-
-
-def _is_note(key: str) -> bool:
-    """A phase key that says nothing about the game: a comment, or a ``_`` key, which a
-    manifest written by an earlier version of the configs holds as a note."""
-    return is_comment(key) or key.startswith("_")
 
 
 @dataclass(frozen=True, slots=True)
@@ -335,8 +323,8 @@ def _run_progress(
     :return: :func:`~fmri_gym.bids.last_position`, or ``None`` (said on stderr)
         when no earlier run of this curriculum got past its opening phases.
     :raises ValueError: if that run played the curriculum to its end, or its
-        last game phase differs in this curriculum by more than
-        :data:`RESUMABLE_CHANGES`.
+        last game phase is another game in this curriculum
+        (:func:`~fmri_gym.curriculum.game_changes`).
     """
     progress = bids.last_position(data_root, subject, curriculum_path)
     if progress is None:
@@ -350,8 +338,7 @@ def _run_progress(
     if last_game is not None:
         then = last_game.phase
         now = phases[last_game.phase_index] if last_game.phase_index < len(phases) else {}
-        changed = sorted(k for k in then.keys() | now.keys() if then.get(k) != now.get(k)
-                         and k not in RESUMABLE_CHANGES and not _is_note(k))
+        changed = game_changes(then, now)
         if changed:
             raise ValueError(f"--resume: phase {last_game.phase_index}, the last game "
                              f"{run_label} played, is not the same game in this curriculum "
