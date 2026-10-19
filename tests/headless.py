@@ -3,8 +3,8 @@
 ``fmri_play.main()`` runs in this process, so the trigger wait, the
 instructions screen, the window, the key queue, the pacing and the logger are
 the ones a subject gets. Two things stand in for the rig: SDL's dummy video
-driver (a window that is never shown) and a key script registered with
-:mod:`fmri_gym.keys` the way the gamepad is (:func:`~fmri_gym.keys
+driver (a window that is never shown; ``--window`` opens a real one) and a key
+script registered with :mod:`fmri_gym.keys` the way the gamepad is (:func:`~fmri_gym.keys
 .register_event_source` for the presses, :func:`~fmri_gym.keys
 .register_held_source` for what counts as held), so every press travels the
 route a real key does. The script presses the phase's own keys at random,
@@ -13,7 +13,8 @@ after first dismissing the instructions with the key they ask for.
 Audio is the one thing a script cannot fake: the run opens the machine's
 output unless ``--no-audio`` is passed, which is what a machine without one
 (a CI runner) needs. ``--duration`` ends the run on the clock, as the scanner
-would, so a five-minute block plays for the seconds a test can afford.
+would, so a five-minute block plays for the seconds a test can afford, and the
+closing fixation lasts ``--end-fixation`` (1 s here; a session's is 10).
 
     python -m tests.headless --curriculum configs/curricula/minihack/room5x5.json \\
         --data-root /tmp/headless --duration 25
@@ -32,7 +33,8 @@ import sys
 import time
 
 # Before pygame is imported anywhere: the driver is read when the display opens.
-os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+if "--window" not in sys.argv:
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 import pygame  # noqa: E402
@@ -102,8 +104,12 @@ def main() -> None:
     p.add_argument("--curriculum", required=True)
     p.add_argument("--data-root", required=True)
     p.add_argument("--duration", type=float, default=25.0,
-                   help="seconds the run lasts; the phases stop 10 s before")
+                   help="seconds the run lasts; the phases stop --end-fixation before")
+    p.add_argument("--end-fixation", type=float, default=1.0,
+                   help="seconds of the closing fixation (a session's default is 10)")
     p.add_argument("--rate", type=float, default=6.0, help="presses per second")
+    p.add_argument("--window", action="store_true",
+                   help="open a real window (SDL's default driver) instead of the dummy one")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--no-audio", action="store_true", help="for a machine without an output")
     args = p.parse_args()
@@ -114,7 +120,8 @@ def main() -> None:
     sys.argv = ["fmri-play", "--curriculum", args.curriculum, "--subject", "sub-test",
                 "--ses", "1", "--run", "1", "--data-root", args.data_root,
                 "--dummy-trigger", "--no-pad", "--no-vsync", "--size", "640x480",
-                "--duration", str(args.duration)] + (["--no-audio"] if args.no_audio else [])
+                "--duration", str(args.duration), "--end-fixation", str(args.end_fixation)
+                ] + (["--no-audio"] if args.no_audio else [])
     import fmri_play
     try:
         fmri_play.main()

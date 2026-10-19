@@ -46,6 +46,8 @@ class RunConfig:
     #: the run's seconds from the trigger, closing fixation included;
     #: ``None`` plays the curriculum to its end.
     duration: float | None
+    #: seconds of the fixation a run with a ``duration`` closes on.
+    end_fixation: float
     #: carry on from where the subject's latest run of this curriculum stopped.
     resume: bool
     #: the window, ``(width, height)`` in pixels.
@@ -79,7 +81,8 @@ class RunConfig:
                              ) from None
         return cls(
             subject=args.subject, curriculum_path=args.curriculum, data_root=args.data_root,
-            ses=args.ses, run=args.run, duration=args.duration, resume=args.resume,
+            ses=args.ses, run=args.run, duration=args.duration,
+            end_fixation=args.end_fixation, resume=args.resume,
             size=(width, height), is_fullscreen=args.fullscreen, monitor=args.monitor,
             has_vsync=not args.no_vsync, dummy_trigger=args.dummy_trigger,
             has_audio=not args.no_audio, has_pad=not args.no_pad)

@@ -206,9 +206,12 @@ def test_headless_run(smoke_config, plan, tmp_path):
     no_audio = plan.no_audio or not _audio_output_here()
     cmd = [sys.executable, "-m", "tests.headless", "--curriculum", str(config),
            "--data-root", str(tmp_path / "data"), "--duration", str(plan.run_seconds)]
-    done = subprocess.run(cmd + (["--no-audio"] if no_audio else []), cwd=REPO,
-                          capture_output=True, text=True, timeout=plan.run_seconds + 180,
-                          env={**os.environ, "SDL_VIDEODRIVER": "dummy"})
+    cmd += ["--no-audio"] * no_audio + ["--window"] * plan.has_window
+    env = {**os.environ}
+    if not plan.has_window:
+        env["SDL_VIDEODRIVER"] = "dummy"
+    done = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True,
+                          timeout=plan.run_seconds + 180, env=env)
     assert done.returncode == 0, f"fmri-play exited {done.returncode}:\n{done.stderr[-3000:]}"
 
     manifests = list((tmp_path / "data").glob("sub-test/ses-001/beh/*/manifest.json"))
@@ -216,6 +219,7 @@ def test_headless_run(smoke_config, plan, tmp_path):
     manifest = json.loads(manifests[0].read_text())
     games = [p for p in manifest["phases"] if p.get("type") == "game"]
     assert len(games) == 1, f"the game phase did not finish logging: {manifest['phases']}"
+    assert any(p.get("end_of_run") for p in manifest["phases"]), "no closing fixation was logged"
     assert games[0]["n_frames"] > 0, "the game block logged no frame: were the keys read?"
     block = manifests[0].parent / games[0]["data_dir"].split("/")[-1]
     assert (block / EVENTS_FILENAME).exists() and (block / FRAMES_FILENAME).exists()
