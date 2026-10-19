@@ -5,9 +5,10 @@ and an optional ``triggers`` section (:mod:`fmri_gym.triggers`); a key
 that starts with ``##`` is a comment, anywhere. Several runs make a session, which is a shell
 script (:func:`fmri_gym.gui.write_session`), not a curriculum.
 
-The file says what is played, not who plays it or where: subject, output
-folder, window and the test switches are the run config
-(:mod:`fmri_gym.config`), so one file serves every participant at every site.
+The file says what is played, not who plays it or where: subject and test
+switches are the run config (:mod:`fmri_gym.config.run`), and the window,
+audio and output folder the rig's (:mod:`fmri_gym.config.rig`), so one file
+serves every participant at every site.
 
 There is one shape. A bare list, an unknown top-level key, an unknown phase
 type or a phase key starting with ``_`` (the one prefix the loader keeps for
@@ -31,9 +32,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from .keys import KEY_NAMES
-from .menu import menu_problems
-from .triggers import TriggerError, TriggerSettings
+from ..keys import KEY_NAMES
+from ..menu import menu_problems
+from ..triggers import TriggerError, TriggerSettings
 
 #: The phases of a run; the ``check_*`` ones make a rig check (:mod:`fmri_gym.checks`).
 PHASE_TYPES = ("fixation", "message", "game", "survey", "check_display", "check_frames",
@@ -488,7 +489,7 @@ def _opening_problems(phases: list[dict]) -> list[str]:
 
 def _phase_problems(phase: dict, index: int) -> list[str]:
     if phase["type"].startswith("check_"):
-        from .checks import phase_problems
+        from ..checks import phase_problems
         return phase_problems(phase)
     if phase["type"] == "message":
         return _dismiss_problems("keys_to_dismiss", phase.get("keys_to_dismiss"))

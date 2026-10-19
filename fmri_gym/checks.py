@@ -32,7 +32,7 @@ check does not raise: it records a verdict for each of its tests (pass, fail,
 offline, not run, and why), so one failure hides none of the others, and a
 failed test ends nothing, neither the check nor the session.
 
-**The rig file** (:mod:`fmri_gym.rig`, one per rig) says what software cannot
+**The rig file** (:mod:`fmri_gym.config.rig`, one per rig) says what software cannot
 see: the site and rig, the PI, the monitor or projector, the photodiode, the
 sound path to the ear, the trigger hardware. A rig check is how a rig gets its
 file: when it is missing or invalid, the check opens a form to fill it in
@@ -49,7 +49,7 @@ numbers, charts, this rig's previous checks; one offline file),
 holds every check filed there, read from their manifests, so checks filed by
 an earlier version still line up::
 
-    python -m fmri_gym.checks rig --rig <name>         # fill in / update a rig file
+    python -m fmri_gym.checks rig --rig <site>/<rig>   # fill in / update a rig file
     python -m fmri_gym.checks report <run folder>...   # re-file checks already run
     python -m fmri_gym.checks pool data/ /mnt/siteB/data/ --out rigchecks.tsv
 """
@@ -78,7 +78,7 @@ import pygame
 from gymnasium import spaces
 
 from . import pad
-from . import rig as rig_file
+from .config import rig as rig_file
 from .display import Display, is_locked
 from .keys import _PYGAME_KEY_NAMES, get_events, key_name
 from .photodiode import (CORNERS, AudioRecorder, Verdict, _clicker, _light_verdict,
@@ -157,17 +157,17 @@ def _ask_triggers(curriculum: dict, path: str) -> None:
     if section is None:
         raise ValueError(f"rig check: {fix}; it was cancelled")
     curriculum["triggers"] = section
-    from .curriculum import save_curriculum
+    from .config.curriculum import save_curriculum
     save_curriculum(curriculum, path)  # before the run folds its flags into it
     print(f"rig check: trigger settings saved in {path}", file=sys.stderr)
 
 
-def finish(run: Run, session: int, data_root: str) -> bool:
-    """File the rig check: the tests in the manifest, the report, the pooling row.
+def finish(run: Run, session: int) -> bool:
+    """File the rig check: the tests in the manifest, the report, the pooling row, and
+    the rig's data root's ``rigchecks.tsv``, rebuilt.
 
     :param run: the run, played (its manifest saved).
     :param session: its BIDS session.
-    :param data_root: the BIDS tree it was filed in (its ``rigchecks.tsv`` is rebuilt).
     :return: ``True`` if a test failed or did not finish (the report lists them; the
         session goes on).
     """
@@ -188,6 +188,7 @@ def finish(run: Run, session: int, data_root: str) -> bool:
              .isoformat(timespec="seconds"),
              versions={**m.get("versions", {}), **versions()},
              platform=platform_info())
+    data_root = run.rig.data_root
     write_outputs(run.outdir, m, data_root)
     print(f"rig check {'PASS' if m['status'] == 'pass' else 'FAIL (' + m['failed_tests'] + ')'}"
           f": {os.path.join(run.outdir, 'report.html')} "
@@ -419,7 +420,7 @@ def _check_pad(run: Run, phase: dict) -> dict[str, Any]:
     if not phase.get("pad", True):
         return {"present": True, "device": device, "measured": False,
                 "why": "", "note": 'skipped ("pad": false)'}
-    rig = {k: run.logger.manifest["rig"][k] for k in ("site", "rig")}  # filed with the pad's
+    rig = {k: run.rig.fields[k] for k in ("site", "rig")}  # filed with the pad's
     _title(run, f"measuring {device}")
     try:
         out = pad.calibrate(int(phase.get("pad_reps", 3)), screen=run.display.screen,
@@ -1190,11 +1191,12 @@ def ensure_rig(name: str | None) -> rig_file.RigConfig:
     cancelled, the rig file's own error is raised. Several rigs and no ``name``
     is the experimenter's to settle: that raises with no form.
 
-    :param name: ``--rig``; ``None`` for this machine's only rig, or a new one when it has none.
+    :param name: ``--rig``, ``<site>/<rig>``; ``None`` for the only rig, or a new one when
+        there is none.
     :raises ValueError: when there is still no valid rig file, saying how to make one.
     """
-    if name is None and len(rig_file.names()) > 1:
-        return rig_file.RigConfig.open(None)
+    if (name is None and len(rig_file.names()) > 1) or (name is not None and name.count("/") != 1):
+        return rig_file.RigConfig.open(name)  # raises: which rig is the experimenter's to say
     try:
         return rig_file.RigConfig.open(name)
     except ValueError as error:
@@ -1206,7 +1208,7 @@ def ensure_rig(name: str | None) -> rig_file.RigConfig:
         saved = fill_rig(rig_file.draft(name if name is not None else only))
         if saved is None:
             raise
-    return rig_file.RigConfig.open(saved["rig"])
+    return rig_file.RigConfig.open(rig_file.name_of(saved))
 
 
 def can_show_form() -> bool:
@@ -1496,8 +1498,8 @@ def main() -> None:
     p = argparse.ArgumentParser(description="The rig file, and pooling rig checks.")
     sub = p.add_subparsers(dest="command", required=True)
     r = sub.add_parser("rig", help="fill in or update a rig file, in a form")
-    r.add_argument("--rig", help="the rig, by name; default: this machine's only one, or a "
-                                 "new one when it has none")
+    r.add_argument("--rig", help="the rig, <site>/<rig>; default: the only rig file there "
+                                 "is, or a new one when there is none")
     f = sub.add_parser("report", help="re-file checks already run: their reports and the "
                                       "data root's rigchecks.tsv, with this version")
     f.add_argument("folders", nargs="+", help="rig-check run folders")
@@ -1541,7 +1543,7 @@ def _edit_rig(name: str | None) -> None:
     if saved is None:
         print("rig check: cancelled, the rig file is unchanged", file=sys.stderr)
         return
-    print(f"saved: {rig_file.path(saved['rig'])}")
+    print(f"saved: {rig_file.path(rig_file.name_of(saved))}")
 
 
 # ---------------------------------------------------------------------------

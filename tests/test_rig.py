@@ -1,4 +1,5 @@
-"""The rig config: picking a rig file, reading it, and refusing a wrong one."""
+"""The rig config: picking a rig file, reading it, and refusing a wrong one; and every
+rig file in the repo is one a run would start on."""
 
 from __future__ import annotations
 
@@ -6,16 +7,25 @@ import json
 
 import pytest
 
-from fmri_gym import rig
-from fmri_gym.rig import RigConfig
+from fmri_gym.config import rig
+from fmri_gym.config.rig import RigConfig
 
 FIELDS = {**{k: "x" for k in rig.FIELDS}, "site": "site1", "pi": "MT", "modality": "fmri",
           "notes": ""}
 
 
+REPO_RIGS = rig.names()  # read before any test points the folder elsewhere
+
+
+@pytest.mark.parametrize("name", REPO_RIGS)
+def test_repo_rig_files_are_valid(name):
+    assert RigConfig.open(name).name == name
+
+
 @pytest.fixture(autouse=True)
-def config_home(tmp_path, monkeypatch):
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+def rigs_folder(tmp_path, monkeypatch, request):
+    if request.node.originalname != "test_repo_rig_files_are_valid":
+        monkeypatch.setenv("FMRI_GYM_RIGS", str(tmp_path / "rigs"))
     monkeypatch.chdir(tmp_path)
 
 
@@ -32,7 +42,7 @@ def test_settings_are_read():
     rig.save({**FIELDS, "rig": "scan", "screen": {"size": "800x600", "fullscreen": True,
                                                   "monitor": 1, "vsync": False},
               "pad": False, "audio": False, "data_root": "/data"})
-    scan = RigConfig.open("scan")
+    scan = RigConfig.open("site1/scan")
     assert (scan.size, scan.is_fullscreen, scan.monitor, scan.has_vsync) == ((800, 600), True,
                                                                               1, False)
     assert (scan.has_pad, scan.has_audio, scan.data_root) == (False, False, "/data")
@@ -45,9 +55,11 @@ def test_none_or_several_rigs_need_a_name():
     rig.save({**FIELDS, "rig": "b"})
     with pytest.raises(ValueError, match="pick one with --rig"):
         RigConfig.open(None)
-    assert RigConfig.open("b").name == "b"
-    with pytest.raises(ValueError, match="this machine has a, b"):
-        RigConfig.open("c")
+    assert RigConfig.open("site1/b").name == "site1/b"
+    with pytest.raises(ValueError, match="there are site1/a, site1/b"):
+        RigConfig.open("site1/c")
+    with pytest.raises(ValueError, match="a rig is named <site>/<rig>"):
+        RigConfig.open("b")
 
 
 @pytest.mark.parametrize("change, problem", [
@@ -57,16 +69,16 @@ def test_none_or_several_rigs_need_a_name():
     ({"audio": "no"}, '"audio" must be true or false'),
     ({"data_root": ""}, '"data_root"'),
     ({"bogus": 1}, "unknown key 'bogus'"),
-    ({"rig": "other"}, "named after its rig"),
+    ({"rig": "other"}, "sits at <site>/<rig>.json"),
 ])
 def test_a_wrong_file_is_refused(change, problem):
     rig.save({**FIELDS, "rig": "r"})
-    rig.path("r").write_text(json.dumps({**FIELDS, "rig": "r", **change}))
+    rig.path("site1/r").write_text(json.dumps({**FIELDS, "rig": "r", **change}))
     with pytest.raises(ValueError, match=problem):
-        RigConfig.open("r")
+        RigConfig.open("site1/r")
 
 
 def test_a_loose_rig_json_is_pointed_at(tmp_path):
     (tmp_path / "rig.json").write_text("{}")
-    with pytest.raises(ValueError, match="move .*rig.json there"):
+    with pytest.raises(ValueError, match="move rig.json there"):
         RigConfig.open(None)

@@ -28,7 +28,7 @@ from collections import Counter
 from policies import Policy, RandomPolicy, VLMPolicy
 
 from fmri_gym import Clock, Logger, get_adapter
-from fmri_gym.curriculum import GamePhase, load_curriculum, validate_curriculum
+from fmri_gym.config.curriculum import GamePhase, load_curriculum, validate_curriculum
 from fmri_gym.run import EpisodeResult
 
 

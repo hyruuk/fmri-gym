@@ -2,13 +2,14 @@
 
 A **rig** is one setup a run is played on -- a monitor, a scanner, a response
 device, a trigger line -- and a site can have several. Each has its own rig
-file, ``~/.config/fmri-gym/rigs/<name>.json`` (``$XDG_CONFIG_HOME`` moves it),
-outside the checkout because it describes the hardware here, not the task. A
-curriculum says what is played and plays the same on every rig; the rig file
+file in the repo, ``configs/rigs/<site>/<rig>.json`` (``configs/rigs/README.md``),
+named by its ``site`` and ``rig`` fields, so every site's rigs are kept and
+reviewed with the code; ``$FMRI_GYM_RIGS`` points at another folder of them.
+A curriculum says what is played and plays the same on every rig; the rig file
 says how this rig plays it, and every run played on the rig reads it.
 
-``fmri-play --rig <name>`` picks the rig (:meth:`RigConfig.open`). A machine
-with one rig file needs no ``--rig``; with none, or with several and no
+``fmri-play --rig <site>/<rig>`` picks the rig (:meth:`RigConfig.open`). With
+one rig file there is nothing to pick; with none, or with several and no
 ``--rig``, nothing starts: which window, controller and data folder a session
 gets is not something to guess.
 
@@ -24,7 +25,7 @@ optional, how its runs are played (:data:`DEFAULTS` when left out):
 - ``"data_root"``: where the BIDS tree goes, ``<root>/sub-XX/ses-NNN/beh/<run>/``.
 
 It is written by hand or in the rig form (``python -m fmri_gym.checks rig --rig
-<name>``), which a rig check also opens when its rig has no valid file.
+<site>/<rig>``), which a rig check also opens when its rig has no valid file.
 """
 
 from __future__ import annotations
@@ -39,7 +40,7 @@ from typing import Any
 MODALITIES = ("fmri", "meg", "eeg", "behav")
 #: What the rig is: every key required (``notes`` may be empty).
 FIELDS = {
-    "site": "the site: letters, digits, _ and -",
+    "site": "the site, and the rig file's folder: letters, digits, _ and -",
     "rig": "this rig at the site, and the rig file's name: letters, digits, _ and -",
     "pi": "the PI's initials, in capitals (Momchil Tomov: MT)",
     "modality": f"one of {', '.join(MODALITIES)}",
@@ -69,15 +70,17 @@ _LABEL = re.compile(r"[A-Za-z0-9_-]+")
 _INITIALS = re.compile(r"[A-Z]{2,4}")
 _SIZE = re.compile(r"([1-9]\d*)x([1-9]\d*)")
 _MAKE = ("make one with the rig's long rig check, which opens a form for it: fmri-play "
-         "--curriculum configs/rig-check-long.json --subject sub-rig --ses 1 --run 1 --rig <name> "
-         "(python -m fmri_gym.checks rig --rig <name> opens the form alone)")
+         "--curriculum configs/curricula/checks/rig-check-long.json --subject sub-rig --ses 1 "
+         "--run 1 --rig <site>/<rig> (python -m fmri_gym.checks rig --rig <site>/<rig> opens "
+         "the form alone)")
+_REPO_RIGS = Path(__file__).resolve().parents[2] / "configs" / "rigs"
 
 
 @dataclass(frozen=True, slots=True)
 class RigConfig:
     """One rig file, checked: what the rig is, and how every run on it is played."""
 
-    #: the rig's name: its file's, and its ``"rig"`` field.
+    #: the rig's name, ``<site>/<rig>``: its file's place under :func:`folder`.
     name: str
     #: what the rig is, :data:`FIELDS` as written.
     fields: dict[str, str]
@@ -100,14 +103,15 @@ class RigConfig:
         """Read a rig file's JSON, :data:`DEFAULTS` where it says nothing.
 
         :param rig: the file's JSON.
-        :param name: the file's name, which its ``"rig"`` field must match.
+        :param name: ``<site>/<rig>``, which the file's ``site`` and ``rig`` fields must match.
         :raises ValueError: naming each field that is missing, unknown or invalid, and
             how to fix it.
         """
         found = problems(rig)
-        if rig.get("rig") not in (name, None, ""):
-            found.append(f'"rig" is {rig["rig"]!r}: a rig file is named after its rig, '
-                         f"{rig['rig']}.json")
+        named = name_of(rig) if not found else name
+        if named != name:
+            found.append(f"site/rig are {named!r}: a rig file sits at <site>/<rig>.json, "
+                         f"{path(named)}")
         if found:
             raise ValueError(f"{path(name)}: " + "; ".join(found) + ". Fix it by hand, or in "
                              f"the form: python -m fmri_gym.checks rig --rig {name}")
@@ -121,9 +125,9 @@ class RigConfig:
 
     @classmethod
     def open(cls, name: str | None) -> RigConfig:
-        """The rig ``name``'s file, or this machine's only one, checked.
+        """The rig ``name``'s file, or the only one there is, checked.
 
-        :param name: the rig, by name; ``None`` for the machine's only one.
+        :param name: ``<site>/<rig>``; ``None`` for the only rig file there is.
         :raises ValueError: see :func:`choose`, :func:`load` and :meth:`from_dict`.
         """
         name = choose(name)
@@ -147,44 +151,42 @@ class RigConfig:
 
 
 def folder() -> Path:
-    """Where the rig files are: ``~/.config/fmri-gym/rigs/``."""
-    base = os.environ.get("XDG_CONFIG_HOME") or "~/.config"
-    return Path(base).expanduser() / "fmri-gym" / "rigs"
+    """Where the rig files are: the repo's ``configs/rigs/``, or ``$FMRI_GYM_RIGS``."""
+    return Path(os.environ.get("FMRI_GYM_RIGS") or _REPO_RIGS)
 
 
 def path(name: str) -> Path:
-    """The file of the rig ``name`` (it need not exist)."""
+    """The file of the rig ``name``, ``<site>/<rig>`` (it need not exist)."""
     return folder() / f"{name}.json"
 
 
 def names() -> list[str]:
-    """The rigs this machine has a file for, by name."""
-    return sorted(p.stem for p in folder().glob("*.json"))
+    """The rigs there is a file for, as ``<site>/<rig>``."""
+    return sorted(f"{p.parent.name}/{p.stem}" for p in folder().glob("*/*.json"))
 
 
 def choose(name: str | None) -> str:
-    """The rig to play on: ``name``, or this machine's only one.
+    """The rig to play on: ``name``, or the only one there is.
 
-    :raises ValueError: when ``name`` has no file, or none is given and there
-        is not exactly one; the message says how to pick or make one.
+    :raises ValueError: when ``name`` is not ``<site>/<rig>`` or has no file, or none
+        is given and there is not exactly one; the message says how to pick or make one.
     """
     found = names()
+    have = f"there are {', '.join(found)}" if found else "there are none"
+    if name is not None and name.count("/") != 1:
+        raise ValueError(f"--rig {name}: a rig is named <site>/<rig> ({have})")
     if name is not None:
         if name in found:
             return name
-        have = f"this machine has {', '.join(found)}" if found else "this machine has none"
         raise ValueError(f"--rig {name}: no {path(name)} ({have}); {_MAKE}")
     if len(found) == 1:
         return found[0]
     if found:
         raise ValueError(f"{len(found)} rigs in {folder()} ({', '.join(found)}): "
-                         "pick one with --rig <name>")
-    # A rig.json in the working directory or beside rigs/ is not read: say where it goes.
-    loose = next((p for p in (folder().parent / "rig.json", Path("rig.json")) if p.exists()),
-                 None)
-    if loose:
-        raise ValueError(f"no rig file in {folder()}: move {loose} there as <name>.json, its "
-                         f'"rig" field as the name, or {_MAKE}')
+                         "pick one with --rig <site>/<rig>")
+    if Path("rig.json").exists():  # a rig check's file in the working directory is not read
+        raise ValueError(f"no rig file in {folder()}: move rig.json there as <site>/<rig>.json, "
+                         f"named by its site and rig fields, or {_MAKE}")
     raise ValueError(f"no rig file in {folder()}: {_MAKE}")
 
 
@@ -205,22 +207,31 @@ def load(name: str) -> dict:
 
 
 def draft(name: str | None) -> dict:
-    """What the rig form starts from for the rig ``name``: its file as written, named
-    after the file; only the name when it has no file, or one that is not JSON.
+    """What the rig form starts from for the rig ``name`` (``<site>/<rig>``): its file
+    as written, named after the file; only the name when it has no file, or one that
+    is not JSON; nothing at all for no name.
     """
+    if name is None:
+        return {}
     try:
         written = load(name) if name in names() else {}
     except ValueError:
         written = {}
-    return {**written, "rig": name or ""}
+    site, _, rig = name.partition("/")
+    return {**written, "site": site, "rig": rig}
+
+
+def name_of(rig: dict) -> str:
+    """A rig file's name, ``<site>/<rig>``, from its fields."""
+    return f"{rig['site']}/{rig['rig']}"
 
 
 def save(rig: dict) -> Path:
-    """Write ``rig`` as the file of the rig it names (``rigs/<rig>.json``).
+    """Write ``rig`` as the file of the rig it names, ``<site>/<rig>.json``.
 
     :return: the file written.
     """
-    where = path(rig["rig"])
+    where = path(name_of(rig))
     where.parent.mkdir(parents=True, exist_ok=True)
     with where.open("w") as f:
         json.dump(rig, f, indent=2)

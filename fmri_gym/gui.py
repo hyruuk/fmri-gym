@@ -3,7 +3,7 @@
 Session manager has two panels. Session design is the session's lines
 (:func:`write_session`) -- each a run, a config file, or an external
 command; add, repeat, remove, reorder, skip -- as a list or as the script
-itself. Run design is the selected run's config (:mod:`fmri_gym.curriculum`), as a
+itself. Run design is the selected run's config (:mod:`fmri_gym.config.curriculum`), as a
 phase list with one form per phase type or as its JSON. Two more tabs edit
 that config: Controls (the ``keys`` remap of a game phase,
 with the backend's defaults on request), Triggers (the start sync, the
@@ -11,7 +11,7 @@ backend and the codes, with fMRI/MEG/EEG presets, a check and a live test). The
 last tab, Launch, holds the command-line flags
 of this one launch (subject, session, rig, test switch): they are never saved
 to the file. How the rig plays it -- window, controller, audio, data folder --
-is the rig file's (:mod:`fmri_gym.rig`), which Launch's Edit rig... opens.
+is the rig file's (:mod:`fmri_gym.config.rig`), which Launch's Edit rig... opens.
 File > New / Open / Save / Save As.
 
 A lone config is a session of one run with no script. Save writes the configs
@@ -45,8 +45,8 @@ from dataclasses import asdict, dataclass, replace
 from typing import Any, Sequence
 
 from . import bids
-from . import curriculum
-from .rig import RigConfig
+from .config import curriculum
+from .config.rig import RigConfig
 from .triggers import (SYNC_MODES, TRIGGER_BACKENDS, TriggerSettings)
 
 #: Suggestions for a game phase's ``backend`` (free text is accepted too; the
@@ -92,7 +92,7 @@ class Launch:
     subject: str
     #: the session number, or ``None`` for the subject's next free one
     ses: int | None
-    #: the rig, by name, or ``None`` for this machine's only one
+    #: the rig, ``<site>/<rig>``, or ``None`` for the only rig file there is
     rig: str | None
     dummy_trigger: bool
 
@@ -106,7 +106,7 @@ class Launch:
 
 #: What the Launch tab starts at, and so what a run's command carries unless the
 #: tab (or an opened session script) says otherwise. The window, the controller,
-#: the audio and the data root are the rig's (:mod:`fmri_gym.rig`), not a launch's.
+#: the audio and the data root are the rig's (:mod:`fmri_gym.config.rig`), not a launch's.
 DEFAULT_LAUNCH = Launch(subject="sub-test", ses=None, rig=None, dummy_trigger=False)
 
 #: Keys are the argparse names of ``fmri_play.py``'s flags; labels are the flags.
@@ -121,7 +121,7 @@ LAUNCH_FIELDS = [
                                      "which is how a stopped session is resumed."),
     Field("rig", "--rig", "combo", (),
           tip="The rig it is played on: its file says the window, the controller, the audio "
-              "and where the data goes. Blank = this machine's only rig. Edit rig... changes "
+              "and where the data goes. Blank = the only rig file there is. Edit rig... changes "
               "it, or makes a new one."),
     Field("dummy_trigger", "--dummy-trigger", "bool", default=False,
           tip="Skip the experimenter and scanner waits. A test run, not a session -- though its "
@@ -393,7 +393,7 @@ def listed_files(ext: str) -> list[str]:
 
     Sessions (``sh``) and runs (``json``) are picked from here rather than found
     through a file dialog, so the repo's examples are one click away. Shared phases
-    (:func:`fmri_gym.curriculum.is_common_file`) are not runs; they are left out.
+    (:func:`fmri_gym.config.curriculum.is_common_file`) are not runs; they are left out.
 
     :param ext: ``"sh"`` for session scripts, ``"json"`` for run configs.
     :return: paths relative to the working directory, in path order.
@@ -622,7 +622,7 @@ def describe_triggers(section: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Session scripts (the .sh the Session manager edits; curriculum.py has the .json)
+# Session scripts (the .sh the Session manager edits; config/curriculum.py has the .json)
 # ---------------------------------------------------------------------------
 
 
@@ -793,7 +793,7 @@ def edit_config(config: dict, path: str | None,
                 session: str | None = None) -> list[str] | None:
     """Open the editor; return the command that plays what it showed, or ``None``.
 
-    :param config: config dict (see :func:`fmri_gym.curriculum.check_shape`).
+    :param config: config dict (see :func:`fmri_gym.config.curriculum.check_shape`).
     :param path: file it came from, for Save; ``None`` if new.
     :param session: a session script to open instead of ``config``.
     :return: what Play starts, word by word -- one ``fmri-play`` for a run

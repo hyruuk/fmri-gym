@@ -40,8 +40,9 @@ from . import bids, pad
 from .adapters import get_adapter
 from .audio import Audio
 from .bids import BlockProgress, RunProgress
-from .config import RunConfig
-from .curriculum import BlockMode, GamePhase, fold_cli_options, game_changes
+from .config.curriculum import BlockMode, GamePhase, fold_cli_options, game_changes
+from .config.rig import RigConfig
+from .config.run import RunConfig
 from .display import Display, check_monitor
 from .keys import get_events, held_key_names, key_name
 from .menu import Menu
@@ -325,7 +326,7 @@ def _run_progress(
         when no earlier run of this curriculum got past its opening phases.
     :raises ValueError: if that run played the curriculum to its end, or its
         last game phase is another game in this curriculum
-        (:func:`~fmri_gym.curriculum.game_changes`).
+        (:func:`~fmri_gym.config.curriculum.game_changes`).
     """
     progress = bids.last_position(data_root, subject, curriculum_path)
     if progress is None:
@@ -357,6 +358,7 @@ class Run:
         self,
         subject: str,
         phases: list[dict],
+        rig: RigConfig,
         display: Display,
         outdir: str,
         audio: Audio | None = None,
@@ -370,6 +372,7 @@ class Run:
 
         :param subject: subject identifier used in log paths / manifest.
         :param phases: the curriculum's phases, in order (dicts: ``type``, timings, …).
+        :param rig: the rig it is played on; recorded in the manifest.
         :param display: shared pygame display used by all phases.
         :param outdir: the run's folder, for its manifest and block logs.
         :param audio: shared audio output used by all phases; one is created if
@@ -388,11 +391,13 @@ class Run:
         """
         self.subject = subject
         self.phases = phases
+        self.rig = rig
         self.display = display
         self.audio = audio or Audio()
         self.dummy_trigger = dummy_trigger
         self.clock = Clock()
         self.logger = Logger(outdir, subject, phases, self.clock)
+        self.logger.set_extra("rig", rig.record())
         self.logger.set_extra("display", display.describe())
         self.logger.set_extra("dummy_trigger", dummy_trigger)
         self.logger.set_extra("audio", self.audio.describe())
@@ -416,9 +421,9 @@ class Run:
         bad section, an unopenable port or an unusable output stops the run
         before anything is on screen. Each says on stderr what it got.
 
-        :param config: the command line, as the run reads it.
+        :param config: the command line and the rig, as the run reads them.
         :param curriculum: the curriculum, already checked
-            (:func:`~fmri_gym.curriculum.validate_curriculum`).
+            (:func:`~fmri_gym.config.curriculum.validate_curriculum`).
         :return: the run, ready to :meth:`play`.
         :raises ValueError: on a BIDS name or number, a monitor or a window
             size this machine or this subject refuses; a duration no longer
@@ -432,7 +437,8 @@ class Run:
             raise ValueError(f"--duration {config.duration:g}: a run closes on "
                              f"{config.end_fixation:g} s of fixation (--end-fixation), so it "
                              "must be longer than that")
-        out = bids.run_output(config.data_root, config.subject, config.curriculum_path,
+        rig = config.rig
+        out = bids.run_output(rig.data_root, config.subject, config.curriculum_path,
                               config.ses, config.run)
         if out.attempt > 1:
             print(f"{out.label} already has data: this is attempt {out.attempt} at it, and "
@@ -440,24 +446,24 @@ class Run:
         print(f"output: {out.folder}", file=sys.stderr)
         resume = None
         if config.resume:
-            resume = _run_progress(config.data_root, config.subject, config.curriculum_path,
+            resume = _run_progress(rig.data_root, config.subject, config.curriculum_path,
                                    phases)
         seeds = bids.fold_seeds(phases, out.label)
-        check_monitor(config.monitor)
-        fold_cli_options(phases, has_audio=config.has_audio)
+        check_monitor(rig.monitor)
+        fold_cli_options(phases, has_audio=rig.has_audio)
 
         triggers = Triggers.from_dict(curriculum.get("triggers"))
         print(f"triggers: {triggers.status()}", file=sys.stderr)
         if config.dummy_trigger:
             print("triggers: --dummy-trigger: the experimenter and scanner waits are skipped; "
                   "this is a test run, not a session", file=sys.stderr)
-        audio = Audio(enabled=config.has_audio)
+        audio = Audio(enabled=rig.has_audio)
         print(f"audio: {audio.status()}", file=sys.stderr)
-        pad_status = pad.init(config.has_pad)
+        pad_status = pad.init(rig.has_pad)
         print(f"pad: {pad_status}", file=sys.stderr)
-        display = Display(size=config.size, fullscreen=config.is_fullscreen,
-                          vsync=config.has_vsync, monitor=config.monitor)
-        run = cls(config.subject, phases, display, out.folder, audio=audio,
+        display = Display(size=rig.size, fullscreen=rig.is_fullscreen,
+                          vsync=rig.has_vsync, monitor=rig.monitor)
+        run = cls(config.subject, phases, rig, display, out.folder, audio=audio,
                   triggers=triggers, dummy_trigger=config.dummy_trigger,
                   duration=config.duration, end_fixation=config.end_fixation, resume=resume)
         run.logger.set_extra("run", {"label": out.label, "attempt": out.attempt})
@@ -828,7 +834,7 @@ class Run:
         episode count / quit, then writes its log and a manifest phase entry.
 
         :param phase: the game phase's dict: the fields of
-            :class:`~fmri_gym.curriculum.GamePhase`, ``keys``,
+            :class:`~fmri_gym.config.curriculum.GamePhase`, ``keys``,
             ``instructions``, ``menu``, and the backend's own.
         :param index: phase index in the curriculum (for the manifest).
         :param block_progress: what an earlier run that stopped this block

@@ -43,7 +43,7 @@ import sys
 from dataclasses import dataclass
 from typing import Callable, NamedTuple
 
-from .rig import RigConfig
+from .config.rig import RigConfig
 
 _LABEL = re.compile(r"[A-Za-z0-9]+")
 
@@ -299,8 +299,8 @@ def main() -> None:
     p = argparse.ArgumentParser(
         description="Print a subject's next free BIDS session number (001, 002, ...).")
     p.add_argument("--subject", required=True, help="BIDS subject: sub-<letters/digits>")
-    p.add_argument("--rig", help="the rig whose data root holds the BIDS tree, "
-                   "<root>/sub-XX/ses-NNN/ (default: this machine's only rig)")
+    p.add_argument("--rig", help="the rig, <site>/<rig>, whose data root holds the BIDS tree, "
+                   "<root>/sub-XX/ses-NNN/ (default: the only rig file there is)")
     args = p.parse_args()
     root = RigConfig.open(args.rig).data_root
     print(f"{next_session(root, subject_label(args.subject)):03d}")

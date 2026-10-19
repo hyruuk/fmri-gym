@@ -140,17 +140,17 @@ These were tried and do not play here, so nothing in `configs/` names them:
 
 Runtime flow: experimenter screen (**SPACE**) → "Waiting for scanner..." → scanner **trigger `=`** (anchors the session clock) → curriculum phases → done. `ESC` quits early but still saves.
 
-**Rigs: how a run is played.** A curriculum says what is played, and plays the same on every rig. How it is played is the rig's: a **rig** is one setup -- a monitor, a scanner, a response device, a trigger line -- and a site can have several. Each has its own **rig file**, outside the checkout, `~/.config/fmri-gym/rigs/<name>.json` (`$XDG_CONFIG_HOME` moves it), which every run played on that rig reads:
+**Rigs: how a run is played.** A curriculum says what is played, and plays the same on every rig. How it is played is the rig's: a **rig** is one setup -- a monitor, a scanner, a response device, a trigger line -- and a site can have several. Each has its own **rig file** in the repo, `configs/rigs/<site>/<rig>.json` (see `configs/rigs/README.md`; `$FMRI_GYM_RIGS` points at another folder of them), which every run played on that rig reads:
 
 | key | what it says | when left out |
 |---|---|---|
-| `site`, `rig`, `pi`, `modality`, `monitor`, `photodiode`, `audio_path`, `trigger_hardware`, `notes` | what the rig is, filed with every run and rig check; `rig` is the file's name | required |
+| `site`, `rig`, `pi`, `modality`, `monitor`, `photodiode`, `audio_path`, `trigger_hardware`, `notes` | what the rig is, filed with every run and rig check; `site` and `rig` are the file's folder and name | required |
 | `"screen"` | the window: `{"size": "1024x768", "fullscreen": true, "monitor": 1, "vsync": true}`; `monitor` by index, 0 the first, and fullscreen takes the monitor's resolution (see [Timing](#timing-what-is-stamped-when)) | 1024x768 windowed on monitor 0, vsync on |
 | `"pad"` | read a plugged-in game controller | `true` |
 | `"audio"` | play game audio; `false` mutes every block | `true` |
 | `"data_root"` | where the BIDS tree goes | `data` |
 
-`fmri-play --rig <name>` picks the rig. A machine with one rig file needs no `--rig`; with none, or with several and no `--rig`, `fmri-play` does not start and says how to pick or make one. Each rig gets one long rig check, which makes its file: its form asks for each field the first time (`fmri-play --curriculum configs/rig-check-long.json --subject sub-rig --ses 1 --run 1 --rig <name>`; `python -m fmri_gym.checks rig --rig <name>` opens the form alone, or edits it later). In the editor, the Launch tab picks the rig and its **Edit rig...** opens the same form. The console says which rig file a run read and what it settles, and every run's manifest keeps it (`"rig"`, defaults written out).
+`fmri-play --rig <site>/<rig>` picks the rig. With one rig file there is nothing to pick; with none, or with several and no `--rig`, `fmri-play` does not start and says how to pick or make one. Each rig gets one long rig check, which makes its file: its form asks for each field the first time (`fmri-play --curriculum configs/curricula/checks/rig-check-long.json --subject sub-rig --ses 1 --run 1 --rig <site>/<rig>`; `python -m fmri_gym.checks rig --rig <site>/<rig>` opens the form alone, or edits it later); commit the file it writes. In the editor, the Launch tab picks the rig and its **Edit rig...** opens the same form. The console says which rig file a run read and what it settles, and every run's manifest keeps it (`"rig"`, defaults written out).
 
 **A response device that is not a keyboard.** Some button boxes and gamepads (a Current Designs interface with a controller on it, say) report HID *joystick* buttons rather than keystrokes: nothing a phase's `keys` names is ever pressed, the game does not move, and the run records no responses with nothing on screen to say why. A plugged-in controller is therefore read directly, and its controls press the keys a phase's `keys` can already map:
 
@@ -325,13 +325,16 @@ Most games need only the last: a pip package already provides the env. Nothing a
 ```
 fmri_gym/
   run.py        # trigger, clock, curriculum loop, phases  — 100% engine-agnostic
+  config/
+    curriculum.py   # the curriculum file: load, save, check
+    rig.py          # the rig files (configs/rigs/<site>/<rig>.json): what it is, screen, pad, audio, data root
+    run.py          # RunConfig: one run's command line and the rig it is played on
   display.py        # pygame: fixed window, aspect-fit frame, fixation, text; vsync-locked flip + call_on_flip
   logging.py        # manifest.json + one crash-safe JSONL/HDF5 log per game block
   replay.py         # replay an episode from a block's log; its frame fields as arrays
   menu.py           # the hold-a-key pause menu (reset / forfeit / resume), opt-in per game phase
   triggers.py       # run-start sync (wait/send/none) + MEG/EEG trigger codes over lsl/serial/parallel
   photodiode.py     # `python -m fmri_gym.photodiode`: flash a patch to measure the flip-to-photon offset
-  rig.py            # the rig files (one per rig: what it is, its screen, pad, audio, data root)
   checks.py         # the rig check: its phases, report.html/.md, rigchecks.tsv, `pool`
   adapters/
     base.py         # EnvAdapter + FrameState (the seam)
@@ -609,7 +612,7 @@ Frames are shown with a vsync-locked flip and each frame's onset is logged as `f
 
   Every check runs whichever fails, and each test gets its verdict. The screen says what each check is doing -- which code goes out on which line, which flash (and whether it carries a click), which rate under which load -- and then its verdict. A session's runs must share one triggers section: the editor's Check says so when they differ (each run keeps its own, so a change on the Triggers tab applies to the selected run only). `configs/curricula/checks/rig-check.json` is the **quick** check, before every session: under a minute, most of it pressing the buttons -- enough to show today's rig is the one that was measured. `configs/curricula/checks/rig-check-long.json` **measures** the rig, once per rig and after any hardware, driver or OS change (about 25 min; the frame test alone plays 60, 30, 20 and 50 fps for a minute each, idle and under CPU load): offsets to a fraction of a ms, their drift in ms/min (a sound card's clock runs apart from the PC's), missed refreshes and pulses, the TR on this PC's clock. With `sync.mode` `wait`, the check waits for the scanner like any run: start a sequence, or the trigger box's test mode.
 
-  Each rig needs a **rig file**, `~/.config/fmri-gym/rigs/<name>.json` (see *Rigs* under [Quick start](#quick-start)): site, rig, PI's initials, modality, and what software cannot see -- monitor or projector, photodiode, sound path to the ear, trigger hardware -- with what every run on the rig uses (screen, pad, audio, data root). When it is missing or invalid -- a machine with no rig yet, or a `--rig` it has no file for -- the check opens a form to fill it in (the `gui` extra; Save stays disabled until every field is valid) before the window; cancelled, or with no screen, it stops. `python -m fmri_gym.checks rig --rig <name>` reopens the form when the hardware changes.
+  Each rig needs a **rig file**, `configs/rigs/<site>/<rig>.json` (see *Rigs* under [Quick start](#quick-start)): site, rig, PI's initials, modality, and what software cannot see -- monitor or projector, photodiode, sound path to the ear, trigger hardware -- with what every run on the rig uses (screen, pad, audio, data root). When it is missing or invalid -- a machine with no rig yet, or a `--rig` it has no file for -- the check opens a form to fill it in (the `gui` extra; Save stays disabled until every field is valid) before the window; cancelled, or with no screen, it stops. `python -m fmri_gym.checks rig --rig <site>/<rig>` reopens the form when the hardware changes.
 
   The check's run folder holds, beside the run's own `manifest.json` (with the rig, each check's numbers and each test's verdict) and one `block-NN_check_<name>.npz` per check:
 

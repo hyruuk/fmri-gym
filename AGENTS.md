@@ -10,9 +10,9 @@ This file is the rules: the five below, and the shape of the repo. The step-by-s
 
 ```text
 fmri_play.py                     CLI   parse the flags of one run, then play it (Run.from_config_and_curriculum)
-fmri_gym/config.py               CORE  RunConfig: one run's command line (subject, session, switches) and its rig's settings
-fmri_gym/rig.py                        RigConfig: one rig's file (~/.config/fmri-gym/rigs/<name>.json): window, pad, audio, data root
-fmri_gym/curriculum.py           CORE  the curriculum file: load, save, check; GamePhase, a game phase's settings
+fmri_gym/config/run.py           CORE  RunConfig: one run's command line (subject, session, switches) and its RigConfig
+fmri_gym/config/rig.py           CORE  RigConfig: one rig's file (configs/rigs/<site>/<rig>.json): window, pad, audio, data root
+fmri_gym/config/curriculum.py    CORE  the curriculum file: load, save, check; GamePhase, a game phase's settings
 fmri_gym/run.py                  CORE  one run's experiment loop: trigger, phases, timing
 fmri_gym/display.py              CORE  one pygame window: frames, text, fixation
 fmri_gym/keys.py                 CORE  pygame keycode to key NAME ("LEFT", "SPACE")
@@ -35,7 +35,7 @@ The core is engine-agnostic: `run.py` never imports a game engine, never touches
 
 Three layers, three directories, each optional until needed: `external/` is a game's own repo when its files must be read from a checkout (use only when `pip install` is not an option); `gym/` is a `gymnasium.Env` for a game that ships none (or a rough one); `fmri_gym/adapters/` is the fMRI adapter over whatever env results. Code goes in the lowest layer that owns the concern -- game rules in the game or its `gym/` env, never in the adapter.
 
-Three kinds of settings, kept apart because they are shared differently. The **curriculum** (`curriculum.py`, the `--curriculum` JSON) is what is played: the sequence of phases of one run, tied to a game and the same for every subject at every site. The **run config** (`config.py`, `RunConfig`) is one run: who plays, which session and run number, the test switches. The **rig config** (`rig.py`, `RigConfig`, one file per rig outside the checkout) is how one rig plays every run, the same for all of its subjects: what the rig is, its window, pad, audio and data root; the curriculum's `triggers` section is the site's too. `RunConfig.from_args` takes the rig's settings, so the run reads one object and nothing below `fmri_play` opens a rig file. A setting goes in the kind it is shared like, and keeps that kind's word all the way down the call stack: a curriculum is `curriculum` in `fmri_play`, in `Run.from_config_and_curriculum` and in `checks.prepare`, its phase list is `phases`, and nothing calls either one "the config".
+Three kinds of settings, kept apart because they are shared differently. All three live in `fmri_gym/config/`. The **curriculum** (`config/curriculum.py`, the `--curriculum` JSON) is what is played: the sequence of phases of one run, tied to a game and the same for every subject at every site. The **rig config** (`config/rig.py`, `RigConfig`, one file per rig in `configs/rigs/<site>/`) is how one rig plays every run, the same for all of its subjects and games: what the rig is, its window, pad, audio and data root; the curriculum's `triggers` section is the site's too. The **run config** (`config/run.py`, `RunConfig`) is one run: who plays, which session and run number, the test switches, and the `RigConfig` it is played on. `fmri_play` opens the rig once and hands it in; the `Run` holds it (`run.rig`) and records it in the manifest, and nothing below opens a rig file. A setting goes in the kind it is shared like, and keeps that kind's word all the way down the call stack: a curriculum is `curriculum` in `fmri_play`, in `Run.from_config_and_curriculum` and in `checks.prepare`, its phase list is `phases`, and nothing calls either one "the config".
 
 ## Rule 1: the game logic lives in the gym env, not the adapter
 

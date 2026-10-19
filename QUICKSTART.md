@@ -48,12 +48,12 @@ uv run fmri-play --subject sub-01 --curriculum configs/curricula/<backend>/<game
 | Flag / key         | What it does                                                    |
 | ------------------ | --------------------------------------------------------------- |
 | `--subject sub-01` | Subject id used in the output folder name                       |
-| `--rig scanner3T`  | Which rig plays it, when this machine has several (see below)   |
+| `--rig bc/prisma`  | Which rig plays it, `<site>/<rig>`, when there are several      |
 | **SPACE**          | Advance past the experimenter screen                            |
 | `=`                | Scanner trigger (anchors the session clock)                     |
 | **ESC**            | Quit early; data is still saved                                 |
 
-**A rig file first.** How a run is played -- window size, fullscreen, which monitor, the controller, audio, where the data goes -- is the rig's, not the command's: one file per rig, `~/.config/fmri-gym/rigs/<name>.json`. With no rig file, `fmri-play` does not start; make one with the rig's long rig check (one per rig), which opens a form for it: `uv run fmri-play --curriculum configs/rig-check-long.json --subject sub-rig --ses 1 --run 1 --rig <name>` (or only the form: `uv run python -m fmri_gym.checks rig --rig <name>`). A machine with one rig needs no `--rig` after that (README "Rigs").
+**A rig file first.** How a run is played -- window size, fullscreen, which monitor, the controller, audio, where the data goes -- is the rig's, not the command's: one file per rig, in the repo, `configs/rigs/<site>/<rig>.json`. With no rig file, `fmri-play` does not start; make one with the rig's long rig check (one per rig), which opens a form for it: `uv run fmri-play --curriculum configs/curricula/checks/rig-check-long.json --subject sub-rig --ses 1 --run 1 --rig <site>/<rig>` (or only the form: `uv run python -m fmri_gym.checks rig --rig <site>/<rig>`), and commit the file. With one rig file there is nothing to pick (README "Rigs").
 
 
 The config editor is a command of its own, `fmri-edit` (needs the `gui` extra: `uv sync --extra dbp --extra gui`). It opens on a run, on a session script (`--session ses1.sh`, one line per run) or on a new run, and its **Play** starts what it shows. To play a session without it: `sh ses1.sh`.

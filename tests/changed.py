@@ -21,7 +21,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from fmri_gym.curriculum import is_common_file
+from fmri_gym.config.curriculum import is_common_file
 from tests.backends import BACKENDS, REPO, game_phases, phase_backend
 
 #: Paths (repo-relative prefixes) whose change concerns every backend.

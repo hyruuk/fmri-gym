@@ -37,9 +37,9 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import Qt
 
 from . import bids
-from . import curriculum
+from .config import curriculum
 from . import gui
-from . import rig as rig_file
+from .config import rig as rig_file
 from .display import list_monitors, monitor_label
 from .triggers import Codes, SyncSettings, TriggerError, Triggers, TriggerSettings
 
@@ -713,7 +713,7 @@ class _Editor(QtWidgets.QMainWindow):
         if saved is None:
             return
         self.launch_form.set_choices("rig", rig_file.names())
-        self.launch_form.write("rig", saved["rig"])
+        self.launch_form.write("rig", rig_file.name_of(saved))
 
     # -- model <-> widgets -------------------------------------------------
 
@@ -1753,7 +1753,7 @@ _RIG_RUNS = ("What every run played on this rig uses, whatever its config: the w
 class _RigForm(QtWidgets.QDialog):
     def __init__(self, values: dict) -> None:
         super().__init__()
-        self.setWindowTitle(f"Rig file: {rig_file.folder()}/<rig>.json")
+        self.setWindowTitle(f"Rig file: {rig_file.folder()}/<site>/<rig>.json")
         self.setMinimumWidth(640)
         self.fields: dict[str, QtWidgets.QWidget] = {}
         layout = QtWidgets.QVBoxLayout(self)
@@ -1800,7 +1800,7 @@ class _RigForm(QtWidgets.QDialog):
         return w
 
     def _runs_group(self, values: dict) -> QtWidgets.QGroupBox:
-        """The settings every run on the rig takes (:data:`fmri_gym.rig.DEFAULTS` when unset)."""
+        """The settings every run on the rig takes (:data:`fmri_gym.config.rig.DEFAULTS` when unset)."""
         box = QtWidgets.QGroupBox("Runs on this rig")
         form = QtWidgets.QFormLayout(box)
         note = QtWidgets.QLabel(_RIG_RUNS)
@@ -1901,11 +1901,11 @@ class _RigForm(QtWidgets.QDialog):
 
 
 def fill_rig(values: dict) -> dict[str, Any] | None:
-    """A rig file (:mod:`fmri_gym.rig`), filled in a form instead of by hand; on Save,
-    written as the file of the rig it names (``rigs/<rig>.json``).
+    """A rig file (:mod:`fmri_gym.config.rig`), filled in a form instead of by hand; on
+    Save, written as the file of the rig it names (``rigs/<site>/<rig>.json``).
 
     One window rather than a prompt per field: all of it stays in view, and the
-    problems are listed live -- the same :func:`~fmri_gym.rig.problems` a
+    problems are listed live -- the same :func:`~fmri_gym.config.rig.problems` a
     loaded file is held to, so the form cannot save a file a run would refuse.
 
     :param values: what is known so far (an invalid file's content, or only its name).

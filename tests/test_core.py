@@ -17,7 +17,7 @@ from fmri_gym.adapters.base import Sound
 from fmri_gym.audio import AudioBlockLog
 from fmri_gym.bids import task_label
 from fmri_gym.adapters.keymap import make_keymap
-from fmri_gym.curriculum import (
+from fmri_gym.config.curriculum import (
     check_shape, game_changes, is_common_file, load_curriculum, save_curriculum,
     shared_overrides, validate_curriculum,
 )

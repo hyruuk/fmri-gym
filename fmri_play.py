@@ -11,12 +11,12 @@ which ``fmri-edit`` writes and any shell plays.
 
 How it is played -- the window, the controller, the audio, where the data
 goes -- is the rig's, not the command's: each rig has a file
-(:mod:`fmri_gym.rig`), and ``--rig`` names it when the machine has several.
+(:mod:`fmri_gym.config.rig`), and ``--rig`` names it when there are several.
 
 Usage (--ses and --run say which run of which session this is; a session
 script passes the same --ses to all of its runs, each with its own --run):
     python fmri_play.py --subject sub-01 --curriculum my.json --ses 1 --run 1
-    python fmri_play.py ... --rig scanner3T    # one of this machine's rigs
+    python fmri_play.py ... --rig bc/prisma    # configs/rigs/bc/prisma.json
     python fmri_play.py ... --dummy-trigger    # testing: no experimenter/scanner wait
     python fmri_play.py ... --duration 600 --resume  # a 10-min run of a longer curriculum
 
@@ -31,13 +31,13 @@ import signal
 import sys
 
 from fmri_gym import Run, checks
-from fmri_gym.config import RunConfig
-from fmri_gym.curriculum import EXIT_QUIT, load_curriculum, validate_curriculum
+from fmri_gym.config.curriculum import EXIT_QUIT, load_curriculum, validate_curriculum
 from fmri_gym.display import quit_like_esc
-from fmri_gym.rig import RigConfig
+from fmri_gym.config.rig import RigConfig
+from fmri_gym.config.run import RunConfig
 from fmri_gym.run import END_FIXATION_S
 
-#: Settings of the rig file (:mod:`fmri_gym.rig`), under the flags a command might try.
+#: Settings of the rig file (:mod:`fmri_gym.config.rig`), under the flags a command might try.
 _RIG_SETTINGS = ("--size", "--fullscreen", "--monitor", "--no-vsync", "--no-pad", "--no-audio",
                  "--data-root")
 
@@ -54,7 +54,7 @@ class _Parser(argparse.ArgumentParser):
         flags = [f for f in _RIG_SETTINGS if f in message]
         if flags:
             message += (f"\n  {', '.join(flags)}: how a run is played is the rig's, in its file "
-                        "~/.config/fmri-gym/rigs/<rig>.json (\"screen\", \"pad\", \"audio\", "
+                        "configs/rigs/<site>/<rig>.json (\"screen\", \"pad\", \"audio\", "
                         "\"data_root\"); --rig picks the rig")
         super().error(message)
 
@@ -82,9 +82,9 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--resume", action="store_true",
                    help="carry on from where this subject's latest run of this config (any "
                    "session) stopped, mid-block included. Default: start at the beginning")
-    p.add_argument("--rig", help="the rig it is played on, by name: its file "
-                   "~/.config/fmri-gym/rigs/<rig>.json says the window, controller, audio and "
-                   "data root. Default: this machine's only rig; a rig check makes one")
+    p.add_argument("--rig", help="the rig it is played on, <site>/<rig>: its file "
+                   "configs/rigs/<site>/<rig>.json says the window, controller, audio and "
+                   "data root. Default: the only rig file there is; a rig check makes one")
     p.add_argument("--dummy-trigger", action="store_true")
     return p
 
@@ -106,7 +106,6 @@ def main() -> None:
     if is_rig_check:  # a line that opens, first
         trigger_error = checks.prepare(curriculum, run_config.curriculum_path)
     run = Run.from_config_and_curriculum(run_config, curriculum)
-    run.logger.set_extra("rig", rig.record())
     if is_rig_check:
         run.logger.set_extra("trigger_error", trigger_error)
     previous = signal.signal(signal.SIGINT, quit_like_esc)
@@ -118,7 +117,7 @@ def main() -> None:
         signal.signal(signal.SIGINT, previous)
     if is_rig_check:
         # A failed test is a finding, listed in the report: the session goes on.
-        checks.finish(run, run_config.ses, run_config.data_root)
+        checks.finish(run, run_config.ses)
     if not completed:
         # A session script (set -e) must not start the next run after an ESC.
         sys.exit(EXIT_QUIT)
