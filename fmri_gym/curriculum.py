@@ -413,7 +413,7 @@ def fold_cli_options(phases: list[dict], *, has_audio: bool) -> None:
     spec, and the manifest's curriculum shows what was actually played.
 
     :param phases: the curriculum's phases, changed in place.
-    :param has_audio: ``False`` (``--no-audio``) mutes every game phase.
+    :param has_audio: ``False`` (the rig's audio off) mutes every game phase.
     """
     for phase in phases:
         if phase.get("type") != "game":

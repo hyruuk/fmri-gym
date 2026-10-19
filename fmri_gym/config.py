@@ -5,32 +5,35 @@ Three kinds of settings are kept apart, because they are shared differently:
 - the **curriculum** (:mod:`fmri_gym.curriculum`): what is played, the
   sequence of phases of one run. It is tied to a game and shared by every
   subject at every site;
-- the **run config** (this module): who plays that curriculum, where the data
-  goes and how this machine shows it -- subject, session and run number,
-  window, the test switches. It is specific to one run;
-- the **rig config**: the site's own settings, the same for all of its
-  subjects. Today that is the curriculum's ``triggers`` section and the rig
-  file of :mod:`fmri_gym.checks`.
+- the **run config** (this module): who plays that curriculum, and which run
+  of which session it is -- subject, session and run number, the test
+  switches. It is specific to one run;
+- the **rig config** (:mod:`fmri_gym.rig`): how one rig plays every run --
+  its window, controller, audio and data folder -- the same for all of its
+  subjects. The curriculum's ``triggers`` section is the site's too.
 
 ``fmri_play`` owns the flags and their spellings; :class:`RunConfig` names what
-they mean to the run, and :meth:`RunConfig.from_args` is the one place the
-command line is read.
+they and the rig mean to the run, and :meth:`RunConfig.from_args` is the one
+place the command line is read.
 """
 
 from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .rig import RigConfig
 
 
 @dataclass(frozen=True, slots=True)
 class RunConfig:
-    """One run's command line, as the run reads it.
+    """One run's command line and the rig it is played on, as the run reads it.
 
     Every field is required, so a flag a caller forgets is a ``TypeError`` at
-    the desk and never a default in the scanner, and the switches are stated
-    positively (``has_audio``, ``has_pad``, ``has_vsync``): the ``--no-*``
-    reading is the command line's, made once at its edge.
+    the desk and never a default in the scanner. The data root, the window, the
+    audio and the pad are the rig's (:class:`~fmri_gym.rig.RigConfig`).
     """
 
     #: ``sub-<label>``: the BIDS subject.
@@ -65,24 +68,16 @@ class RunConfig:
     has_pad: bool
 
     @classmethod
-    def from_args(cls, args: argparse.Namespace) -> RunConfig:
-        """Read ``fmri_play``'s parsed flags.
-
-        ``--size`` is split into ``(width, height)`` and the ``--no-*``
-        switches are put positively.
+    def from_args(cls, args: argparse.Namespace, rig: RigConfig) -> RunConfig:
+        """Read ``fmri_play``'s parsed flags, and the rig they play on.
 
         :param args: the namespace of ``fmri_play``'s parser, one attribute per flag.
-        :raises ValueError: on a ``--size`` that is not ``WIDTHxHEIGHT``.
+        :param rig: the rig file ``--rig`` picked.
         """
-        try:
-            width, height = (int(x) for x in args.size.lower().split("x"))
-        except ValueError:
-            raise ValueError(f"--size {args.size!r}: expected WIDTHxHEIGHT, such as 1024x768"
-                             ) from None
         return cls(
-            subject=args.subject, curriculum_path=args.curriculum, data_root=args.data_root,
+            subject=args.subject, curriculum_path=args.curriculum, data_root=rig.data_root,
             ses=args.ses, run=args.run, duration=args.duration,
             end_fixation=args.end_fixation, resume=args.resume,
-            size=(width, height), is_fullscreen=args.fullscreen, monitor=args.monitor,
-            has_vsync=not args.no_vsync, dummy_trigger=args.dummy_trigger,
-            has_audio=not args.no_audio, has_pad=not args.no_pad)
+            size=rig.size, is_fullscreen=rig.is_fullscreen, monitor=rig.monitor,
+            has_vsync=rig.has_vsync, dummy_trigger=args.dummy_trigger,
+            has_audio=rig.has_audio, has_pad=rig.has_pad)

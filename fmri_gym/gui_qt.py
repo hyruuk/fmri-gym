@@ -39,6 +39,7 @@ from PySide6.QtCore import Qt
 from . import bids
 from . import curriculum
 from . import gui
+from . import rig as rig_file
 from .display import list_monitors, monitor_label
 from .triggers import Codes, SyncSettings, TriggerError, Triggers, TriggerSettings
 
@@ -675,28 +676,17 @@ class _Editor(QtWidgets.QMainWindow):
         self.launch_page = page
         layout = QtWidgets.QVBoxLayout(page)
         self.launch_form = _Form(gui.LAUNCH_FIELDS)
-        self.monitors = list_monitors()
-        self.monitor_pick = QtWidgets.QComboBox()
-        for index, monitor in enumerate(self.monitors):
-            self.monitor_pick.addItem(monitor_label(index, monitor), index)
-        self.monitor_pick.setToolTip("Which screen the participant sees. SDL numbers the "
-                                     "monitors and gives no names: pick by resolution and "
-                                     "refresh rate. Calibrate the photodiode on the same one.")
-        after_fullscreen = [f.key for f in gui.LAUNCH_FIELDS].index("fullscreen") + 1
-        self.launch_form.layout().insertRow(after_fullscreen, "--monitor", self.monitor_pick)
-        self._window_size = launch.size  # kept while fullscreen shows the monitor's instead
-        self._loading_launch = False
+        self.launch_form.set_choices("rig", rig_file.names())
         self._set_launch(launch)
-        self.launch_form.widgets["fullscreen"].toggled.connect(lambda _on: self._sync_size())
-        self.monitor_pick.currentIndexChanged.connect(lambda _index: self._sync_size())
         dummy = self.launch_form.widgets["dummy_trigger"]
         dummy.toggled.connect(self._label_play_button)
         self._label_play_button(dummy.isChecked())
         layout.addWidget(self._group("flags of this launch", self.launch_form))
-        layout.addLayout(_row(_button("Choose --data-root...", self._pick_data_root)))
+        layout.addLayout(_row(_button("Edit rig...", self._edit_rig)))
         note = QtWidgets.QLabel("These are the command-line flags of this one launch. They are "
                                 "not saved to a config file; a session script carries them "
-                                "on every run's line.")
+                                "on every run's line. The window, the controller, the audio "
+                                "and where the data goes are the rig's: Edit rig...")
         note.setObjectName("hint")
         note.setWordWrap(True)
         layout.addWidget(note)
@@ -704,58 +694,26 @@ class _Editor(QtWidgets.QMainWindow):
         return page
 
     def _set_launch(self, launch: gui.Launch) -> None:
-        """Show launch flags, a monitor this machine lacks included (Check then says so)."""
-        # Setting the fullscreen box and the monitor fires _sync_size half-way, when the size
-        # row still shows the previous launch's: suspended here, and done once at the end.
-        self._loading_launch = True
-        try:
-            self.launch_form.set(asdict(launch))
-            at = self.monitor_pick.findData(launch.monitor)
-            if at < 0:
-                self.monitor_pick.addItem(f"{launch.monitor}: not connected here", launch.monitor)
-                at = self.monitor_pick.count() - 1
-            self.monitor_pick.setCurrentIndex(at)
-        finally:
-            self._loading_launch = False
-        self._window_size = launch.size
-        self._sync_size(keep_typed=False)
-
-    def _monitor(self) -> tuple[int, int, int] | None:
-        """The picked monitor's ``(width, height, Hz)``, or ``None`` if not connected here."""
-        index = self.monitor_pick.currentData()
-        return self.monitors[index] if index < len(self.monitors) else None
-
-    def _sync_size(self, keep_typed: bool = True) -> None:
-        """Fullscreen: the size row shows the monitor's resolution, greyed, since that is what a
-        fullscreen window gets. Windowed: the window's own size, with sizes that fit the monitor.
-
-        :param keep_typed: first remember what the row shows, if it is the window's size.
-        """
-        if self._loading_launch:
-            return
-        box = self.launch_form.widgets["size"]
-        if keep_typed and box.isEnabled():
-            self._window_size = box.currentText().strip()
-        monitor = self._monitor()
-        fullscreen = self.launch_form.widgets["fullscreen"].isChecked()
-        box.setEnabled(not fullscreen)
-        if fullscreen:
-            self.launch_form.set_choices("size", [])
-            box.setEditText(f"{monitor[0]}x{monitor[1]}" if monitor else "monitor not connected")
-            return
-        fits = gui.window_sizes(*monitor[:2]) if monitor else [f"{w}x{h}" for w, h in
-                                                               gui.WINDOW_SIZES]
-        self.launch_form.set_choices("size", fits)
-        box.setEditText(self._window_size)
+        """Show launch flags."""
+        self.launch_form.set(asdict(launch))
 
     def _launch_values(self) -> gui.Launch:
-        """The launch flags. ``--size`` is the window's, also while fullscreen shows the monitor's.
+        """The launch flags.
 
-        :raises ValueError: if the subject is blank or the size malformed (gui.launch_values).
+        :raises ValueError: if the subject is blank (gui.launch_values).
         """
-        self._sync_size()  # remembers a size being typed
-        form = self.launch_form.get() | {"size": self._window_size}
-        return gui.launch_values(form, self.monitor_pick.currentData())
+        return gui.launch_values(self.launch_form.get())
+
+    def _edit_rig(self) -> None:
+        """The rig form on the launch's rig (a new one if it has no file); on Save, picked."""
+        name = self.launch_form.get().get("rig")
+        if name is None and len(rig_file.names()) == 1:
+            name = rig_file.names()[0]
+        saved = fill_rig(rig_file.draft(name))
+        if saved is None:
+            return
+        self.launch_form.set_choices("rig", rig_file.names())
+        self.launch_form.write("rig", saved["rig"])
 
     # -- model <-> widgets -------------------------------------------------
 
@@ -1298,8 +1256,8 @@ class _Editor(QtWidgets.QMainWindow):
         """
         step = self.steps[self.step_index]
         launch = self._launch_values()
-        subject, root = bids.subject_label(launch.subject), launch.data_root
-        ses = launch.ses or bids.next_session(root, subject)
+        subject = bids.subject_label(launch.subject)
+        ses = launch.ses or bids.next_session(self._data_root(launch), subject)
         label = bids.run_label(subject, ses, bids.task_label(step["config"]),
                                gui.run_number(self.steps, self.step_index))
         return bids.phase_seed(label, self.edit_index), label
@@ -1699,11 +1657,6 @@ class _Editor(QtWidgets.QMainWindow):
         self.new.discard(chosen)  # placed: Save need not ask again
         return self._save()
 
-    def _pick_data_root(self) -> None:
-        path = QtWidgets.QFileDialog.getExistingDirectory(self, "Where the BIDS tree goes")
-        if path:
-            self.launch_form.write("data_root", os.path.relpath(path))
-
     def _check(self) -> list[str]:
         try:
             self._store_session()
@@ -1727,12 +1680,28 @@ class _Editor(QtWidgets.QMainWindow):
         if all(step["skip"] for step in self.steps):
             problems.append("every run is skipped: nothing would play")
         problems += gui.trigger_mismatches(self.steps, self.configs)
-        monitor = self.monitor_pick.currentData()
-        if monitor >= len(self.monitors):
-            labels = "; ".join(monitor_label(i, m) for i, m in enumerate(self.monitors))
-            problems.append(f"--monitor {monitor}: this machine has {len(self.monitors)} "
-                            f"({labels}); pick one on the Launch tab")
+        if not self._has_rig_check():  # a rig check makes the rig's file when it has none
+            try:
+                gui.launch_values(self.launch_form.get()).data_root()
+            except ValueError as exc:
+                problems.append(f"{exc}; on the Launch tab: pick a rig, or Edit rig... to make one")
         return problems
+
+    def _has_rig_check(self) -> bool:
+        return any(p["type"].startswith("check_") for step in self.steps if "config" in step
+                   for p in self.configs[step["config"]]["curriculum"])
+
+    def _data_root(self, launch: gui.Launch) -> str:
+        """The launch's rig's data root; a rig check with no rig yet files where a new rig does.
+
+        :raises ValueError: when the launch's rig has no valid file and this is no rig check.
+        """
+        try:
+            return launch.data_root()
+        except ValueError:
+            if not self._has_rig_check():
+                raise
+            return rig_file.DEFAULTS["data_root"]
 
     def _checked_launch(self) -> gui.Launch | None:
         """The launch flags if the session and they are runnable, else ``None`` (after a dialog)."""
@@ -1764,7 +1733,7 @@ class _Editor(QtWidgets.QMainWindow):
         else:
             # fmri-play states its numbers; a blank --ses is the next free one,
             # resolved here, as the script's SES= line resolves it for a session.
-            ses = launch.ses or bids.next_session(launch.data_root,
+            ses = launch.ses or bids.next_session(self._data_root(launch),
                                                   bids.subject_label(launch.subject))
             self.to_run = gui.play_command(self.steps[self.step_index]["config"], launch,
                                            f"{ses:03d}", gui.run_number(self.steps, 0))
@@ -1777,28 +1746,29 @@ class _Editor(QtWidgets.QMainWindow):
 _RIG_INTRO = ("Describe this rig once; every rig check copies it into its results, so the "
               "checks of all sites can be pooled and compared. Software cannot see these: "
               "say what is plugged in.")
+_RIG_RUNS = ("What every run played on this rig uses, whatever its config: the window, the "
+             "controller, the sound and where the data goes.")
 
 
 class _RigForm(QtWidgets.QDialog):
-    def __init__(self, path: str, values: dict) -> None:
+    def __init__(self, values: dict) -> None:
         super().__init__()
-        self.setWindowTitle(f"Rig file: {path}")
+        self.setWindowTitle(f"Rig file: {rig_file.folder()}/<rig>.json")
         self.setMinimumWidth(640)
         self.fields: dict[str, QtWidgets.QWidget] = {}
         layout = QtWidgets.QVBoxLayout(self)
         intro = QtWidgets.QLabel(_RIG_INTRO)
         intro.setWordWrap(True)
         layout.addWidget(intro)
-        from . import checks  # its rig file's fields; checks.py is not the editor's to import
-        self._problems = checks.rig_problems
         form = QtWidgets.QFormLayout()
-        examples = checks.RIG_EXAMPLES
-        for key, what in checks.RIG_FIELDS.items():
-            form.addRow(key, self._field(key, str(values.get(key, "")), examples.get(key, "")))
+        for key, what in rig_file.FIELDS.items():
+            form.addRow(key, self._field(key, str(values.get(key, "")),
+                                         rig_file.EXAMPLES.get(key, "")))
             hint = QtWidgets.QLabel(what)
             hint.setStyleSheet("color: gray")
             form.addRow("", hint)
         layout.addLayout(form)
+        layout.addWidget(self._runs_group(values))
         self.problems = QtWidgets.QLabel()
         self.problems.setWordWrap(True)
         self.problems.setStyleSheet("color: #c0392b")
@@ -1815,9 +1785,8 @@ class _RigForm(QtWidgets.QDialog):
         """The widget for one key: a choice for ``modality``, a text box for ``notes``."""
         if key == "modality":
             w = QtWidgets.QComboBox()
-            from .checks import MODALITIES
-            w.addItems(["", *MODALITIES])
-            w.setCurrentText(value if value in MODALITIES else "")
+            w.addItems(["", *rig_file.MODALITIES])
+            w.setCurrentText(value if value in rig_file.MODALITIES else "")
             w.currentTextChanged.connect(self._check)
         elif key == "notes":
             w = QtWidgets.QPlainTextEdit(value)
@@ -1830,49 +1799,125 @@ class _RigForm(QtWidgets.QDialog):
         self.fields[key] = w
         return w
 
+    def _runs_group(self, values: dict) -> QtWidgets.QGroupBox:
+        """The settings every run on the rig takes (:data:`fmri_gym.rig.DEFAULTS` when unset)."""
+        box = QtWidgets.QGroupBox("Runs on this rig")
+        form = QtWidgets.QFormLayout(box)
+        note = QtWidgets.QLabel(_RIG_RUNS)
+        note.setWordWrap(True)
+        form.addRow(note)
+        given = values.get("screen", {})  # an invalid file's may be anything: the form redoes it
+        screen = {**rig_file.DEFAULTS["screen"], **(given if isinstance(given, dict) else {})}
+        form.addRow("monitor", self._monitor_pick(screen["monitor"]))
+        self.size_pick = QtWidgets.QComboBox()
+        self.size_pick.setEditable(True)
+        self._fill_sizes()
+        self.size_pick.setEditText(str(screen["size"]))
+        self.size_pick.setToolTip("The window's size as <w>x<h>, when not fullscreen. "
+                                  "Fullscreen always takes the monitor's resolution.")
+        self.monitor_pick.currentIndexChanged.connect(lambda _i: self._fill_sizes())
+        self.size_pick.editTextChanged.connect(self._check)
+        form.addRow("window size", self.size_pick)
+        self.switches: dict[str, QtWidgets.QCheckBox] = {}
+        for key, label, on, tip in (
+                ("fullscreen", "fullscreen", screen["fullscreen"],
+                 "Fill the screen, as a session in the scanner needs; a window is handier at "
+                 "the desk."),
+                ("vsync", "vsync", screen["vsync"],
+                 "Lock flips to the monitor refresh. Untick only if the display self-test "
+                 "(python -m fmri_gym.display) reports it cannot lock."),
+                ("pad", "game controller", values.get("pad", rig_file.DEFAULTS["pad"]),
+                 "Read a plugged-in game controller as key presses (fmri_gym/pad.py)."),
+                ("audio", "game audio", values.get("audio", rig_file.DEFAULTS["audio"]),
+                 "Play game audio. Off mutes every block; the manifest's curriculum then "
+                 "shows \"audio\": false.")):
+            switch = QtWidgets.QCheckBox()
+            switch.setChecked(bool(on))
+            switch.setToolTip(tip)
+            switch.toggled.connect(lambda _on: self._check())
+            self.switches[key] = switch
+            form.addRow(label, switch)
+        self.data_root = QtWidgets.QLineEdit(str(values.get("data_root",
+                                                            rig_file.DEFAULTS["data_root"])))
+        self.data_root.setToolTip("Where the BIDS tree goes: <root>/sub-XX/ses-NNN/beh/<run>/. "
+                                  "A relative folder is taken from where fmri-play is started.")
+        self.data_root.textChanged.connect(self._check)
+        form.addRow("data root", self.data_root)
+        return box
+
+    def _monitor_pick(self, monitor: Any) -> QtWidgets.QComboBox:
+        """This machine's monitors, the rig's own shown even when not connected here."""
+        self.monitors = list_monitors()
+        self.monitor_pick = QtWidgets.QComboBox()
+        for index, size in enumerate(self.monitors):
+            self.monitor_pick.addItem(monitor_label(index, size), index)
+        if self.monitor_pick.findData(monitor) < 0:
+            self.monitor_pick.addItem(f"{monitor}: not connected here", monitor)
+        self.monitor_pick.setCurrentIndex(self.monitor_pick.findData(monitor))
+        self.monitor_pick.setToolTip("Which screen the participant sees. SDL numbers the "
+                                     "monitors and gives no names: pick by resolution and "
+                                     "refresh rate. Calibrate the photodiode on the same one.")
+        return self.monitor_pick
+
+    def _fill_sizes(self) -> None:
+        """Offer the window sizes that fit the picked monitor, keeping the size typed."""
+        index = self.monitor_pick.currentData()
+        connected = isinstance(index, int) and 0 <= index < len(self.monitors)
+        typed = self.size_pick.currentText()
+        self.size_pick.blockSignals(True)
+        self.size_pick.clear()
+        self.size_pick.addItems(gui.window_sizes(*self.monitors[index][:2]) if connected
+                                else [f"{w}x{h}" for w, h in gui.WINDOW_SIZES])
+        self.size_pick.setEditText(typed)
+        self.size_pick.blockSignals(False)
+
     @property
-    def rig(self) -> dict[str, str]:
+    def rig(self) -> dict[str, Any]:
         """The values as typed, trimmed."""
-        out = {}
+        out: dict[str, Any] = {}
         for key, w in self.fields.items():
             text = (w.currentText() if isinstance(w, QtWidgets.QComboBox)
                     else w.toPlainText() if isinstance(w, QtWidgets.QPlainTextEdit)
                     else w.text())
             out[key] = text.strip()
+        out["screen"] = {"size": self.size_pick.currentText().strip(),
+                         "fullscreen": self.switches["fullscreen"].isChecked(),
+                         "monitor": self.monitor_pick.currentData(),
+                         "vsync": self.switches["vsync"].isChecked()}
+        out["pad"] = self.switches["pad"].isChecked()
+        out["audio"] = self.switches["audio"].isChecked()
+        out["data_root"] = self.data_root.text().strip()
         return out
 
     def accept(self) -> None:
         """Close with Save only when valid: a disabled button does not stop Enter."""
-        if not self._problems(self.rig):
+        if not rig_file.problems(self.rig):
             super().accept()
 
     def _check(self) -> None:
-        problems = self._problems(self.rig)
+        problems = rig_file.problems(self.rig)
         self.problems.setText("\n".join(f"• {p}" for p in problems))
         self.save.setEnabled(not problems)
 
 
-def fill_rig(path: str, values: dict) -> dict[str, str] | None:
-    """The rig file (:mod:`fmri_gym.checks`), filled in a form instead of by hand; on Save,
-    written.
+def fill_rig(values: dict) -> dict[str, Any] | None:
+    """A rig file (:mod:`fmri_gym.rig`), filled in a form instead of by hand; on Save,
+    written as the file of the rig it names (``rigs/<rig>.json``).
 
     One window rather than a prompt per field: all of it stays in view, and the
-    problems are listed live -- the same :func:`~fmri_gym.checks.rig_problems` a
-    loaded file is held to, so the form cannot save a file the check would refuse.
+    problems are listed live -- the same :func:`~fmri_gym.rig.problems` a
+    loaded file is held to, so the form cannot save a file a run would refuse.
 
-    :param path: the rig file to write.
-    :param values: what is known so far (an invalid file's content, or nothing).
+    :param values: what is known so far (an invalid file's content, or only its name).
     :return: the rig written, or ``None`` if the form was cancelled.
     """
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(["fmri-gym"])
     app.setStyle("Fusion")
-    form = _RigForm(path, values)
+    form = _RigForm(values)
     if form.exec() != QtWidgets.QDialog.DialogCode.Accepted:
         return None
     rig = form.rig
-    with open(path, "w") as f:
-        json.dump(rig, f, indent=2)
-        f.write("\n")
+    rig_file.save(rig)
     return rig
 
 

@@ -9,11 +9,15 @@ opens an editor or writes a config. A session of several runs is a shell
 script with one of these commands per line (README, "Runs and sessions"),
 which ``fmri-edit`` writes and any shell plays.
 
+How it is played -- the window, the controller, the audio, where the data
+goes -- is the rig's, not the command's: each rig has a file
+(:mod:`fmri_gym.rig`), and ``--rig`` names it when the machine has several.
+
 Usage (--ses and --run say which run of which session this is; a session
 script passes the same --ses to all of its runs, each with its own --run):
     python fmri_play.py --subject sub-01 --curriculum my.json --ses 1 --run 1
+    python fmri_play.py ... --rig scanner3T    # one of this machine's rigs
     python fmri_play.py ... --dummy-trigger    # testing: no experimenter/scanner wait
-    python fmri_play.py ... --no-audio         # mute all games
     python fmri_play.py ... --duration 600 --resume  # a 10-min run of a longer curriculum
 
 See configs/curricula/demos/mixed.json for a curriculum that mixes all three backends,
@@ -30,7 +34,12 @@ from fmri_gym import Run, checks
 from fmri_gym.config import RunConfig
 from fmri_gym.curriculum import EXIT_QUIT, load_curriculum, validate_curriculum
 from fmri_gym.display import quit_like_esc
+from fmri_gym.rig import RigConfig
 from fmri_gym.run import END_FIXATION_S
+
+#: Settings of the rig file (:mod:`fmri_gym.rig`), under the flags a command might try.
+_RIG_SETTINGS = ("--size", "--fullscreen", "--monitor", "--no-vsync", "--no-pad", "--no-audio",
+                 "--data-root")
 
 
 class _Parser(argparse.ArgumentParser):
@@ -42,17 +51,20 @@ class _Parser(argparse.ArgumentParser):
                         "passes one --ses to all its runs and gives each its own --run. At the "
                         "desk: `fmri-ses --subject <sub>` prints the next free session, and "
                         "--run 1 is the first run of this task in it")
+        flags = [f for f in _RIG_SETTINGS if f in message]
+        if flags:
+            message += (f"\n  {', '.join(flags)}: how a run is played is the rig's, in its file "
+                        "~/.config/fmri-gym/rigs/<rig>.json (\"screen\", \"pad\", \"audio\", "
+                        "\"data_root\"); --rig picks the rig")
         super().error(message)
 
 
 def _parser() -> argparse.ArgumentParser:
-    """The command line: one run, and how this machine plays it."""
+    """The command line: one run, and the rig that plays it."""
     p = _Parser(description="Run any gym game as an fMRI task.")
     p.add_argument("--subject", default="sub-test", help="BIDS subject: sub-<letters/digits>")
     p.add_argument("--curriculum", required=True, help="the run's curriculum JSON (see "
                    "README); fmri-edit writes one without the JSON")
-    p.add_argument("--data-root", default="data",
-                   help="where the BIDS tree goes: <root>/sub-XX/ses-NNN/beh/<run>/")
     p.add_argument("--ses", type=int, required=True,
                    help="BIDS session number, from 1: which scanning session this run belongs "
                    "to. A session script takes it once and passes it to every run (fmri-ses)")
@@ -70,39 +82,33 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--resume", action="store_true",
                    help="carry on from where this subject's latest run of this config (any "
                    "session) stopped, mid-block included. Default: start at the beginning")
-    p.add_argument("--size", default="1024x768")
-    p.add_argument("--fullscreen", action="store_true")
-    p.add_argument("--monitor", type=int, default=0,
-                   help="which monitor to open on, by index (0: the first); a wrong one stops "
-                   "the run and lists this machine's")
-    p.add_argument("--no-vsync", action="store_true",
-                   help="do not lock flips to the monitor refresh (default: try to)")
+    p.add_argument("--rig", help="the rig it is played on, by name: its file "
+                   "~/.config/fmri-gym/rigs/<rig>.json says the window, controller, audio and "
+                   "data root. Default: this machine's only rig; a rig check makes one")
     p.add_argument("--dummy-trigger", action="store_true")
-    p.add_argument("--no-pad", action="store_true",
-                   help="ignore a plugged-in game controller. By default one is read and its "
-                   "controls press the keys in fmri_gym/pad.py (face buttons WASD, shoulders "
-                   "Q/E, stick arrows), so a phase's `keys` map those as if they were typed")
-    p.add_argument("--no-audio", action="store_true", help="mute game audio in every block (the curriculum saved "
-                   "in the manifest shows \"audio\": false)")
     return p
 
 
 def main() -> None:
     args = _parser().parse_args()
-    run_config = RunConfig.from_args(args)
-    curriculum = load_curriculum(run_config.curriculum_path)
+    curriculum = load_curriculum(args.curriculum)
     # The editor's Check, so a file edited by hand gets it too.
     problems = validate_curriculum(curriculum)
     if problems:
-        raise ValueError(f"{run_config.curriculum_path}: " + "; ".join(problems))
+        raise ValueError(f"{args.curriculum}: " + "; ".join(problems))
 
-    rig_check = None
-    if checks.has_checks(curriculum):  # a rig check: its rig file, and a line that opens, first
-        rig_check = checks.prepare(curriculum, run_config.curriculum_path)
+    is_rig_check = checks.has_checks(curriculum)
+    # A rig check is how a rig gets its file: it opens the form when there is none.
+    rig = checks.ensure_rig(args.rig) if is_rig_check else RigConfig.open(args.rig)
+    print(f"rig: {rig.status()}", file=sys.stderr)
+    run_config = RunConfig.from_args(args, rig)
+    trigger_error = None
+    if is_rig_check:  # a line that opens, first
+        trigger_error = checks.prepare(curriculum, run_config.curriculum_path)
     run = Run.from_config_and_curriculum(run_config, curriculum)
-    if rig_check is not None:
-        run.logger.set_extra("rig", rig_check.rig)
-        run.logger.set_extra("trigger_error", rig_check.trigger_error)
+    run.logger.set_extra("rig", rig.record())
+    if is_rig_check:
+        run.logger.set_extra("trigger_error", trigger_error)
     previous = signal.signal(signal.SIGINT, quit_like_esc)
     try:
         completed = run.play()
@@ -110,7 +116,7 @@ def main() -> None:
         run.close()
         # Last: a terminal's Ctrl+C can come twice (to uv and to us), the second one late.
         signal.signal(signal.SIGINT, previous)
-    if rig_check is not None:
+    if is_rig_check:
         # A failed test is a finding, listed in the report: the session goes on.
         checks.finish(run, run_config.ses, run_config.data_root)
     if not completed:

@@ -32,11 +32,12 @@ check does not raise: it records a verdict for each of its tests (pass, fail,
 offline, not run, and why), so one failure hides none of the others, and a
 failed test ends nothing, neither the check nor the session.
 
-**The rig file** says what software cannot see: the site and rig, the PI, the
-monitor or projector, the photodiode, the sound path to the ear, the trigger
-hardware. One per machine (``rig.json``, not in git), filled in by a form
-(:func:`fmri_gym.gui_qt.fill_rig`) when it is missing or invalid; a check that
-says nothing of where it ran could not be pooled, so without it none starts.
+**The rig file** (:mod:`fmri_gym.rig`, one per rig) says what software cannot
+see: the site and rig, the PI, the monitor or projector, the photodiode, the
+sound path to the ear, the trigger hardware. A rig check is how a rig gets its
+file: when it is missing or invalid, the check opens a form to fill it in
+(:func:`ensure_rig`); a check that says nothing of where it ran could not be
+pooled, so without it none starts.
 The rig-check configs ship with ``"triggers": null``, no setup being anyone's
 default: the first check asks for one and saves it.
 
@@ -48,7 +49,7 @@ numbers, charts, this rig's previous checks; one offline file),
 holds every check filed there, read from their manifests, so checks filed by
 an earlier version still line up::
 
-    python -m fmri_gym.checks rig                      # fill in / update rig.json
+    python -m fmri_gym.checks rig --rig <name>         # fill in / update a rig file
     python -m fmri_gym.checks report <run folder>...   # re-file checks already run
     python -m fmri_gym.checks pool data/ /mnt/siteB/data/ --out rigchecks.tsv
 """
@@ -69,7 +70,7 @@ import subprocess
 import sys
 import time
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Iterator, NamedTuple, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Sequence
 
 import gymnasium as gym
 import numpy as np
@@ -77,6 +78,7 @@ import pygame
 from gymnasium import spaces
 
 from . import pad
+from . import rig as rig_file
 from .display import Display, is_locked
 from .keys import _PYGAME_KEY_NAMES, get_events, key_name
 from .photodiode import (CORNERS, AudioRecorder, Verdict, _clicker, _light_verdict,
@@ -95,8 +97,6 @@ LOADS = ("none", "cpu")
 _VERDICT_S = 1.5
 #: Seconds the list of every test's verdict stays up at the end.
 _SUMMARY_S = 5.0
-#: The rig file, per machine; ``RIG`` in the environment points elsewhere.
-RIG_FILE = os.environ.get("RIG", "rig.json")
 _PASS = Verdict("pass", None)
 
 
@@ -110,23 +110,12 @@ def has_checks(curriculum: dict) -> bool:
 # ---------------------------------------------------------------------------
 
 
-class RigSetup(NamedTuple):
-    """What :func:`prepare` settles before the window opens, for the manifest."""
+def prepare(curriculum: dict, path: str) -> str | None:
+    """Before the window: the trigger settings, and a line the run can open.
 
-    #: the rig file's fields (:func:`ensure_rig`)
-    rig: dict[str, str]
-    #: why the curriculum's trigger line did not open; ``None`` when it did
-    trigger_error: str | None
-
-
-def prepare(curriculum: dict, path: str) -> RigSetup:
-    """Before the window: the rig file, the trigger settings, and a line the run can open.
-
-    The rig file is required (its form opens when it is missing, see
-    :func:`ensure_rig`). A rig check as downloaded has
-    ``"triggers": null``: no setup is anyone's default, so the first run asks
-    for one -- a preset, or one's own -- and saves it in the curriculum
-    (:func:`_ask_triggers`). A trigger line that does not open
+    A rig check as downloaded has ``"triggers": null``: no setup is anyone's
+    default, so the first run asks for one -- a preset, or one's own -- and
+    saves it in the curriculum (:func:`_ask_triggers`). A trigger line that does not open
     would stop the run before any check; here it fails the triggers check
     instead, and the run goes on with no codes (said on the console and in
     the manifest), so the other checks still run.
@@ -135,15 +124,14 @@ def prepare(curriculum: dict, path: str) -> RigSetup:
         filled in when it has none, and replaced when its line does not open.
     :param path: the curriculum's file, where a chosen section is saved.
     :raises ValueError: when the curriculum has no trigger settings and none is chosen.
-    :return: the rig, and why the line did not open if it did not.
+    :return: why the line did not open, for the manifest; ``None`` when it did.
     """
-    rig = ensure_rig(RIG_FILE)
     if "triggers" in curriculum and curriculum["triggers"] is None:
         _ask_triggers(curriculum, path)
     section = curriculum.get("triggers") or {}
     try:
         Triggers.from_dict(section).close()
-        return RigSetup(rig, None)
+        return None
     except (TriggerError, OSError) as exc:
         error = f"{type(exc).__name__}: {exc}"
     sync = dict(section.get("sync", {}))
@@ -152,7 +140,7 @@ def prepare(curriculum: dict, path: str) -> RigSetup:
     curriculum["triggers"] = {**section, "backend": "null", "sync": sync}
     print(f"rig check: the trigger line did not open ({error}); the triggers check fails, "
           "the other checks run without codes", file=sys.stderr)
-    return RigSetup(rig, error)
+    return error
 
 
 def _ask_triggers(curriculum: dict, path: str) -> None:
@@ -431,12 +419,7 @@ def _check_pad(run: Run, phase: dict) -> dict[str, Any]:
     if not phase.get("pad", True):
         return {"present": True, "device": device, "measured": False,
                 "why": "", "note": 'skipped ("pad": false)'}
-    rig = {}
-    try:
-        with open(RIG_FILE) as fh:
-            rig = {k: json.load(fh)[k] for k in ("site", "rig")}
-    except (OSError, ValueError, KeyError):
-        pass
+    rig = {k: run.logger.manifest["rig"][k] for k in ("site", "rig")}  # filed with the pad's
     _title(run, f"measuring {device}")
     try:
         out = pad.calibrate(int(phase.get("pad_reps", 3)), screen=run.display.screen,
@@ -537,7 +520,7 @@ def _check_photodiode(run: Run, phase: dict, summary: dict, arrays: dict, tests:
     readout = phase.get("readout", "soundcard")
     clicks = phase.get("audio", True) and run.audio.enabled
     if phase.get("audio", True) and not run.audio.enabled:
-        tests["audio"] = Verdict("not run", "the audio output is off (--no-audio)")
+        tests["audio"] = Verdict("not run", "the audio output is off (the rig's \"audio\": false)")
     summary.update(display=run.display.describe(), readout=readout, mic=phase.get("mic", False),
                    n=phase.get("n", 10), on_ms=phase.get("on_ms", 50.0),
                    gap_ms=[phase.get("gap_min_ms", 150.0), phase.get("gap_max_ms", 250.0)],
@@ -1077,31 +1060,6 @@ def _register_pattern(name: str) -> str:
 TESTS = {"display": "check_display", "triggers": "check_triggers",
          "controls": "check_controls", "photodiode": "check_photodiode",
          "audio": "check_photodiode", "frames": "check_frames"}
-MODALITIES = ("fmri", "meg", "eeg", "behav")
-#: The rig file: every key required (``notes`` may be empty), no other key.
-RIG_FIELDS = {
-    "site": "the site: letters, digits, _ and -",
-    "rig": "this rig at the site: letters, digits, _ and -",
-    "pi": "the PI's initials, in capitals (Momchil Tomov: MT)",
-    "modality": f"one of {', '.join(MODALITIES)}",
-    "monitor": "monitor or projector, make and model, and its settings that matter",
-    "photodiode": "photodiode make/model and where it is plugged in",
-    "audio_path": "from the sound card to the ear: amplifier, tubes, headphones",
-    "trigger_hardware": "trigger box / port / scanner interface",
-    "notes": "anything else (may be empty)",
-}
-#: Site and rig: values in the TSV, never in a file name, so BIDS's letters-and-digits
-#: rule does not bind them; still no spaces, as rows are grouped by them when pooled.
-_LABEL = re.compile(r"[A-Za-z0-9_-]+")
-_INITIALS = re.compile(r"[A-Z]{2,4}")
-#: What each field of the rig file looks like, for the form's placeholders.
-RIG_EXAMPLES = {
-    "site": "mri_3T", "rig": "stimpc1", "pi": "MT", "modality": "fmri",
-    "monitor": "BOLDscreen 32 LCD, 120 Hz, 1920x1080",
-    "photodiode": "BioSemi photodiode on sound card input 0",
-    "audio_path": "RME Babyface -> Sensimetrics S14 insert earphones",
-    "trigger_hardware": "fORP 932 USB, '=' at each volume",
-}
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 #: The pooled table: ``(column, path into the manifest, description, units)``.
@@ -1224,67 +1182,31 @@ NAMES = tuple(c[0] for c in COLUMNS)
 # ---------------------------------------------------------------------------
 
 
-def rig_problems(rig: dict) -> list[str]:
-    """What keeps ``rig`` from being a rig file: every field of :data:`RIG_FIELDS`, no other.
+def ensure_rig(name: str | None) -> rig_file.RigConfig:
+    """The rig a rig check plays on; when its file is missing or invalid, the form to
+    fill it in first (:func:`fmri_gym.gui_qt.fill_rig`), then the file.
 
-    :return: one line per problem; empty when it is valid.
+    The form needs the ``gui`` extra and a screen; without them, or when it is
+    cancelled, the rig file's own error is raised. Several rigs and no ``name``
+    is the experimenter's to settle: that raises with no form.
+
+    :param name: ``--rig``; ``None`` for this machine's only rig, or a new one when it has none.
+    :raises ValueError: when there is still no valid rig file, saying how to make one.
     """
-    problems = [f"missing {k!r} ({what})" for k, what in RIG_FIELDS.items() if k not in rig]
-    problems += [f"unknown key {k!r}" for k in rig if k not in RIG_FIELDS]
-    problems += [f"{k!r} must be a string" for k, v in rig.items() if not isinstance(v, str)]
-    problems += [f"{k!r} is empty" for k, v in rig.items() if k != "notes" and v == ""]
-    for k in ("site", "rig"):
-        if isinstance(rig.get(k), str) and rig[k] and not _LABEL.fullmatch(rig[k]):
-            problems.append(f"{k!r} must be letters, digits, _ or -, got {rig[k]!r}")
-    if isinstance(rig.get("pi"), str) and rig["pi"] and not _INITIALS.fullmatch(rig["pi"]):
-        problems.append(f"'pi' must be 2 to 4 capital letters (initials), got {rig['pi']!r}")
-    if rig.get("modality") not in (*MODALITIES, "", None):
-        problems.append(f"'modality' must be one of {MODALITIES}, got {rig['modality']!r}")
-    return problems
-
-
-def load_rig(path: str) -> dict[str, str]:
-    """The rig file, checked (:func:`rig_problems`).
-
-    :raises FileNotFoundError: if there is none, with how to make one.
-    :raises ValueError: naming each field that is missing, unknown or invalid.
-    """
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"rig check: no rig file {path!r}. Run python -m "
-                                f"fmri_gym.checks rig --rig {path} to fill it in: the check "
-                                "will not start without it, since its results could not be "
-                                "pooled")
-    with open(path) as f:
-        rig = json.load(f)
-    problems = rig_problems(rig)
-    if problems:
-        raise ValueError(f"rig check: {path}: " + "; ".join(problems))
-    return rig
-
-
-def ensure_rig(path: str) -> dict[str, str]:
-    """The rig file; when it is missing or invalid, the form to fill it in, then it.
-
-    The form (:func:`fmri_gym.gui_qt.fill_rig`) needs the ``gui`` extra and a screen;
-    without them, or when the form is cancelled, the rig file's own error is raised.
-
-    :raises FileNotFoundError: if there is still no rig file.
-    :raises ValueError: if it is still invalid.
-    """
+    if name is None and len(rig_file.names()) > 1:
+        return rig_file.RigConfig.open(None)
     try:
-        return load_rig(path)
-    except (FileNotFoundError, ValueError) as error:
+        return rig_file.RigConfig.open(name)
+    except ValueError as error:
         if not can_show_form():
             raise
-        from .gui_qt import fill_rig
-        values = {}
-        if os.path.exists(path):
-            with open(path) as f:
-                values = json.load(f)
         print(f"{error}\nrig check: opening the rig form", file=sys.stderr)
-        if fill_rig(path, values) is None:
+        from .gui_qt import fill_rig
+        only = rig_file.names()[0] if rig_file.names() else None
+        saved = fill_rig(rig_file.draft(name if name is not None else only))
+        if saved is None:
             raise
-    return load_rig(path)
+    return rig_file.RigConfig.open(saved["rig"])
 
 
 def can_show_form() -> bool:
@@ -1573,8 +1495,9 @@ def _md_offsets(p: dict, keys: tuple[tuple[str, str], ...]) -> list[str]:
 def main() -> None:
     p = argparse.ArgumentParser(description="The rig file, and pooling rig checks.")
     sub = p.add_subparsers(dest="command", required=True)
-    r = sub.add_parser("rig", help="fill in or update the rig file, in a form")
-    r.add_argument("--rig", default=os.environ.get("RIG", "rig.json"))
+    r = sub.add_parser("rig", help="fill in or update a rig file, in a form")
+    r.add_argument("--rig", help="the rig, by name; default: this machine's only one, or a "
+                                 "new one when it has none")
     f = sub.add_parser("report", help="re-file checks already run: their reports and the "
                                       "data root's rigchecks.tsv, with this version")
     f.add_argument("folders", nargs="+", help="rig-check run folders")
@@ -1606,20 +1529,19 @@ def main() -> None:
         sys.stdout.write(text)
 
 
-def _edit_rig(path: str) -> None:
-    """Open the form on the rig file (empty if there is none), and save it."""
+def _edit_rig(name: str | None) -> None:
+    """Open the form on a rig file (a new one if there is none), and save it."""
     if not can_show_form():
         raise RuntimeError("rig check: the rig form needs PySide6 (pip install "
                            "'fmri-gym[gui]') and a screen; or edit the file by hand")
+    if name is None and rig_file.names():
+        name = rig_file.choose(None)
     from .gui_qt import fill_rig
-    values = {}
-    if os.path.exists(path):
-        with open(path) as f:
-            values = json.load(f)
-    if fill_rig(path, values) is None:
+    saved = fill_rig(rig_file.draft(name))
+    if saved is None:
         print("rig check: cancelled, the rig file is unchanged", file=sys.stderr)
         return
-    print(f"saved: {path}")
+    print(f"saved: {rig_file.path(saved['rig'])}")
 
 
 # ---------------------------------------------------------------------------
