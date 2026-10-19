@@ -32,19 +32,21 @@ def rigs_folder(tmp_path, monkeypatch, request):
 def test_defaults_fill_what_the_file_leaves_out():
     rig.save({**FIELDS, "rig": "desk"})
     desk = RigConfig.open(None)
-    assert (desk.size, desk.is_fullscreen, desk.monitor, desk.has_vsync) == ((1024, 768), False,
-                                                                              0, True)
+    screen = desk.screen
+    assert (screen.size, screen.is_fullscreen, screen.monitor, screen.has_vsync) == (
+        (1024, 768), False, 0, True)
     assert (desk.has_pad, desk.has_audio, desk.data_root) == (True, True, "data")
     assert desk.record()["screen"] == rig.DEFAULTS["screen"]
 
 
 def test_settings_are_read():
-    rig.save({**FIELDS, "rig": "scan", "screen": {"size": "800x600", "fullscreen": True,
-                                                  "monitor": 1, "vsync": False},
-              "pad": False, "audio": False, "data_root": "/data"})
+    rig.save({**FIELDS, "rig": "scan", "screen": {"size": "800x600", "is_fullscreen": True,
+                                                  "monitor": 1, "has_vsync": False},
+              "has_pad": False, "has_audio": False, "data_root": "/data"})
     scan = RigConfig.open("site1/scan")
-    assert (scan.size, scan.is_fullscreen, scan.monitor, scan.has_vsync) == ((800, 600), True,
-                                                                              1, False)
+    screen = scan.screen
+    assert (screen.size, screen.is_fullscreen, screen.monitor, screen.has_vsync) == (
+        (800, 600), True, 1, False)
     assert (scan.has_pad, scan.has_audio, scan.data_root) == (False, False, "/data")
 
 
@@ -66,7 +68,8 @@ def test_none_or_several_rigs_need_a_name():
     ({"pi": "mt"}, "initials"),
     ({"screen": {"size": "big"}}, '"size"'),
     ({"screen": {"monitor": -1}}, '"monitor"'),
-    ({"audio": "no"}, '"audio" must be true or false'),
+    ({"has_audio": "no"}, '"has_audio" must be true or false'),
+    ({"audio": False}, "unknown key 'audio'"),
     ({"data_root": ""}, '"data_root"'),
     ({"bogus": 1}, "unknown key 'bogus'"),
     ({"rig": "other"}, "sits at <site>/<rig>.json"),

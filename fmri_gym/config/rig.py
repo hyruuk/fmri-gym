@@ -15,13 +15,15 @@ gets is not something to guess.
 
 A rig file holds what the rig is -- :data:`FIELDS`, every one required, filed
 with every run so that rig checks from every site can be pooled -- and, each
-optional, how its runs are played (:data:`DEFAULTS` when left out):
+optional, how its runs are played (:data:`DEFAULTS` when left out), under the
+field names of :class:`RigConfig` and :class:`ScreenConfig`, so the file and the
+code say the same thing:
 
-- ``"screen"``: ``{"size": "1024x768", "fullscreen": false, "monitor": 0,
-  "vsync": true}``, the monitor by index (0: the first); fullscreen takes the
-  monitor's resolution;
-- ``"pad"``: read a plugged-in game controller (:mod:`fmri_gym.pad`);
-- ``"audio"``: play game audio; ``false`` mutes every block;
+- ``"screen"``: ``{"size": "1024x768", "is_fullscreen": false, "monitor": 0,
+  "has_vsync": true}``, the monitor by index (0: the first); fullscreen takes
+  the monitor's resolution;
+- ``"has_pad"``: read a plugged-in game controller (:mod:`fmri_gym.pad`);
+- ``"has_audio"``: play game audio; ``false`` mutes every block;
 - ``"data_root"``: where the BIDS tree goes, ``<root>/sub-XX/ses-NNN/beh/<run>/``.
 
 It is written by hand or in the rig form (``python -m fmri_gym.checks rig --rig
@@ -61,8 +63,8 @@ EXAMPLES = {
 #: How a run is played where the rig file says nothing: a window at the desk,
 #: the pad and the audio on.
 DEFAULTS: dict[str, Any] = {
-    "screen": {"size": "1024x768", "fullscreen": False, "monitor": 0, "vsync": True},
-    "pad": True, "audio": True, "data_root": "data",
+    "screen": {"size": "1024x768", "is_fullscreen": False, "monitor": 0, "has_vsync": True},
+    "has_pad": True, "has_audio": True, "data_root": "data",
 }
 #: Site and rig: values in the TSV, never in a file name, so BIDS's letters-and-digits
 #: rule does not bind them; still no spaces, as rows are grouped by them when pooled.
@@ -77,13 +79,9 @@ _REPO_RIGS = Path(__file__).resolve().parents[2] / "configs" / "rigs"
 
 
 @dataclass(frozen=True, slots=True)
-class RigConfig:
-    """One rig file, checked: what the rig is, and how every run on it is played."""
+class ScreenConfig:
+    """The window a rig's runs are shown in: a rig file's ``"screen"``."""
 
-    #: the rig's name, ``<site>/<rig>``: its file's place under :func:`folder`.
-    name: str
-    #: what the rig is, :data:`FIELDS` as written.
-    fields: dict[str, str]
     #: the window, ``(width, height)`` in pixels, when not fullscreen.
     size: tuple[int, int]
     is_fullscreen: bool
@@ -91,6 +89,32 @@ class RigConfig:
     monitor: int
     #: lock flips to the monitor refresh.
     has_vsync: bool
+
+    @classmethod
+    def from_dict(cls, screen: dict) -> ScreenConfig:
+        """Read a checked ``"screen"`` (:func:`problems`), ``DEFAULTS["screen"]`` where it
+        says nothing; ``size`` is written ``<width>x<height>``."""
+        screen = {**DEFAULTS["screen"], **screen}
+        width, height = (int(n) for n in _SIZE.fullmatch(screen["size"]).groups())
+        return cls(size=(width, height), is_fullscreen=screen["is_fullscreen"],
+                   monitor=screen["monitor"], has_vsync=screen["has_vsync"])
+
+    def record(self) -> dict[str, Any]:
+        """As a rig file writes it."""
+        return {"size": f"{self.size[0]}x{self.size[1]}", "is_fullscreen": self.is_fullscreen,
+                "monitor": self.monitor, "has_vsync": self.has_vsync}
+
+
+@dataclass(frozen=True, slots=True)
+class RigConfig:
+    """One rig file, checked: what the rig is, and how every run on it is played."""
+
+    #: the rig's name, ``<site>/<rig>``: its file's place under :func:`folder`.
+    name: str
+    #: what the rig is, :data:`FIELDS` as written.
+    fields: dict[str, str]
+    #: the window.
+    screen: ScreenConfig
     #: read a plugged-in game controller as key presses.
     has_pad: bool
     #: play game audio; ``False`` mutes every block and opens no output.
@@ -115,13 +139,11 @@ class RigConfig:
         if found:
             raise ValueError(f"{path(name)}: " + "; ".join(found) + ". Fix it by hand, or in "
                              f"the form: python -m fmri_gym.checks rig --rig {name}")
-        screen = {**DEFAULTS["screen"], **rig.get("screen", {})}
-        width, height = (int(n) for n in _SIZE.fullmatch(screen["size"]).groups())
-        return cls(name=name, fields={k: rig[k] for k in FIELDS}, size=(width, height),
-                   is_fullscreen=screen["fullscreen"], monitor=screen["monitor"],
-                   has_vsync=screen["vsync"], has_pad=rig.get("pad", DEFAULTS["pad"]),
-                   has_audio=rig.get("audio", DEFAULTS["audio"]),
-                   data_root=rig.get("data_root", DEFAULTS["data_root"]))
+        settings = {**DEFAULTS, **rig}
+        return cls(name=name, fields={k: rig[k] for k in FIELDS},
+                   screen=ScreenConfig.from_dict(rig.get("screen", {})),
+                   has_pad=settings["has_pad"], has_audio=settings["has_audio"],
+                   data_root=settings["data_root"])
 
     @classmethod
     def open(cls, name: str | None) -> RigConfig:
@@ -135,18 +157,16 @@ class RigConfig:
 
     def record(self) -> dict[str, Any]:
         """The rig file as the run played it, every default written out: the manifest's."""
-        return {**self.fields,
-                "screen": {"size": f"{self.size[0]}x{self.size[1]}",
-                           "fullscreen": self.is_fullscreen, "monitor": self.monitor,
-                           "vsync": self.has_vsync},
-                "pad": self.has_pad, "audio": self.has_audio, "data_root": self.data_root}
+        return {**self.fields, "screen": self.screen.record(), "has_pad": self.has_pad,
+                "has_audio": self.has_audio, "data_root": self.data_root}
 
     def status(self) -> str:
         """One line for the console: which file, and what it settles."""
-        window = ("fullscreen" if self.is_fullscreen
-                  else f"{self.size[0]}x{self.size[1]} window")
-        return (f"{path(self.name)} | {window} on monitor {self.monitor}, vsync "
-                f"{'on' if self.has_vsync else 'off'} | pad {'on' if self.has_pad else 'off'}"
+        screen = self.screen
+        window = ("fullscreen" if screen.is_fullscreen
+                  else f"{screen.size[0]}x{screen.size[1]} window")
+        return (f"{path(self.name)} | {window} on monitor {screen.monitor}, vsync "
+                f"{'on' if screen.has_vsync else 'off'} | pad {'on' if self.has_pad else 'off'}"
                 f" | audio {'on' if self.has_audio else 'off'} | data in {self.data_root}")
 
 
@@ -261,10 +281,11 @@ def problems(rig: dict) -> list[str]:
 
 
 def _setting_problems(rig: dict) -> list[str]:
-    """What is wrong with the file's ``screen``, ``pad``, ``audio`` and ``data_root``."""
+    """What is wrong with the file's ``screen``, ``has_pad``, ``has_audio`` and ``data_root``."""
     screen = rig.get("screen", {})
     if not isinstance(screen, dict):
-        return [f'"screen": expected {{"size", "fullscreen", "monitor", "vsync"}}, got {screen!r}']
+        return [f'"screen": expected {{"size", "is_fullscreen", "monitor", "has_vsync"}}, '
+                f"got {screen!r}"]
     out = [f'"screen": unknown key {k!r}' for k in screen if k not in DEFAULTS["screen"]]
     size = screen.get("size", DEFAULTS["screen"]["size"])
     if not (isinstance(size, str) and _SIZE.fullmatch(size)):
@@ -273,9 +294,9 @@ def _setting_problems(rig: dict) -> list[str]:
     if not isinstance(monitor, int) or isinstance(monitor, bool) or monitor < 0:
         out.append(f"\"screen\": \"monitor\" must be a monitor's index (0: the first), "
                    f"got {monitor!r}")
-    flags = (("screen.fullscreen", screen.get("fullscreen", False)),
-             ("screen.vsync", screen.get("vsync", True)),
-             ("pad", rig.get("pad", True)), ("audio", rig.get("audio", True)))
+    flags = (("screen.is_fullscreen", screen.get("is_fullscreen", False)),
+             ("screen.has_vsync", screen.get("has_vsync", True)),
+             ("has_pad", rig.get("has_pad", True)), ("has_audio", rig.get("has_audio", True)))
     out += [f'"{k}" must be true or false, got {v!r}' for k, v in flags if not isinstance(v, bool)]
     root = rig.get("data_root", DEFAULTS["data_root"])
     if not isinstance(root, str) or not root:

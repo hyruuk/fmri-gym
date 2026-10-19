@@ -147,7 +147,7 @@ def _device_lead(device: int | str | None, blocksize: int, seconds: float = 0.5)
         raise RuntimeError("audio: this output reports no DAC timestamps, so sound cannot "
                            "be placed against the flips; make another output the system "
                            "default (python -m sounddevice lists them), or set "
-                           '"audio": false in the rig file')
+                           '"has_audio": false in the rig file')
     return max(settled)
 
 
@@ -364,7 +364,7 @@ class Audio:
         (:func:`_preferred_output_device`), i.e. wherever the system plays sound:
         pick the rig's output there, as for any other program.
 
-        :param enabled: ``False`` (the rig's ``"audio": false``) never touches a sound device,
+        :param enabled: ``False`` (the rig's ``"has_audio": false``) never touches a sound device,
             so a machine without one can run; a block that then has sound to
             play raises.
         :raises RuntimeError: if there is no usable output, or it reports no
@@ -395,7 +395,7 @@ class Audio:
             info = sounddevice.query_devices(self.device, "output")
         except (ValueError, sounddevice.PortAudioError) as e:
             raise RuntimeError(f"audio: no usable output device ({e}); "
-                               'set "audio": false in the rig file for a silent session') from e
+                               'set "has_audio": false in the rig file for a silent session') from e
         self.device_name = info["name"]
         self.samplerate = info["default_samplerate"]
         self.hostapi = sounddevice.query_hostapis(info["hostapi"])["name"]
@@ -411,7 +411,7 @@ class Audio:
             delay 16.4 ms)"``.
         """
         if not self.enabled:
-            return ('off (the rig\'s "audio": false): playback muted in every game block, no '
+            return ('off (the rig\'s "has_audio": false): playback muted in every game block, no '
                     "output opened; logged game audio is unchanged")
         return (f"out: {self.device_name} ({self.hostapi}) | sound at flip + "
                 f"{self.delay * 1000:.0f} ms (device delay {self.lead * 1000:.1f} ms)")
@@ -478,7 +478,7 @@ class Audio:
                 f"steps every {period * 1000:.3f} ms ({per_step / period - 1:+.2%}); "
                 f"sound can follow the flips only within {_MAX_STRETCH:.1%}. "
                 "Leave this block's fps out to play at the engine's own rate, or set "
-                '"audio": false')
+                '"has_audio": false on the phase')
 
     def play(self, sound: Sound | None, flip_t: float) -> None:
         """Queue one chunk to start :attr:`delay` after its frame's flip.
@@ -490,14 +490,15 @@ class Audio:
         :raises ValueError: if the PCM is not shaped ``(samples, channels)``,
             or its amount per step does not match the block's frame rate
             (:meth:`start`).
-        :raises RuntimeError: if the output is off (the rig's ``"audio": false``).
+        :raises RuntimeError: if the output is off (the rig's ``"has_audio": false``).
         """
         self.last_chunk = -1
         if sound is None or not len(sound.pcm):
             return
         if not self.enabled:
             raise RuntimeError("audio: a game block has sound to play but the output is off "
-                               '(the rig\'s "audio": false); set "audio": false on that phase')
+                               '(the rig\'s "has_audio": false); set "has_audio": false on '
+                               "that phase")
         pcm = sound.pcm
         sound_format = (sound.sample_rate, pcm.shape[1:], pcm.dtype)
         if sound_format != self.format:

@@ -54,7 +54,7 @@ class _Parser(argparse.ArgumentParser):
         flags = [f for f in _RIG_SETTINGS if f in message]
         if flags:
             message += (f"\n  {', '.join(flags)}: how a run is played is the rig's, in its file "
-                        "configs/rigs/<site>/<rig>.json (\"screen\", \"pad\", \"audio\", "
+                        "configs/rigs/<site>/<rig>.json (\"screen\", \"has_pad\", \"has_audio\", "
                         "\"data_root\"); --rig picks the rig")
         super().error(message)
 

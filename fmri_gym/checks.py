@@ -521,7 +521,8 @@ def _check_photodiode(run: Run, phase: dict, summary: dict, arrays: dict, tests:
     readout = phase.get("readout", "soundcard")
     clicks = phase.get("audio", True) and run.audio.enabled
     if phase.get("audio", True) and not run.audio.enabled:
-        tests["audio"] = Verdict("not run", "the audio output is off (the rig's \"audio\": false)")
+        tests["audio"] = Verdict("not run",
+                                 "the audio output is off (the rig's \"has_audio\": false)")
     summary.update(display=run.display.describe(), readout=readout, mic=phase.get("mic", False),
                    n=phase.get("n", 10), on_ms=phase.get("on_ms", 50.0),
                    gap_ms=[phase.get("gap_min_ms", 150.0), phase.get("gap_max_ms", 250.0)],

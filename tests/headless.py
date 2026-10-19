@@ -111,8 +111,9 @@ def use_rig(data_root: str, has_audio: bool) -> str:
     os.environ["FMRI_GYM_RIGS"] = tempfile.mkdtemp(prefix="headless-rigs-")
     rig.save({**{k: "headless" for k in rig.FIELDS}, "site": "test", "rig": "headless",
               "pi": "TT", "modality": "behav", "notes": "",
-              "screen": {"size": "640x480", "fullscreen": False, "monitor": 0, "vsync": False},
-              "pad": False, "audio": has_audio, "data_root": data_root})
+              "screen": {"size": "640x480", "is_fullscreen": False, "monitor": 0,
+                         "has_vsync": False},
+              "has_pad": False, "has_audio": has_audio, "data_root": data_root})
     return "test/headless"
 
 

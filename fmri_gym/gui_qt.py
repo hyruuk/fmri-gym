@@ -1800,7 +1800,8 @@ class _RigForm(QtWidgets.QDialog):
         return w
 
     def _runs_group(self, values: dict) -> QtWidgets.QGroupBox:
-        """The settings every run on the rig takes (:data:`fmri_gym.config.rig.DEFAULTS` when unset)."""
+        """The settings every run on the rig takes (:data:`~fmri_gym.config.rig.DEFAULTS`
+        when unset)."""
         box = QtWidgets.QGroupBox("Runs on this rig")
         form = QtWidgets.QFormLayout(box)
         note = QtWidgets.QLabel(_RIG_RUNS)
@@ -1820,17 +1821,18 @@ class _RigForm(QtWidgets.QDialog):
         form.addRow("window size", self.size_pick)
         self.switches: dict[str, QtWidgets.QCheckBox] = {}
         for key, label, on, tip in (
-                ("fullscreen", "fullscreen", screen["fullscreen"],
+                ("is_fullscreen", "fullscreen", screen["is_fullscreen"],
                  "Fill the screen, as a session in the scanner needs; a window is handier at "
                  "the desk."),
-                ("vsync", "vsync", screen["vsync"],
+                ("has_vsync", "vsync", screen["has_vsync"],
                  "Lock flips to the monitor refresh. Untick only if the display self-test "
                  "(python -m fmri_gym.display) reports it cannot lock."),
-                ("pad", "game controller", values.get("pad", rig_file.DEFAULTS["pad"]),
+                ("has_pad", "game controller", values.get("has_pad", rig_file.DEFAULTS["has_pad"]),
                  "Read a plugged-in game controller as key presses (fmri_gym/pad.py)."),
-                ("audio", "game audio", values.get("audio", rig_file.DEFAULTS["audio"]),
+                ("has_audio", "game audio", values.get("has_audio",
+                                                       rig_file.DEFAULTS["has_audio"]),
                  "Play game audio. Off mutes every block; the manifest's curriculum then "
-                 "shows \"audio\": false.")):
+                 "shows \"has_audio\": false.")):
             switch = QtWidgets.QCheckBox()
             switch.setChecked(bool(on))
             switch.setToolTip(tip)
@@ -1881,11 +1883,11 @@ class _RigForm(QtWidgets.QDialog):
                     else w.text())
             out[key] = text.strip()
         out["screen"] = {"size": self.size_pick.currentText().strip(),
-                         "fullscreen": self.switches["fullscreen"].isChecked(),
+                         "is_fullscreen": self.switches["is_fullscreen"].isChecked(),
                          "monitor": self.monitor_pick.currentData(),
-                         "vsync": self.switches["vsync"].isChecked()}
-        out["pad"] = self.switches["pad"].isChecked()
-        out["audio"] = self.switches["audio"].isChecked()
+                         "has_vsync": self.switches["has_vsync"].isChecked()}
+        out["has_pad"] = self.switches["has_pad"].isChecked()
+        out["has_audio"] = self.switches["has_audio"].isChecked()
         out["data_root"] = self.data_root.text().strip()
         return out
 

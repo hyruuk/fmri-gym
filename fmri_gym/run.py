@@ -436,7 +436,7 @@ class Run:
             resume_from = _run_progress(config.rig.data_root, config.subject,
                                         config.curriculum_path, phases)
         seeds = bids.fold_seeds(phases, out.label)
-        check_monitor(config.rig.monitor)
+        check_monitor(config.rig.screen.monitor)
         fold_cli_options(phases, has_audio=config.rig.has_audio)
 
         triggers = Triggers.from_dict(curriculum.get("triggers"))
@@ -448,8 +448,9 @@ class Run:
         print(f"audio: {audio.status()}", file=sys.stderr)
         pad_status = pad.init(config.rig.has_pad)
         print(f"pad: {pad_status}", file=sys.stderr)
-        display = Display(size=config.rig.size, fullscreen=config.rig.is_fullscreen,
-                          vsync=config.rig.has_vsync, monitor=config.rig.monitor)
+        screen = config.rig.screen
+        display = Display(size=screen.size, fullscreen=screen.is_fullscreen,
+                          vsync=screen.has_vsync, monitor=screen.monitor)
         run = cls(config, phases, display, out.folder, audio=audio, triggers=triggers,
                   resume_from=resume_from)
         run.logger.set_extra("run", {"label": out.label, "attempt": out.attempt})
