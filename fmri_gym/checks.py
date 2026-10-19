@@ -188,7 +188,7 @@ def finish(run: Run, session: int) -> bool:
              .isoformat(timespec="seconds"),
              versions={**m.get("versions", {}), **versions()},
              platform=platform_info())
-    data_root = run.rig.data_root
+    data_root = run.config.rig.data_root
     write_outputs(run.outdir, m, data_root)
     print(f"rig check {'PASS' if m['status'] == 'pass' else 'FAIL (' + m['failed_tests'] + ')'}"
           f": {os.path.join(run.outdir, 'report.html')} "
@@ -281,7 +281,7 @@ def _check_triggers(run: Run, phase: dict, summary: dict, arrays: dict, tests: d
         tests["triggers"] = Verdict("fail", f"the trigger line did not open: {error}")
         return
     t = run.triggers
-    pulses = t.sync.mode == "wait" and not run.dummy_trigger
+    pulses = t.sync.mode == "wait" and not run.config.dummy_trigger
     if not (t.enabled or pulses):
         tests["triggers"] = Verdict("not run", "this config neither sends codes nor waits "
                                                "for the scanner")
@@ -420,7 +420,7 @@ def _check_pad(run: Run, phase: dict) -> dict[str, Any]:
     if not phase.get("pad", True):
         return {"present": True, "device": device, "measured": False,
                 "why": "", "note": 'skipped ("pad": false)'}
-    rig = {k: run.rig.fields[k] for k in ("site", "rig")}  # filed with the pad's
+    rig = {k: run.config.rig.fields[k] for k in ("site", "rig")}  # filed with the pad's
     _title(run, f"measuring {device}")
     try:
         out = pad.calibrate(int(phase.get("pad_reps", 3)), screen=run.display.screen,
