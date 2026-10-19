@@ -37,9 +37,6 @@ from fmri_gym.config.rig import RigConfig
 from fmri_gym.config.run import RunConfig
 from fmri_gym.run import END_FIXATION_S
 
-#: Settings of the rig file (:mod:`fmri_gym.config.rig`), under the flags a command might try.
-_RIG_SETTINGS = ("--size", "--fullscreen", "--monitor", "--no-vsync", "--no-pad", "--no-audio",
-                 "--data-root")
 
 
 class _Parser(argparse.ArgumentParser):
@@ -51,11 +48,6 @@ class _Parser(argparse.ArgumentParser):
                         "passes one --ses to all its runs and gives each its own --run. At the "
                         "desk: `fmri-ses --subject <sub>` prints the next free session, and "
                         "--run 1 is the first run of this task in it")
-        flags = [f for f in _RIG_SETTINGS if f in message]
-        if flags:
-            message += (f"\n  {', '.join(flags)}: how a run is played is the rig's, in its file "
-                        "configs/rigs/<site>/<rig>.json (\"screen\", \"has_pad\", \"has_audio\", "
-                        "\"data_root\"); --rig picks the rig")
         super().error(message)
 
 
@@ -97,16 +89,16 @@ def main() -> None:
     if problems:
         raise ValueError(f"{args.curriculum}: " + "; ".join(problems))
 
-    is_rig_check = checks.has_checks(curriculum)
+    do_rig_check = checks.has_checks(curriculum)
     # A rig check is how a rig gets its file: it opens the form when there is none.
-    rig = checks.ensure_rig(args.rig) if is_rig_check else RigConfig.open(args.rig)
+    rig = checks.ensure_rig(args.rig) if do_rig_check else RigConfig.open(args.rig)
     print(f"rig: {rig.status()}", file=sys.stderr)
     run_config = RunConfig.from_args(args, rig)
     trigger_error = None
-    if is_rig_check:  # a line that opens, first
+    if do_rig_check:  # a line that opens, first
         trigger_error = checks.prepare(curriculum, run_config.curriculum_path)
     run = Run.from_config_and_curriculum(run_config, curriculum)
-    if is_rig_check:
+    if do_rig_check:
         run.logger.set_extra("trigger_error", trigger_error)
     previous = signal.signal(signal.SIGINT, quit_like_esc)
     try:
@@ -115,7 +107,7 @@ def main() -> None:
         run.close()
         # Last: a terminal's Ctrl+C can come twice (to uv and to us), the second one late.
         signal.signal(signal.SIGINT, previous)
-    if is_rig_check:
+    if do_rig_check:
         # A failed test is a finding, listed in the report: the session goes on.
         checks.finish(run, run_config.ses)
     if not completed:
