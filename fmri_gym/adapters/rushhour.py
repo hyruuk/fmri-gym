@@ -23,7 +23,7 @@ it, and the block ends when it is solved (``mode: "episode"``,
 ``n_episodes: 1``). The program's trial flow -- a self-paced ready screen, a
 blank interval, a "PUZZLE SOLVED!" hold -- is not the env's business here: the
 curriculum lists each as a ``message`` phase around the game phase, and
-run.py runs them (see ``configs/dbp_games/rushhour__complete.json``).
+run.py runs them (see ``configs/curricula/rushhour/complete.json``).
 
 Other phase fields passed to the env: ``movable_only`` (default true) and
 ``binary``, an engine binary of your own (else ``$RUSHHOUR_ENV_BIN``, else the

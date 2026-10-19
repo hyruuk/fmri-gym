@@ -129,7 +129,7 @@ growth rather than dropped frames.
 
 - Frames: gzip level 1 on game pixels compresses well. Crafter measured 7.4 KB
   median in daylight but ~200 KB at night because of per-pixel noise
-  (`configs/dbp_games/crafter__crafter_L4.json`). ALE frames are flat colour,
+  (`configs/curricula/crafter/L4.json`). ALE frames are flat colour,
   likely 2-5 KB each, so ~10-20 MB per 5-minute block at 60 fps.
 - States: ALE ~0.4 KB per frame (README storage note). Retro ~1 MB raw per
   anchor, perhaps 100-300 KB after zlib, so with stride 15 at 60 fps roughly

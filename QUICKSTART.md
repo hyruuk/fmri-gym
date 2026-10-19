@@ -41,7 +41,7 @@ playwright install chromium   # then set "browser_channel": null in the phase if
 ## 2. How a session works
 
 ```bash
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/<game>.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/<backend>/<game>.json --ses 1 --run 1
 ```
 
 
@@ -71,16 +71,16 @@ All commands assume you're in the repo root with `fmri-gym` activated.
 All ten stock scenarios, one line each:
 
 ```bash
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/vizdoom__basic.json --ses 1 --run 1                      # strafe and shoot one monster
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/vizdoom__deadly_corridor.json --ses 1 --run 1            # fight down a corridor to the vest
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/vizdoom__deathmatch.json --ses 1 --run 1                 # arena, full arsenal, scored by kills
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/vizdoom__defend_center.json --ses 1 --run 1              # surrounded; turn and shoot
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/vizdoom__defend_line.json --ses 1 --run 1                # they advance down a hall and respawn
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/vizdoom__health_gathering_supreme.json --ses 1 --run 1   # acid-floor maze; find medikits
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/vizdoom__my_way_home.json --ses 1 --run 1                # navigate a 9-room maze to the vest
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/vizdoom__predict_position.json --ses 1 --run 1           # lead a moving target with a rocket
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/vizdoom__take_cover.json --ses 1 --run 1                 # no weapon; dodge fireballs
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/vizdoom__take_cover_defend_line.json --ses 1 --run 1     # those last two back to back, 150 s each
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/vizdoom/basic.json --ses 1 --run 1                      # strafe and shoot one monster
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/vizdoom/deadly_corridor.json --ses 1 --run 1            # fight down a corridor to the vest
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/vizdoom/deathmatch.json --ses 1 --run 1                 # arena, full arsenal, scored by kills
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/vizdoom/defend_center.json --ses 1 --run 1              # surrounded; turn and shoot
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/vizdoom/defend_line.json --ses 1 --run 1                # they advance down a hall and respawn
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/vizdoom/health_gathering_supreme.json --ses 1 --run 1   # acid-floor maze; find medikits
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/vizdoom/my_way_home.json --ses 1 --run 1                # navigate a 9-room maze to the vest
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/vizdoom/predict_position.json --ses 1 --run 1           # lead a moving target with a rocket
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/vizdoom/take_cover.json --ses 1 --run 1                 # no weapon; dodge fireballs
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/vizdoom/take_cover_defend_line.json --ses 1 --run 1     # those last two back to back, 150 s each
 ```
 
 Controls: arrows move/turn, Z/X strafe, SPACE shoots — but each scenario only has the buttons its `.cfg` declares, so the arrows *strafe* in Basic and Take Cover (no turning), there is no SPACE in Health Gathering / My Way Home / Take Cover (no weapon), and Deathmatch adds N/M to switch weapons and S to run. Each config's controls message lists exactly what that scenario accepts.
@@ -90,15 +90,15 @@ Controls: arrows move/turn, Z/X strafe, SPACE shoots — but each scenario only 
 COOM's own Doom scenarios (not the stock ViZDoom ones above). The env ships here as `coom-gym` (`gym/coom/`, part of the `dbp` extra) and reads the scenario files from the COOM checkout at its pinned commit (the `external/coom` submodule; README "External checkouts").
 
 ```bash
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/coom__pitfall.json --ses 1 --run 1          # cross a corridor of randomized pits
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/coom__chainsaw.json --ses 1 --run 1         # hunt maze enemies at melee range
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/coom__run_and_gun.json --ses 1 --run 1      # find and shoot maze enemies
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/coom__health_gathering.json --ses 1 --run 1 # draining floor; collect health kits
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/coom__hide_and_seek.json --ses 1 --run 1    # evade enemies, grab kits when low
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/coom__arms_dealer.json --ses 1 --run 1      # collect weapons, deliver to platforms
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/coom__floor_is_lava.json --ses 1 --run 1    # stay on the briefly-appearing platforms
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/coom__parkour.json --ses 1 --run 1          # jump the gaps and ledges
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/coom__raise_the_roof.json --ses 1 --run 1   # press wall switches before the ceiling crushes you
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/coom/pitfall.json --ses 1 --run 1          # cross a corridor of randomized pits
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/coom/chainsaw.json --ses 1 --run 1         # hunt maze enemies at melee range
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/coom/run_and_gun.json --ses 1 --run 1      # find and shoot maze enemies
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/coom/health_gathering.json --ses 1 --run 1 # draining floor; collect health kits
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/coom/hide_and_seek.json --ses 1 --run 1    # evade enemies, grab kits when low
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/coom/arms_dealer.json --ses 1 --run 1      # collect weapons, deliver to platforms
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/coom/floor_is_lava.json --ses 1 --run 1    # stay on the briefly-appearing platforms
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/coom/parkour.json --ses 1 --run 1          # jump the gaps and ledges
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/coom/raise_the_roof.json --ses 1 --run 1   # press wall switches before the ceiling crushes you
 ```
 
 Controls: UP moves forward, LEFT/RIGHT turn, and the scenario's one extra button is SPACE (pitfall, chainsaw, run_and_gun, parkour), LSHIFT (health_gathering, hide_and_seek, arms_dealer, floor_is_lava) or E (raise_the_roof). The nine configs enable native audio; OpenAL is required. MIDI background music needs a working MIDI renderer. See README for audio setup and the current episode-end playback limitation.
@@ -106,7 +106,7 @@ Controls: UP moves forward, LEFT/RIGHT turn, and the scenario's one extra button
 ### Crafter
 
 ```bash
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/crafter__crafter_L4.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/crafter/L4.json --ses 1 --run 1
 ```
 
 
@@ -114,18 +114,18 @@ uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/crafter__crafte
 ### Rush Hour
 
 ```bash
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/rushhour__easy.json --ses 1 --run 1      # 5 min of random easy puzzles
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/rushhour__complete.json --ses 1 --run 1    # Rush-Hour's own session: 12 puzzles, easiest first, self-paced
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/rushhour/easy.json --ses 1 --run 1      # 5 min of random easy puzzles
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/rushhour/complete.json --ses 1 --run 1    # Rush-Hour's own session: 12 puzzles, easiest first, self-paced
 ```
 
-`rushhour__complete.json` is the Rush-Hour program's own session (ready screen before each puzzle, blank interval, solved hold); see its `_session_note`.
+`configs/curricula/rushhour/complete.json` is the Rush-Hour program's own session (ready screen before each puzzle, blank interval, solved hold); see its `_session_note`.
 
 The engine binary is fetched on first run (see §1); nothing to build.
 
 ### Baba Is AI (generated puzzles in the style of Baba Is You)
 
 ```bash
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/baba__make_win.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/baba/make_win.json --ses 1 --run 1
 ```
 
 
@@ -136,7 +136,7 @@ The engine is C++, compiled when the extra installs from the checkout at its pin
 
 ```bash
 uv sync --extra dbp --extra baba_auto
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/baba_auto__baba_is_you.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/baba_auto/baba_is_you.json --ses 1 --run 1
 ```
 
 
@@ -147,7 +147,7 @@ Ten small arcade games from a gymnasium-ported fork, at its pinned commit (READM
 
 ```bash
 uv sync --extra dbp --extra vgdl
-uv run fmri-play --subject sub-01 --curriculum configs/demo_vgdl_all.json --ses 1 --run 1   # all ten, 15 s each
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/vgdl/all.json --ses 1 --run 1   # all ten, 15 s each
 ```
 
 
@@ -155,16 +155,16 @@ uv run fmri-play --subject sub-01 --curriculum configs/demo_vgdl_all.json --ses 
 ### AI GameStore (p5.js browser games)
 
 ```bash
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/aigamestore__game1.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/aigamestore__game2.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/aigamestore__game3.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/aigamestore__game4.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/aigamestore__game5.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/aigamestore__game6.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/aigamestore__game7.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/aigamestore__game8.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/aigamestore__game9.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/aigamestore__game10.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/aigamestore/game1.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/aigamestore/game2.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/aigamestore/game3.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/aigamestore/game4.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/aigamestore/game5.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/aigamestore/game6.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/aigamestore/game7.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/aigamestore/game8.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/aigamestore/game9.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/aigamestore/game10.json --ses 1 --run 1
 ```
 
 Controls: arrows + SPACE / Z / ENTER (game-dependent). Needs Playwright + Chrome (§1).
@@ -172,13 +172,12 @@ Controls: arrows + SPACE / Z / ENTER (game-dependent). Needs Playwright + Chrome
 ### MiniHack
 
 ```bash
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/minihack.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/minihack__room5x5.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/minihack__room15x15.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/minihack__mazewalk9x9.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/minihack__river.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/minihack__corridor.json --ses 1 --run 1
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/minihack__eat.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/minihack/room5x5.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/minihack/room15x15.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/minihack/mazewalk9x9.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/minihack/river.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/minihack/corridor.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/minihack/eat.json --ses 1 --run 1
 ```
 
 Controls: arrow keys (N/E/S/W). Needs `setuptools<81` (already a core dependency).
@@ -186,7 +185,7 @@ Controls: arrow keys (N/E/S/W). Needs `setuptools<81` (already a core dependency
 ### SuperTuxKart
 
 ```bash
-uv run fmri-play --subject sub-01 --curriculum configs/dbp_games/stk__hacienda.json --ses 1 --run 1
+uv run fmri-play --subject sub-01 --curriculum configs/curricula/stk/hacienda.json --ses 1 --run 1
 ```
 
 Needs a real GL display (does **not** work under `SDL_VIDEODRIVER=dummy`); the game itself comes with `supertuxkart-gym`, which fetches it on first use (no checkout, no build). See the README section "Running SuperTuxKart". Controls: arrows steer/accelerate/brake, SPACE fire, V skid, N nitro, BACKSPACE rescue.
@@ -196,6 +195,6 @@ Needs a real GL display (does **not** work under `SDL_VIDEODRIVER=dummy`); the g
 - Useful flags: `--size 1280x1024`, `--fullscreen`, `--no-vsync`.
 - Before a MEG/EEG session, check that flips lock to the refresh on the presentation machine: `python -m fmri_gym.display --fullscreen`.
 - Once per rig, measure the flip-to-photon offset with a photodiode on the screen: `python -m fmri_gym.photodiode --fullscreen` (see README "Timing").
-- Archived / unsupported configs live under `configs/dbp_games/archive/` and `configs/dbp_games/unsupported/` — see the README for the wider game list.
+- Every curriculum lives in `configs/curricula/<backend>/` (see `configs/README.md`); the README lists the games that ship none, and why.
 - Per-config `_note` / `_game` fields document setup quirks for that title.
 

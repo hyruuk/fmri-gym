@@ -16,7 +16,7 @@ script passes the same --ses to all of its runs, each with its own --run):
     python fmri_play.py ... --no-audio         # mute all games
     python fmri_play.py ... --duration 600 --resume  # a 10-min run of a longer curriculum
 
-See configs/demo_mixed.json for a curriculum that mixes all three backends,
+See configs/curricula/demos/mixed.json for a curriculum that mixes all three backends,
 and README.md for the config schema.
 """
 
