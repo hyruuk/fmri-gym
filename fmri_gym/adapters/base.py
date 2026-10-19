@@ -137,7 +137,7 @@ class EnvAdapter:
         Some games have stretches the player cannot act in: crafter discards
         the action while the player is asleep and forces ``sleep`` until they
         wake. A real-time block steps through those on its own clock and
-        nobody notices. A ``turn_based`` block does not: it advances only on a
+        nobody notices. A ``is_turn_based`` block does not: it advances only on a
         press, so it would ask the subject for presses the env throws away, and
         the number of them is a property of the game rather than of the
         decision. Returning an action here says "step with this and do not
@@ -205,7 +205,7 @@ class EnvAdapter:
         backend adds that reading, from the flags and whatever its env left in
         :attr:`last_info` / :attr:`last_reward`. The names are a fixed
         vocabulary the session logs per episode and a phase's
-        ``advancing_outcomes`` picks from:
+        ``advance_on`` picks from:
 
         - ``"playing"`` -- neither flag: the block's clock cut the episode off.
         - ``"terminated"`` -- the env ended it and this backend cannot say more.

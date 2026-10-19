@@ -82,7 +82,7 @@ uv run fmri-edit                                    # start from a new run
 
 Drop `--dummy-trigger` for a real session (then press SPACE, then wait for the `=` scanner trigger). For VGDL setup see [Running VGDL games](#running-vgdl-games).
 
-stable-retro games play their native audio; ViZDoom and COOM do when their config sets `env_kwargs.audio_buffer_enabled`. Use `--no-audio` or a game phase's `"audio": false` to mute playback; logged audio is unchanged. Each frame's sound starts a constant delay after the flip that shows it, measured from the system's default output at start-up and logged. A game with sound must run at its engine's own frame rate (ViZDoom: `fps * frame_skip == 35`; Genesis cores: 59.92), or the block stops and names the fps that fits.
+stable-retro games play their native audio; ViZDoom and COOM do when their config sets `env_kwargs.audio_buffer_enabled`. Use `--no-audio` or a game phase's `"has_audio": false` to mute playback; logged audio is unchanged. Each frame's sound starts a constant delay after the flip that shows it, measured from the system's default output at start-up and logged. A game with sound must run at its engine's own frame rate (ViZDoom: `fps * frame_skip == 35`; Genesis cores: 59.92), or the block stops and names the fps that fits.
 
 Note: **Pendulum, MountainCarContinuous and BipedalWalker use continuous (`Box`) action spaces** — their configs write list actions that push the first dims to their limits (`"LEFT": [-1.0, 0.0, ...]`), so they render and log fine but aren't really human-playable without a per-game control scheme. Everything else in these families is keyboard-playable.
 
@@ -361,7 +361,7 @@ class EnvAdapter:
     def autoplay(self, info)      -> action | None # step with this, don't wait
 ```
 
-`autoplay` is how a `turn_based` block gets through a stretch the env takes no action in. Crafter is the case it exists for: a sleeping player's action is overwritten with `sleep` until their energy fills, so the sixty-six presses a full sleep would cost under `turn_based` are all discarded by the engine, and how many there are is a fact about the game rather than a decision the subject is making. Returning an action says "step with this and do not wait for a press"; the loop keeps doing so, at the phase's fps and logging every frame like any other, until it returns `None` again. Nothing is skipped and nothing is hidden: the subject watches the night pass, and because waking from a blow ends the stretch, the picture stops on the frame with the zombie beside them. The default is `None`, so every other backend and every real-time phase is unaffected.
+`autoplay` is how an `is_turn_based` block gets through a stretch the env takes no action in. Crafter is the case it exists for: a sleeping player's action is overwritten with `sleep` until their energy fills, so the sixty-six presses a full sleep would cost under `is_turn_based` are all discarded by the engine, and how many there are is a fact about the game rather than a decision the subject is making. Returning an action says "step with this and do not wait for a press"; the loop keeps doing so, at the phase's fps and logging every frame like any other, until it returns `None` again. Nothing is skipped and nothing is hidden: the subject watches the night pass, and because waking from a blow ends the stretch, the picture stops on the frame with the zombie beside them. The default is `None`, so every other backend and every real-time phase is unaffected.
 
 `self.env` is always a `gymnasium.Env`. A game that has no such env -- a bare engine, an old-`gym` env, a gymnasium env with habits of its own -- gets a thin one under `gym/` (see `gym/coom/`, `gym/baba/`, `gym/vgdl/`), not in its adapter; the adapter is then `_make` plus what to log.
 
@@ -421,14 +421,14 @@ They assume `sub-01` and a 1024x768 window, and play into the session their fold
                                 // until duration runs out or one of the keys is pressed (at least
                                 // one of the two). Outside the block's clock, inside the run's
  "mode": "duration",            // "duration" = replay until time up; "episode" = play N episodes
- "duration": 30.0,              // seconds (duration mode)
+ "duration": 30.0,              // seconds the block lasts (duration mode, default 30) or lasts at
+                                // most, a wall-clock cap (episode mode, default 300)
  "n_episodes": 1,               // episodes (episode mode)
- "advancing_outcomes": ["won"], // episode mode, optional: only an episode that ends this way counts
+ "advance_on": ["won"],         // episode mode, optional: only an episode that ends this way counts
                                 // towards n_episodes; any other replays the same instance (a level
                                 // is repeated until cleared). Names: won, lost, terminated,
                                 // truncated, playing (the block's clock) -- see EnvAdapter.outcome
- "max_duration": 300.0,         // hard wall-clock safety cap (episode mode)
- "outcome_duration": 2.0,       // seconds "Final score: N" + the outcome show after each episode
+ "show_outcome_duration": 2.0,  // seconds "Final score: N" + the outcome show after each episode
  "rewind_on": ["lost"],         // optional, with rewind_frames: an episode ending this way (won,
  "rewind_frames": 1,            // lost, terminated) sends the world back rewind_frames frames and
                                 // play goes on, as a new episode starting from that state (its
@@ -441,15 +441,16 @@ They assume `sub-01` and a 1024x768 window, and play into the session their fold
                                 // at its real speed and fits its sound; the editor's Controls tab
                                 // (Check with the engine) shows it. Any other value plays the game slower or faster: the
                                 // manifest logs "speed" and the console says so when it is not 1
- "turn_based": false,           // step only on a key PRESS, not per frame (grid/toy_text games)
- "latched_keys": false,         // real-time: a fresh key PRESS beats the held-key poll, so a tap
+ "is_turn_based": false,        // step only on a key PRESS, not per frame (grid/toy_text games)
+ "has_latched_keys": false,     // real-time: a fresh key PRESS beats the held-key poll, so a tap
                                 // shorter than one frame is not dropped (games below ~10 fps)
- "live_hud": false,             // turn_based only: redraw the standing frame while the loop waits
+ "has_live_hud": false,         // is_turn_based only: redraw the standing frame while the loop waits
                                 // for the press, so the clock in the HUD keeps up with the block's.
                                 // Draws pixels and nothing else -- no step, no log row, no trigger,
                                 // no sound. A duration block ends on the wall clock whether anyone
                                 // presses or not, so without this a subject who is thinking reads
                                 // the time their last press left behind
+ "has_audio": true,             // false mutes the speakers for this block; logged sound is unchanged
  "seed": 1234,                  // optional base seed: episodes play with seed, seed+1, ...
                                 // Pinned, every participant and run gets the same episodes.
                                 // Left out, it is derived from the run (sub/ses/task/run) and
@@ -489,7 +490,7 @@ Every game phase states its whole keyboard map. **There is no default**: which k
 - The key is a name from `fmri_gym/keys.py` (`UP`, `DOWN`, `LEFT`, `RIGHT`, `SPACE`, `RETURN`, `LSHIFT`, `A`–`Z`, `0`–`9`, `F1`–`F12`, `KP0`–`KP9`, …); a name not in that table is refused, since it could never be pressed. Join keys with `+` for a combo (`"UP+SPACE"`).
 - The action is what the env's `step` takes, as JSON, and the rule is the env's action space (`fmri_gym/adapters/keymap.py`, one class per space):
   - **`MultiBinary`** (retro, vizdoom, stk, aigamestore): the value is the **index of the button** the key holds down; every held key sets its bit, so keys combine as on a controller, and nothing held is every button up. An index outside the space is refused when the env is built, and so is a `""` entry (nothing held already means no button).
-  - **`Discrete`** (ale, coom, vgdl, crafter, minihack, baba, rushhour, gym) or **`Box`** (gym): the value is the action itself, an index or a list (`"LEFT": [-1.0, 0.0]`). The most specific combo whose keys are all held wins (`"UP+SPACE"` over `"UP"`), and the **`""`** entry is what a frame with no key held sends. `""` is required unless the phase is `turn_based`, where nothing is sent between presses: these spaces have no action that means "do nothing" everywhere (FrozenLake's 0 is LEFT, MiniHack's is "move N"). A value outside the space is refused when the env is built.
+  - **`Discrete`** (ale, coom, vgdl, crafter, minihack, baba, rushhour, gym) or **`Box`** (gym): the value is the action itself, an index or a list (`"LEFT": [-1.0, 0.0]`). The most specific combo whose keys are all held wins (`"UP+SPACE"` over `"UP"`), and the **`""`** entry is what a frame with no key held sends. `""` is required unless the phase is `is_turn_based`, where nothing is sent between presses: these spaces have no action that means "do nothing" everywhere (FrozenLake's 0 is LEFT, MiniHack's is "move N"). A value outside the space is refused when the env is built.
   - Any other action space is refused when the env is built.
 
 Each adapter's module docstring says what its indices mean, and each backend's `configs/curricula/<backend>/common/README.md` spells out the map its curricula use. For an Atari game, read its meanings:
@@ -524,7 +525,7 @@ Holding `key` for `hold` seconds -- even if that key does something in the game 
 
 ### Resuming a curriculum (`--duration`, `--resume`)
 
-A curriculum belongs to the subject, who works through its levels at their own pace; a run only says how much of it fits in one scanner acquisition. `--duration S` gives the run its length in seconds from the trigger: whatever phase is on screen stops 10 s before the end, mid-episode included, and the run closes on 10 s of fixation for the haemodynamic lag (a run that finishes the curriculum sooner ends on the same 10 s). `--resume` starts where the subject's latest run of the same config file (any session) stopped, read from that run's manifest and its last block's `block_end` line (`block_did_not_finish`, `block_time_elapsed`, `num_completed_episodes`, `extra.state`): a block it cut off goes on with the time and episodes it has left, the episode it was in restored from its savestate; otherwise the run starts after the last game block played, or at the last other phase shown, from its beginning. The phases marked `"include_on_resume": true` -- only the non-game phases the curriculum opens with -- are played first. ESC keeps the place the same way. The config may change between runs as long as the game the block plays does not: `duration`, `max_duration`, `n_episodes`, `instructions`, `keys` and the like can, and any other change to that phase stops the run with the fields that changed. With no earlier run `--resume` starts at the beginning, and on a config already played to its end it refuses. A backend with no savestate (the plain `gym` backend, `baba`, `arc3`) starts that episode over from its seed, and says so.
+A curriculum belongs to the subject, who works through its levels at their own pace; a run only says how much of it fits in one scanner acquisition. `--duration S` gives the run its length in seconds from the trigger: whatever phase is on screen stops 10 s before the end, mid-episode included, and the run closes on 10 s of fixation for the haemodynamic lag (a run that finishes the curriculum sooner ends on the same 10 s). `--resume` starts where the subject's latest run of the same config file (any session) stopped, read from that run's manifest and its last block's `block_end` line (`block_did_not_finish`, `block_time_elapsed`, `num_completed_episodes`, `extra.state`): a block it cut off goes on with the time and episodes it has left, the episode it was in restored from its savestate; otherwise the run starts after the last game block played, or at the last other phase shown, from its beginning. The phases marked `"include_on_resume": true` -- only the non-game phases the curriculum opens with -- are played first. ESC keeps the place the same way. The config may change between runs as long as the game the block plays does not: `duration`, `n_episodes`, `advance_on`, `instructions`, `keys` and the like can, and any other change to that phase stops the run with the fields that changed. With no earlier run `--resume` starts at the beginning, and on a config already played to its end it refuses. A backend with no savestate (the plain `gym` backend, `baba`, `arc3`) starts that episode over from its seed, and says so.
 
 ```sh
 uv run fmri-play --curriculum configs/curricula/rushhour/complete.json --subject sub-01 --ses "$SES" --run 1 --duration 600 --resume

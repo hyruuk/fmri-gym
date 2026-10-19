@@ -15,7 +15,7 @@ key does what differs from site to site, so the file states all of it.
   ``""`` -- the empty combo, held whenever nothing else is -- is what a frame
   with no key gets. No action of these spaces means "do nothing" everywhere (0
   is FrozenLake's LEFT, MiniHack's "move N"), so a real-time phase has to write
-  it; a ``turn_based`` phase steps only on presses and needs none.
+  it; an ``is_turn_based`` phase steps only on presses and needs none.
 """
 
 from __future__ import annotations
@@ -111,7 +111,7 @@ class BoxKeymap(DiscreteKeymap):
 def make_keymap(spec: dict, space: gym.Space) -> Keymap:
     """The phase's :class:`Keymap`, of the class its env's action space calls for.
 
-    :param spec: the game-phase config (``keys``, ``turn_based``).
+    :param spec: the game-phase config (``keys``, ``is_turn_based``).
     :param space: the env's action space.
     :raises TypeError: an action space other than MultiBinary, Discrete or Box.
     :raises ValueError: a real-time Discrete / Box phase whose ``keys`` lack ``""``.
@@ -126,8 +126,8 @@ def make_keymap(spec: dict, space: gym.Space) -> Keymap:
     else:
         raise TypeError(f"keys: the env's action space is {space}; a keymap drives "
                         "MultiBinary, Discrete or Box only")
-    if "" not in keys and not spec.get("turn_based", False):
+    if "" not in keys and not spec.get("is_turn_based", False):
         raise ValueError(f'keys: "" missing; the env\'s action space is {space}, so name the '
                          'action sent on a frame with no key held ("": 0, say), or set '
-                         '"turn_based": true to step only on key presses')
+                         '"is_turn_based": true to step only on key presses')
     return cls(keys, space)

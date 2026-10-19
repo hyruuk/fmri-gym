@@ -16,5 +16,5 @@
     ]
   },
   "keys": {"UP": 0, "DOWN": 2, "LEFT": 3, "RIGHT": 1, "Y": 7, "U": 4, "B": 6, "N": 5},
-  "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 300.0, "fps": 15, "turn_based": true
+  "mode": "episode", "n_episodes": 1, "advance_on": ["won"], "duration": 300.0, "fps": 15, "is_turn_based": true
 }

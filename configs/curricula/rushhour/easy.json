@@ -21,7 +21,7 @@
         ]
       },
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "min_moves_range": [0, 12], "movable_only": true, "mode": "duration", "duration": 300.0, "fps": 5, "turn_based": true
+      "min_moves_range": [0, 12], "movable_only": true, "mode": "duration", "duration": 300.0, "fps": 5, "is_turn_based": true
     },
     {"type": "fixation", "duration": 2.0}
   ]

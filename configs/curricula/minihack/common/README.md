@@ -15,7 +15,7 @@ Each standard task has two curricula on the same level:
 
 ## Keys
 
-Every phase is `turn_based`: action 0 (move N) is also the noop, so a real-time loop would walk the agent north on its own. Arrows map to the cardinals; the instructions' Controls text is kept in sync with `keys` by hand.
+Every phase is `is_turn_based`: action 0 (move N) is also the noop, so a real-time loop would walk the agent north on its own. Arrows map to the cardinals; the instructions' Controls text is kept in sync with `keys` by hand.
 
 | shared phase | action space | keys |
 |---|---|---|
@@ -28,7 +28,7 @@ Every phase is `turn_based`: action 0 (move N) is also the noop, so a real-time 
 
 ## Blocking
 
-Each block is its task played until completed (`mode` `episode`, `n_episodes` 1, `advancing_outcomes` `["won"]`): a death or the env's own step limit restarts the same level, and `max_duration` caps the block (300 s for the standard tasks, 600 or 900 s for the designed levels). ESC is the experimenter's way out.
+Each block is its task played until completed (`mode` `episode`, `n_episodes` 1, `advance_on` `["won"]`): a death or the env's own step limit restarts the same level, and `duration` caps the block (300 s for the standard tasks, 600 or 900 s for the designed levels). ESC is the experimenter's way out.
 
 ## Designed levels
 

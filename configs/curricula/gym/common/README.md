@@ -21,7 +21,7 @@ Classic control and toy text ship with gymnasium. Box2D (`lunarlander`, `bipedal
 | Taxi | Discrete(6) | arrows, SPACE pickup, RETURN dropoff |
 | Blackjack | Discrete(2) | LEFT stick, RIGHT hit |
 
-Pendulum, MountainCarContinuous and BipedalWalker have continuous actions: pushing joints to their limits renders and logs fine, but they are not really keyboard-playable. The toy-text games are `turn_based`: one step per press, rendered as RGB by gymnasium's pygame renderers.
+Pendulum, MountainCarContinuous and BipedalWalker have continuous actions: pushing joints to their limits renders and logs fine, but they are not really keyboard-playable. The toy-text games are `is_turn_based`: one step per press, rendered as RGB by gymnasium's pygame renderers.
 
 ## Curricula
 

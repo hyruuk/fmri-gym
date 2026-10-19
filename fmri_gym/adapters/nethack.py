@@ -6,7 +6,7 @@ Distinct from the `minihack` backend: base NLE (`NetHack*-v0`) does NOT provide 
 whose values are ASCII keycodes (NetHack's vi-keys: k/l/j/h = N/E/S/W, etc.). A
 phase's ``keys`` are indices into that list (``env.unwrapped.actions``; for
 NetHackScore-v0: 0 = MORE (Enter), 1 = N, 2 = E, 3 = S, 4 = W). Play it
-``turn_based``: NetHack has no no-op.
+``is_turn_based``: NetHack has no no-op.
 
 NetHack is a terminal game, so we render the TTY buffer to a pixel frame (a
 monospace text grid) for display -- faithful to how the game actually looks.

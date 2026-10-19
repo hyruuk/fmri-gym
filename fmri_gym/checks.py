@@ -630,7 +630,7 @@ def _play_pattern(run: Run, fps: float, load: str, phase: dict, index: int) -> d
     env_id = _register_pattern(f"Frames{rate}fps{'' if load == 'none' else load.upper()}")
     caption = f"Rig check: frames at {fps:g} fps" + ("" if load == "none" else f", {load} load")
     game = {"type": "game", "backend": "gym", "game": env_id, "mode": "duration",
-            "duration": phase.get("seconds", 2.0), "fps": fps, "audio": False,
+            "duration": phase.get("seconds", 2.0), "fps": fps, "has_audio": False,
             "env_kwargs": {"caption": caption}}
     # The run's own game loop, not a copy: its pacing and triggers are what is measured.
     run._game(game, index)

@@ -73,7 +73,7 @@ def build_policy(args, adapter) -> Policy:
 
 def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
                  seed: int, episode_id: int, state_stride: int, fps: float,
-                 turn_based: bool, max_frames: int, n_chunks: int = 0,
+                 is_turn_based: bool, max_frames: int, n_chunks: int = 0,
                  ) -> tuple[EpisodeResult, int, int]:
     """Run one episode under ``policy``, logging every frame.
 
@@ -89,7 +89,7 @@ def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
     :param episode_id: index of this episode within the block.
     :param state_stride: save a full state blob every this many frames.
     :param fps: the phase's frames per second, for the HUD's countdown only.
-    :param turn_based: the phase's, so the same stretches the run loop steps
+    :param is_turn_based: the phase's, so the same stretches the run loop steps
         by itself are not put to the policy either
         (:meth:`~fmri_gym.adapters.base.EnvAdapter.autoplay`).
     :param max_frames: stop the episode after this many frames.
@@ -131,7 +131,7 @@ def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
                 continue
 
         observation, reward, terminated, truncated, info = adapter.step(action)
-        auto = adapter.autoplay(info) if turn_based else None
+        auto = adapter.autoplay(info) if is_turn_based else None
         score += float(reward)
         # A savestate at the episode's first frame (the replay anchor), then every stride.
         fs = adapter.capture(observation, info, want_blob=ep_frame % state_stride == 0)
@@ -194,7 +194,7 @@ def play_block(phase: dict, index: int, args, logger: Logger,
         end, n_skipped, chunks = play_episode(
             adapter, policy, logger, clock, seed=game_phase.seed + episode_id,
             episode_id=episode_id, state_stride=game_phase.state_stride,
-            fps=game_phase.fps, turn_based=game_phase.is_turn_based,
+            fps=game_phase.fps, is_turn_based=game_phase.is_turn_based,
             max_frames=args.max_frames, n_chunks=chunks)
         episodes.append(end)
         skipped += n_skipped

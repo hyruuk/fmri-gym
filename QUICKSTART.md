@@ -60,7 +60,7 @@ Each config is a short curriculum: message → fixation → game (~300 s, auto-r
 
 Runtime: experimenter screen (**SPACE**) → "Waiting for scanner..." → trigger `=` → curriculum.
 
-stable-retro games play their native audio, and ViZDoom and COOM do when their config sets `env_kwargs.audio_buffer_enabled`. Add `--no-audio` to mute every game, or set `"audio": false` on a game phase to mute that block; logged audio is unchanged. Sound plays through the system's default output, a constant delay after its frame's flip (printed at start-up).
+stable-retro games play their native audio, and ViZDoom and COOM do when their config sets `env_kwargs.audio_buffer_enabled`. Add `--no-audio` to mute every game, or set `"has_audio": false` on a game phase to mute that block; logged audio is unchanged. Sound plays through the system's default output, a constant delay after its frame's flip (printed at start-up).
 
 ## 3. Run every game
 

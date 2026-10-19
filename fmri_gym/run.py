@@ -54,7 +54,7 @@ EXPERIMENTER_KEY = " "
 #: How far ``fps`` may sit from the engine's own rate and still count as real
 #: speed: what the audio output absorbs by resampling.
 _SAME_SPEED = 2e-3
-#: Seconds between the redraws a ``live_hud`` phase asks for while it waits.
+#: Seconds between the redraws a ``has_live_hud`` phase asks for while it waits.
 #: The HUD's coarsest field is a whole second, so this only has to be fast
 #: enough that the number is never seen a second behind.
 HUD_REPAINT_S = 0.2
@@ -169,7 +169,7 @@ def _poll_keys_until(
         seen, instead of ending the wait at the first.
     :param repaint: called every :data:`HUD_REPAINT_S` while waiting, for a
         wait long enough that the screen would otherwise go stale (see
-        ``live_hud``). It redraws; it must not step, log or trigger.
+        ``has_live_hud``). It redraws; it must not step, log or trigger.
     :return: ``(action_or_None, user_quit)``; ``action`` is set only when
         ``key_to_action`` is given, ``user_quit`` on window close / ESC.
     """
@@ -928,7 +928,7 @@ class Run:
             "index": index, "type": "game", "backend": game_phase.backend,
             "game": game_phase.game, "mode": game_phase.mode.value,
             "onset": onset, "offset": self.clock.run_time(), **summary,
-            **({"advancing_outcomes": list(game_phase.advance_on)}
+            **({"advance_on": list(game_phase.advance_on)}
                if game_phase.advance_on is not None else {}),
             "data_dir": data_dir, **speed,
             **({"menu": menu.describe()} if menu else {}),

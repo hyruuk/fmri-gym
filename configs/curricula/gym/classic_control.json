@@ -2,19 +2,19 @@
   "curriculum": [
     {"type": "message", "text": "CartPole", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},
-    {"__include": "common/cartpole.json", "mode": "episode", "n_episodes": 1, "max_duration": 15.0},
+    {"__include": "common/cartpole.json", "mode": "episode", "n_episodes": 1, "duration": 15.0},
     {"type": "message", "text": "MountainCar", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},
-    {"__include": "common/mountaincar.json", "mode": "episode", "n_episodes": 1, "max_duration": 15.0},
+    {"__include": "common/mountaincar.json", "mode": "episode", "n_episodes": 1, "duration": 15.0},
     {"type": "message", "text": "Acrobot", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},
-    {"__include": "common/acrobot.json", "mode": "episode", "n_episodes": 1, "max_duration": 15.0},
+    {"__include": "common/acrobot.json", "mode": "episode", "n_episodes": 1, "duration": 15.0},
     {"type": "message", "text": "MountainCarContinuous", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},
-    {"__include": "common/mountaincarcontinuous.json", "mode": "episode", "n_episodes": 1, "max_duration": 15.0},
+    {"__include": "common/mountaincarcontinuous.json", "mode": "episode", "n_episodes": 1, "duration": 15.0},
     {"type": "message", "text": "Pendulum", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},
-    {"__include": "common/pendulum.json", "mode": "episode", "n_episodes": 1, "max_duration": 15.0},
+    {"__include": "common/pendulum.json", "mode": "episode", "n_episodes": 1, "duration": 15.0},
     {"type": "fixation", "duration": 3.0}
   ]
 }

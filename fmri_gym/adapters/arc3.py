@@ -12,7 +12,7 @@ the game's simple actions in ascending order: the game's ``ACTION1..ACTION5``
 that it offers, then ``ACTION7`` (undo) if it does. ACTION1-4 are up, down, left
 and right; ACTION5 is a game-specific interact action. The games that need a
 click (``ACTION6``) are not supported: the scanner has no pointer, and the env
-refuses them at start-up. Use ``turn_based: true``: a move is a key press. No
+refuses them at start-up. Use ``is_turn_based: true``: a move is a key press. No
 savestate -> seed + action replay.
 """
 

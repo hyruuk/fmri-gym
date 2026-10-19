@@ -532,7 +532,7 @@ class CrafterAdapter(EnvAdapter):
         Crafter takes no action from a sleeping player: ``Player.update``
         overwrites it with ``sleep`` until energy is full, and the step on
         which it fills is the one that wakes them and runs their action
-        normally (``crafter/objects.py``). So under ``turn_based`` the presses
+        normally (``crafter/objects.py``). So under ``is_turn_based`` the presses
         a sleep costs buy nothing; they only turn the world's crank, and stock
         crafter charges eleven steps per point of energy, which is sixty-six
         presses to go from three to nine. Stepping those frames here leaves
@@ -639,7 +639,7 @@ class CrafterAdapter(EnvAdapter):
             "cue": self._cue,
             "target": self._outcome["target"],
             # True on every frame the player spent asleep, which under
-            # turn_based are the frames the loop stepped itself (see
+            # is_turn_based are the frames the loop stepped itself (see
             # `autoplay`): without it a run of noops is indistinguishable from
             # a subject who pressed nothing.
             "sleeping": bool(info.get("sleeping", False)),

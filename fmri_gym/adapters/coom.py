@@ -60,8 +60,8 @@ class COOMAdapter(EnvAdapter):
 
         options = spec.get("env_kwargs", {})
         audio = options.get("audio_buffer_enabled", False)
-        if audio and (spec.get("fps", 30) != 35 or spec.get("turn_based", False)):
-            raise ValueError("COOM audio needs fps=35 and turn_based=false "
+        if audio and (spec.get("fps", 30) != 35 or spec.get("is_turn_based", False)):
+            raise ValueError("COOM audio needs fps=35 and is_turn_based=false "
                              "(one Doom tic per step)")
         env = COOMEnv(
             spec["game"],

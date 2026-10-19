@@ -32,8 +32,8 @@
         ]
       },
       "keys": {"S": 4, "D": 5, "3": 4, "4": 5, "LEFT": 8, "RIGHT": 9, "UP": 10, "DOWN": 11, "1": 6, "2": 7, "COMMA": 6, "PERIOD": 7},
-      "puzzle": "p01", "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 1800.0, "movable_only": true,
-      "fps": 60, "turn_based": true
+      "puzzle": "p01", "mode": "episode", "n_episodes": 1, "advance_on": ["won"], "duration": 1800.0, "movable_only": true,
+      "fps": 60, "is_turn_based": true
     },
     {"type": "message", "text": "", "duration": 0.8},
     {"__include": "common/puzzle.json", "instructions": {"title": "Puzzle 2 of 49"}, "puzzle": "p02"},

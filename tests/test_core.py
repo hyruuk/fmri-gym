@@ -127,6 +127,8 @@ def test_keymap_refuses_an_action_outside_the_space():
     ({**PHASE, "keys": {"": 0, "NOSUCHKEY": 1}}, "NOSUCHKEY"),
     ({k: v for k, v in PHASE.items() if k != "keys"}, "keys"),
     ({**PHASE, "fps": 0}, "fps"),
+    ({**PHASE, "turn_based": True}, "is_turn_based"),
+    ({**PHASE, "advancing_outcomes": ["won"]}, "advance_on"),
 ])
 def test_validate_config_refuses(phase, problem):
     problems = validate_curriculum({"curriculum": [phase]})

@@ -16,5 +16,5 @@
     ]
   },
   "keys": {"LEFT": 0, "RIGHT": 1, "UP": 2, "DOWN": 3, "LSHIFT": 4, "SPACE": 5, "Z": 6},
-  "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 120.0, "fps": 10
+  "mode": "episode", "n_episodes": 1, "advance_on": ["won"], "duration": 120.0, "fps": 10
 }

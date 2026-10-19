@@ -2,13 +2,13 @@
   "curriculum": [
     {"type": "message", "text": "LunarLander", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},
-    {"__include": "common/lunarlander.json", "mode": "episode", "n_episodes": 1, "max_duration": 15.0},
+    {"__include": "common/lunarlander.json", "mode": "episode", "n_episodes": 1, "duration": 15.0},
     {"type": "message", "text": "BipedalWalker", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},
-    {"__include": "common/bipedalwalker.json", "mode": "episode", "n_episodes": 1, "max_duration": 15.0},
+    {"__include": "common/bipedalwalker.json", "mode": "episode", "n_episodes": 1, "duration": 15.0},
     {"type": "message", "text": "CarRacing", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},
-    {"__include": "common/carracing.json", "mode": "episode", "n_episodes": 1, "max_duration": 15.0},
+    {"__include": "common/carracing.json", "mode": "episode", "n_episodes": 1, "duration": 15.0},
     {"type": "fixation", "duration": 3.0}
   ]
 }
