@@ -310,3 +310,21 @@ def test_every_phase_type_is_a_phase():
     assert set(CHECK_PHASES) == {c for c in PHASE_CLASSES.values() if issubclass(c, CheckPhase)}
     with pytest.raises(TypeError):
         Phase(spec={}, include_on_resume=False)  # abstract: only a phase type is read
+
+
+def test_the_pad_presses_the_key_each_control_is_bound_to(monkeypatch):
+    import pygame
+
+    from fmri_gym import pad
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    pygame.display.init()          # the event queue needs it
+    pad._held.clear()
+    pad._bindings = {"A": "SPACE", "UP": "UP"}
+    pygame.event.clear()
+    pad._press("A", True)
+    pad._press("B", True)          # unbound: held, but presses nothing
+    assert pad.held() == frozenset({"SPACE"})
+    events = pygame.event.get(pygame.KEYDOWN)
+    assert [(e.key, e.unicode) for e in events] == [(pygame.K_SPACE, " ")]
+    pad._held.clear()
+    pad._bindings = {}

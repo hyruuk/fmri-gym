@@ -1356,14 +1356,12 @@ class _Editor(QtWidgets.QMainWindow):
                      # belongs to the game about to be picked, not to this template.
                      "game": {"type": "game", "backend": "gym", "game": "", "mode": "duration",
                               "duration": 30.0},
-                     # The rig check's: the quick check's values stated, keys to fill in.
+                     # The rig check's: the quick check's values; no keys tests the rig's bindings.
                      "check_display": {"type": "check_display", "n": 60},
                      "check_frames": {"type": "check_frames", "rates": [60, 30],
                                       "seconds": 2, "loads": ["none"]},
                      "check_triggers": {"type": "check_triggers", "pulses": 3},
-                     "check_controls": {"type": "check_controls", "timeout_s": 10.0,
-                                        "keys": {"1": "LEFT", "2": "DOWN", "3": "UP",
-                                                 "4": "RIGHT"}},
+                     "check_controls": {"type": "check_controls", "timeout_s": 10.0},
                      "check_photodiode": {"type": "check_photodiode", "readout": "soundcard",
                                           "n": 10}}
         self._insert_phase(templates[kind])
@@ -1797,8 +1795,8 @@ class _RigForm(QtWidgets.QDialog):
     def __init__(self, values: dict) -> None:
         super().__init__()
         self.setWindowTitle(f"Rig file: {rig_file.folder()}/<site>/<rig>.json")
-        #: what the form does not edit (the Triggers tab does), kept as it is
-        self._kept = {k: values[k] for k in ("triggers",) if k in values}
+        #: what the form does not edit (the Triggers tab, the file), kept as it is
+        self._kept = {k: values[k] for k in ("triggers", "bindings") if k in values}
         self.setMinimumWidth(640)
         self.fields: dict[str, QtWidgets.QWidget] = {}
         layout = QtWidgets.QVBoxLayout(self)

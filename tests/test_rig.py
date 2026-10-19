@@ -113,3 +113,12 @@ def test_a_game_key_the_scanner_types_is_refused_on_that_rig():
                          duration=None, end_fixation=10.0, resume=False, dummy_trigger=True)
 
     assert run_of({"": 0, "5": 1}).problems() and not run_of({"": 0, "LEFT": 1}).problems()
+
+
+def test_bindings_map_the_controllers_controls_to_keys():
+    rig.save({**FIELDS, "rig": "pad", "bindings": {"A": "SPACE", "UP": "UP"}})
+    assert RigConfig.open("site1/pad").bindings == {"A": "SPACE", "UP": "UP"}
+    rig.path("site1/pad").write_text(json.dumps({**FIELDS, "rig": "pad",
+                                                 "bindings": {"Q": "SPACE", "B": "NOPE"}}))
+    with pytest.raises(ValueError, match="'Q' is not a control.*'NOPE' is not a key name"):
+        RigConfig.open("site1/pad")

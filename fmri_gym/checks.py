@@ -19,10 +19,12 @@ Its curriculum holds check phases where a game run holds games:
   run waits for the scanner. Only the configured port is written to: another
   may be wired to a response box or an eye tracker, and a write that succeeds
   says nothing of where it went.
-* ``check_controls`` -- the response device. Every key of ``keys`` is first
-  checked automatically -- a key the games can read, and one that comes back
-  through the event queue as itself -- and the input devices plugged in are
-  listed; then each key is asked for on screen and pressed on the real device.
+* ``check_controls`` -- the response device. The keys asked for are the
+  phase's ``keys``, or without them each control of the rig's ``"bindings"``,
+  expected as the key it is bound to. Every key is first checked
+  automatically -- one that comes back through the event queue as itself --
+  and the input devices plugged in are listed; then each key is asked for on
+  screen and pressed on the real device.
 * ``check_photodiode`` -- the flip-to-photon offset, and on the same flashes
   the audio test: a tone burst on every other flash, timed at the DAC, and at
   a microphone at the ear with ``"has_mic": true``.
@@ -359,7 +361,12 @@ def _round_trip(name: str) -> bool:
 
 def _check_controls(run: Run, phase: CheckControls, summary: dict, arrays: dict, tests: dict,
                     index: int) -> None:
-    keys = phase.keys
+    keys = phase.keys if phase.keys is not None else {
+        key: f"the {control} control" for control, key in run.config.rig.bindings.items()}
+    if not keys:
+        tests["controls"] = Verdict("not run", "the phase lists no keys and the rig file has "
+                                               'no "bindings" to test')
+        return
     summary["devices"] = input_devices()
     summary["pad"] = _check_pad(run, phase)
     summary["automatic"] = {name: _round_trip(name) for name in keys}

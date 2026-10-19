@@ -262,7 +262,8 @@ PHASE_FIELDS: dict[str, list[Field]] = {
     "check_controls": [
         Field("timeout_s", "timeout (s)", "float",
               tip="Seconds to press each key when asked (default 10). The keys are on the "
-                  "Controls tab: a device's buttons, each with what it stands for."),
+                  "Controls tab: a device's buttons, each with what it stands for; with none, "
+                  "the check asks for each control of the rig file's bindings."),
     ],
     "check_photodiode": [
         Field("readout", "readout", "choice", ("soundcard", "recording"),
@@ -496,7 +497,7 @@ def phase_label(index: int, phase: dict) -> str:
     elif kind == "survey":
         detail = f"{len(phase.get('questions', []))} questions"
     elif kind == "check_controls":
-        detail = " ".join(phase.get("keys", {})) or "no keys"
+        detail = " ".join(phase.get("keys", {})) or "the rig's bindings"
     elif kind.startswith("check_"):
         detail = "rig check"
     else:

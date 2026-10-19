@@ -23,6 +23,12 @@ code say the same thing:
   "has_vsync": true}``, the monitor by index (0: the first); fullscreen takes
   the monitor's resolution;
 - ``"has_pad"``: read a plugged-in game controller (:mod:`fmri_gym.pad`);
+- ``"bindings"``: which keyboard key each of the controller's controls presses
+  (:data:`fmri_gym.pad.CONTROLS` -> a key name, as curricula write keys),
+  ``{"A": "SPACE", "B": "Z", "UP": "UP", ...}``: one map for every game played
+  on the rig, so a curriculum's keys stay keyboard keys. A control left out
+  presses nothing; with none at all a plugged-in controller is warned about
+  (a controller that types keys itself needs none);
 - ``"has_audio"``: play game audio; ``false`` mutes every block;
 - ``"data_root"``: where the BIDS tree goes, ``<root>/sub-XX/ses-NNN/beh/<run>/``;
 - ``"triggers"``: the scanner's start sync and the trigger codes, over which
@@ -43,6 +49,8 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from ..keys import KEY_NAMES
+from ..pad import CONTROLS
 from ..triggers import TriggerError, TriggerSettings
 
 MODALITIES = ("fmri", "meg", "eeg", "behav")
@@ -70,7 +78,7 @@ EXAMPLES = {
 #: the pad and the audio on.
 DEFAULTS: dict[str, Any] = {
     "screen": {"size": "1024x768", "is_fullscreen": False, "monitor": 0, "has_vsync": True},
-    "has_pad": True, "has_audio": True, "data_root": "data", "triggers": {},
+    "has_pad": True, "has_audio": True, "data_root": "data", "triggers": {}, "bindings": {},
 }
 #: Trigger presets the editor and the rig check offer. Each names ``sync.mode``
 #: and ``backend`` outright: a section that leaves them out runs, but is
@@ -137,6 +145,8 @@ class RigConfig:
     screen: ScreenConfig
     #: read a plugged-in game controller as key presses.
     has_pad: bool
+    #: the controller's control -> the key it presses
+    bindings: dict[str, str]
     #: play game audio; ``False`` mutes every block and opens no output.
     has_audio: bool
     #: the BIDS tree's root.
@@ -164,7 +174,8 @@ class RigConfig:
         settings = {**DEFAULTS, **rig}
         return cls(name=name, fields={k: rig[k] for k in FIELDS},
                    screen=ScreenConfig.from_dict(rig.get("screen", {})),
-                   has_pad=settings["has_pad"], has_audio=settings["has_audio"],
+                   has_pad=settings["has_pad"], bindings=dict(settings["bindings"]),
+                   has_audio=settings["has_audio"],
                    data_root=settings["data_root"],
                    triggers=TriggerSettings.from_dict(settings["triggers"]))
 
@@ -195,7 +206,7 @@ class RigConfig:
     def record(self) -> dict[str, Any]:
         """The rig file as the run played it, every default written out: the manifest's."""
         return {**self.fields, "screen": self.screen.record(), "has_pad": self.has_pad,
-                "has_audio": self.has_audio, "data_root": self.data_root,
+                "bindings": self.bindings, "has_audio": self.has_audio, "data_root": self.data_root,
                 "triggers": asdict(self.triggers)}
 
     def status(self) -> str:
@@ -340,7 +351,18 @@ def _setting_problems(rig: dict) -> list[str]:
     root = rig.get("data_root", DEFAULTS["data_root"])
     if not isinstance(root, str) or not root:
         out.append(f'"data_root" must be a folder, got {root!r}')
-    return out + trigger_problems(rig.get("triggers", {}))
+    return out + trigger_problems(rig.get("triggers", {})) + _binding_problems(rig)
+
+
+def _binding_problems(rig: dict) -> list[str]:
+    """``bindings``: the controller's controls, each to a key name a curriculum can bind."""
+    bindings = rig.get("bindings", {})
+    if not isinstance(bindings, dict):
+        return [f'"bindings": expected {{control: key}}, got {bindings!r}']
+    return ([f'"bindings": {c!r} is not a control of the controller ({", ".join(CONTROLS)})'
+             for c in bindings if c not in CONTROLS]
+            + [f'"bindings": {c!r}: {k!r} is not a key name (as in fmri_gym/keys.py)'
+               for c, k in bindings.items() if k not in KEY_NAMES])
 
 
 def trigger_problems(section: Any) -> list[str]:
