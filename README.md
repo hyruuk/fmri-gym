@@ -147,7 +147,7 @@ Runtime flow: experimenter screen (**SPACE**) → "Waiting for scanner..." → s
 | `site`, `rig`, `pi`, `modality`, `monitor`, `photodiode`, `audio_path`, `trigger_hardware`, `notes` | what the rig is, filed with every run and rig check; `site` and `rig` are the file's folder and name | required |
 | `"screen"` | the window: `{"size": "1024x768", "is_fullscreen": true, "monitor": 1, "has_vsync": true}`; `monitor` by index, 0 the first, and fullscreen takes the monitor's resolution (see [Timing](#timing-what-is-stamped-when)) | 1024x768 windowed on monitor 0, vsync on |
 | `"has_pad"` | read a plugged-in game controller | `true` |
-| `"has_audio"` | play game audio; `false` mutes every block | `true` |
+| `"has_audio"` | play game audio; a block plays sound when this and its game phase's `has_audio` are both true | `true` |
 | `"data_root"` | where the BIDS tree goes | `data` |
 | `"triggers"` | how a run starts and what codes the recording gets, over which line (see [Triggers](#triggers-fmri-vs-megeeg)) | wait for `=`, no codes, reported as NOT SET |
 

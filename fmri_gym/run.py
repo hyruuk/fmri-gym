@@ -40,7 +40,7 @@ from . import bids, pad
 from .adapters import get_adapter
 from .audio import Audio
 from .bids import BlockProgress, RunProgress
-from .config.curriculum import BlockMode, GamePhase, fold_cli_options, game_changes
+from .config.curriculum import BlockMode, GamePhase, game_changes
 from .config.run import RunConfig
 from .display import Display, check_monitor
 from .keys import get_events, held_key_names, key_name
@@ -437,7 +437,6 @@ class Run:
                                         config.curriculum_path, phases)
         seeds = bids.fold_seeds(phases, out.label)
         check_monitor(config.rig.screen.monitor)
-        fold_cli_options(phases, has_audio=config.rig.has_audio)
 
         triggers = Triggers(config.rig.triggers)
         print(f"triggers: {triggers.status()}", file=sys.stderr)
@@ -459,6 +458,12 @@ class Run:
         run.logger.set_extra("versions", {  # the banner fmri_gym hides said these
             "pygame": pygame.version.ver, "sdl": ".".join(map(str, pygame.get_sdl_version()))})
         return run
+
+    def _plays_sound(self, game_phase: GamePhase) -> bool:
+        """Whether a block's sound reaches the speakers: its game has sound to play
+        (``has_audio``) and the rig plays sound (its ``has_audio``). Muting changes
+        nothing that is logged."""
+        return game_phase.has_audio and self.config.rig.has_audio
 
     def close(self) -> None:
         """Close the window, the audio output, the trigger line and the logger."""
@@ -613,7 +618,7 @@ class Run:
             ``is_turn_based`` (advance only on mapped keydowns),
             ``has_latched_keys`` (real-time: let a fresh keydown win over held
             keys), ``has_live_hud`` (turn-based: redraw the HUD through the
-            wait), ``frame_period``, ``state_stride``, ``has_audio`` and
+            wait), ``frame_period``, ``state_stride``, ``has_audio`` (with the rig's) and
             ``show_outcome_duration``.
         :param seed: RNG seed for this episode's ``reset``.
         :param episode_id: index of this episode within the game block.
@@ -724,7 +729,8 @@ class Run:
                 recent_states.append(fs.blob)
             # The frame trigger goes out on the flip that shows this frame.
             self.display.call_on_flip(self.triggers.frame)
-            flip_t, frame, sound = self._show(adapter, game_phase.has_audio, score, block_end)
+            flip_t, frame, sound = self._show(adapter, self._plays_sound(game_phase), score,
+                                              block_end)
             # More than a frame behind (a stall): drop the debt, or it is repaid
             # as a burst of one-refresh frames. The frame of slack is what a
             # vsync-locked flip normally lands after its tick.
@@ -755,7 +761,7 @@ class Run:
                 fields["env_action"] = info["env_action"]
             if self.triggers.enabled:
                 fields["trigger"] = self.triggers.last_frame
-            if game_phase.has_audio:
+            if self._plays_sound(game_phase):
                 # The chunk this frame's sound was queued as (-1: none); when it
                 # reached the DAC is in the block_end record's audio onsets.
                 fields["audio_chunk"] = self.audio.last_chunk

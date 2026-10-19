@@ -1876,8 +1876,8 @@ class _RigForm(QtWidgets.QDialog):
                  "Read a plugged-in game controller as key presses (fmri_gym/pad.py)."),
                 ("has_audio", "game audio", values.get("has_audio",
                                                        rig_file.DEFAULTS["has_audio"]),
-                 "Play game audio. Off mutes every block; the manifest's curriculum then "
-                 "shows \"has_audio\": false.")):
+                 "Play game audio. Off mutes every block, whatever its curriculum says; "
+                 "what the games' sound is, is logged all the same.")):
             switch = QtWidgets.QCheckBox()
             switch.setChecked(bool(on))
             switch.setToolTip(tip)

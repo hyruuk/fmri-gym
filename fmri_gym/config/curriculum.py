@@ -44,8 +44,8 @@ INCLUDE_KEY = "__include"
 #: Folders of this name hold shared phases, which are included, not played.
 COMMON_DIRNAME = "common"
 #: Game-phase fields a curriculum may change between runs and still carry a
-#: block on; any other change makes it a different game. ``seed`` and ``audio``
-#: are the run's own (folded in from the run label and the run config).
+#: block on; any other change makes it a different game. ``seed`` is the
+#: run's own (folded in from the run label).
 RESUMABLE_CHANGES = frozenset({"duration", "n_episodes", "advance_on", "show_outcome_duration",
                                "instructions", "keys", "menu", "seed", "has_audio",
                                "rewind_on", "rewind_frames"})
@@ -386,22 +386,6 @@ def new_curriculum() -> dict:
             {"type": "fixation", "duration": 2.0},
         ],
     }
-
-
-def fold_cli_options(phases: list[dict], *, has_audio: bool) -> None:
-    """Fold the run config's backend options into the game phases they concern.
-
-    Each per-block ``EnvAdapter`` then reads everything it needs from its own
-    spec, and the manifest's curriculum shows what was actually played.
-
-    :param phases: the curriculum's phases, changed in place.
-    :param has_audio: ``False`` (the rig's audio off) mutes every game phase.
-    """
-    for phase in phases:
-        if phase.get("type") != "game":
-            continue
-        if not has_audio:
-            phase["has_audio"] = False
 
 
 def validate_curriculum(curriculum: dict) -> list[str]:
