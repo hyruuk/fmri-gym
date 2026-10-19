@@ -1,10 +1,9 @@
 {
-  "_game": "Atari: Pong",
   "curriculum": [
     {"type": "message", "text": "Atari: Pong", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
     {
-      "include": "common/pong.json",
+      "__include": "common/pong.json",
       "keys": {"": 0, "SPACE": 1, "RIGHT": 2, "LEFT": 3, "RIGHT+SPACE": 4, "LEFT+SPACE": 5, "UP": 2, "DOWN": 3},
       "duration": 300.0
     },

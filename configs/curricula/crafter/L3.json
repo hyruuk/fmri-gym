@@ -1,11 +1,8 @@
 {
-  "_game": "Crafter (level 3: predation, eight buttons)",
-  "_level_note": "Level 3 of the paradigm's four (crafter_gym.levels.LEVELS, the rig's own table): the homeostat runs and zombies and skeletons spawn. The task chain names one of seventeen entries at a time (crafter_gym.tasks), drink / eat / sleep once a stat first drops to 8 of 9, and defeating a zombie or a skeleton once one is on screen.",
-  "_shared_note": "The game phase's other fields are common/crafter.json, which all four levels include; the notes that explain them are level 4's (L4.json).",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {
-      "include": "common/crafter.json",
+      "__include": "common/crafter.json",
       "instructions": {
         "title": "Crafter, level 3",
         "text": [

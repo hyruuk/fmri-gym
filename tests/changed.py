@@ -21,7 +21,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from fmri_gym.curriculum import is_phase_file
+from fmri_gym.curriculum import is_common_file
 from tests.backends import BACKENDS, REPO, game_phases, phase_backend
 
 #: Paths (repo-relative prefixes) whose change concerns every backend.
@@ -105,7 +105,7 @@ def _config_backends(path: Path) -> set[str]:
     if not path.exists():
         return set()
     try:
-        if is_phase_file(str(path)):
+        if is_common_file(str(path)):
             with open(path) as f:
                 return {phase_backend(json.load(f))}
         return {phase_backend(g) for g in game_phases(path)}

@@ -118,7 +118,7 @@ uv run fmri-play --subject sub-01 --curriculum configs/curricula/rushhour/easy.j
 uv run fmri-play --subject sub-01 --curriculum configs/curricula/rushhour/complete.json --ses 1 --run 1    # Rush-Hour's own session: 12 puzzles, easiest first, self-paced
 ```
 
-`configs/curricula/rushhour/complete.json` is the Rush-Hour program's own session (ready screen before each puzzle, blank interval, solved hold); see its `_session_note`.
+`configs/curricula/rushhour/complete.json` is the Rush-Hour program's own session (ready screen before each puzzle, blank interval, solved hold); see `configs/curricula/rushhour/common/README.md`.
 
 The engine binary is fetched on first run (see §1); nothing to build.
 
@@ -196,5 +196,5 @@ Needs a real GL display (does **not** work under `SDL_VIDEODRIVER=dummy`); the g
 - Before a MEG/EEG session, check that flips lock to the refresh on the presentation machine: `python -m fmri_gym.display --fullscreen`.
 - Once per rig, measure the flip-to-photon offset with a photodiode on the screen: `python -m fmri_gym.photodiode --fullscreen` (see README "Timing").
 - Every curriculum lives in `configs/curricula/<backend>/` (see `configs/README.md`); the README lists the games that ship none, and why.
-- Per-config `_note` / `_game` fields document setup quirks for that title.
+- Each backend's `configs/curricula/<backend>/common/README.md` documents setup quirks, keys and levels; a config's own `##` comments say what is particular to it.
 

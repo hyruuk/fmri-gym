@@ -1,9 +1,7 @@
 {
-  "_game": "MiniHack: MiniHack-Room-5x5-Allocentric-v0",
-  "_note": "pip install minihack (needs setuptools<81). MiniHack-Room-5x5-Allocentric-v0 is minihack_levels' twin of MiniHack-Room-5x5-v0 with pixel_crop fixed on the level's map, so the level holds still and the agent moves; room5x5_egocentric.json plays MiniHack-Room-5x5-v0 itself, the egocentric view, a 9x9 window centred on the agent.",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
-    {"include": "common/room5x5.json", "game": "minihack_levels:MiniHack-Room-5x5-Allocentric-v0"},
+    {"__include": "common/room5x5.json", "game": "minihack_levels:MiniHack-Room-5x5-Allocentric-v0"},
     {"type": "fixation", "duration": 2.0}
   ]
 }

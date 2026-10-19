@@ -1,9 +1,7 @@
 {
-  "_game": "MiniHack: MiniHack-Room-5x5-v0",
-  "_note": "pip install minihack (needs setuptools<81). Egocentric view: MiniHack's own pixel_crop, a 9x9 window centred on the agent, so the agent holds still and the level slides; room5x5.json plays the same task with the view fixed on the level's map.",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
-    {"include": "common/room5x5.json", "game": "MiniHack-Room-5x5-v0"},
+    {"__include": "common/room5x5.json", "game": "MiniHack-Room-5x5-v0"},
     {"type": "fixation", "duration": 2.0}
   ]
 }

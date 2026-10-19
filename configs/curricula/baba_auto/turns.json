@@ -1,9 +1,9 @@
 {
-  "_game": "Baba Is Auto: Turns (turns), a Baba Is You level on the baba-is-auto engine (language / rule-manipulation puzzle)",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {
-      "include": "common/baba_auto.json", "game": "turns",
+      "__include": "common/baba_auto.json",
+      "game": "turns",
       "instructions": {
         "title": "Baba Is You: Turns",
         "text": [

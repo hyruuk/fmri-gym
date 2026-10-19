@@ -1,9 +1,9 @@
 {
-  "_game": "ViZDoom: Freedoom Phase 1, E2M7 'Control Complex' (full Doom-style map; COOM engine) -- skill 2",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {
-      "include": "common/freedoom1.json", "game": "VizdoomFreedoom1E2M7-S2-v0",
+      "__include": "common/freedoom1.json",
+      "game": "VizdoomFreedoom1E2M7-S2-v0",
       "instructions": {"title": "Freedoom: Control Complex"}
     },
     {"type": "fixation", "duration": 2.0}

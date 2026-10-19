@@ -1,9 +1,9 @@
 {
-  "_game": "Baba Is Auto: Icy Waters (icy_waters), a Baba Is You level on the baba-is-auto engine (language / rule-manipulation puzzle)",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {
-      "include": "common/baba_auto.json", "game": "icy_waters",
+      "__include": "common/baba_auto.json",
+      "game": "icy_waters",
       "instructions": {
         "title": "Baba Is You: Icy Waters",
         "text": [

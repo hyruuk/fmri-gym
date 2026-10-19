@@ -336,7 +336,7 @@ class _Editor(QtWidgets.QMainWindow):
         # not on disk until Save, which asks where they go.
         self.new: set[str] = set()
         self.phases: list[dict] = []    # the selected run's curriculum
-        self.notes: dict = {}           # top-level keys the editor does not own (e.g. "_note")
+        self.notes: dict = {}           # top-level keys the editor does not own (its "##" comments)
         self.edit_index: int | None = None
         self.ctl_index: int | None = None
         self.phase_form: _Form | None = None

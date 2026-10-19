@@ -1,9 +1,8 @@
 {
-  "_game": "Atari: SpaceInvaders",
   "curriculum": [
     {"type": "message", "text": "Atari: SpaceInvaders", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
-    {"include": "common/spaceinvaders.json", "duration": 300.0},
+    {"__include": "common/spaceinvaders.json", "duration": 300.0},
     {"type": "fixation", "duration": 2.0}
   ]
 }

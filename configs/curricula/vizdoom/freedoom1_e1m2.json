@@ -1,9 +1,9 @@
 {
-  "_game": "ViZDoom: Freedoom Phase 1, E1M2 'Communications Center' (full Doom-style map; COOM engine) -- skill 2",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {
-      "include": "common/freedoom1.json", "game": "VizdoomFreedoom1E1M2-S2-v0",
+      "__include": "common/freedoom1.json",
+      "game": "VizdoomFreedoom1E1M2-S2-v0",
       "instructions": {"title": "Freedoom: Communications Center"}
     },
     {"type": "fixation", "duration": 2.0}

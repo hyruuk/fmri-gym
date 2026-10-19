@@ -1,9 +1,7 @@
 {
-  "_game": "MiniHack: MiniHack-MazeWalk-9x9-Allocentric-v0",
-  "_note": "pip install minihack (needs setuptools<81). MiniHack-MazeWalk-9x9-Allocentric-v0 is minihack_levels' twin of MiniHack-MazeWalk-9x9-v0 with pixel_crop fixed on the level's map, so the level holds still and the agent moves; mazewalk9x9_egocentric.json plays MiniHack-MazeWalk-9x9-v0 itself, the egocentric view, a 9x9 window centred on the agent.",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
-    {"include": "common/mazewalk9x9.json", "game": "minihack_levels:MiniHack-MazeWalk-9x9-Allocentric-v0"},
+    {"__include": "common/mazewalk9x9.json", "game": "minihack_levels:MiniHack-MazeWalk-9x9-Allocentric-v0"},
     {"type": "fixation", "duration": 2.0}
   ]
 }

@@ -1,9 +1,9 @@
 {
-  "_game": "Baba Is Auto: Out of Reach (out_of_reach), a Baba Is You level on the baba-is-auto engine (language / rule-manipulation puzzle)",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {
-      "include": "common/baba_auto.json", "game": "out_of_reach",
+      "__include": "common/baba_auto.json",
+      "game": "out_of_reach",
       "instructions": {
         "title": "Baba Is You: Out of Reach",
         "text": [

@@ -1,8 +1,4 @@
 {
-  "_game": "ViZDoom: Defend the Center (Doom action-shooter; COOM engine)",
-  "_note": "pip install vizdoom. Doom scenario via ViZDoom's gymnasium envs. Try other Vizdoom*-v1 ids (DeadlyCorridor, HealthGathering, TakeCover, Deathmatch, ...).",
-  "_audio_note": "env_kwargs.audio_buffer_enabled turns Doom's sound on: it arrives in obs['audio'], is played through the session's speakers, and is logged per frame. Doom makes 1/35 s of sound per step, so fps * env_kwargs.frame_skip must be 35: the session stops the block otherwise, because sound could not follow the frames.",
-  "_keys_note": "The env's action is MultiBinary over the scenario's buttons (env_kwargs.max_buttons_pressed 0), so 'keys' values are button indices in the scenario's available_buttons order -- VizdoomDefendCenter-v1: 0=TURN_LEFT, 1=TURN_RIGHT, 2=ATTACK. Held keys combine (turn while shooting). The controls the subject sees are the game phase's 'instructions'; keep their text in sync with 'keys' by hand.",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {

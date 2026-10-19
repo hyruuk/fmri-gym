@@ -1,9 +1,4 @@
 {
-  "_game": "ViZDoom: Defend the Line (Doom action-shooter; COOM engine)",
-  "_note": "pip install vizdoom. Like DefendCenter, but the monsters come from one side of a hall instead of all around you, and they respawn -- survive as long as possible while killing them. Same three buttons as DefendCenter.",
-  "_keys_note": "The env's action is MultiBinary over the scenario's buttons (env_kwargs.max_buttons_pressed 0), so 'keys' values are button indices in the scenario's available_buttons order -- VizdoomDefendLine-v1: 0=TURN_LEFT, 1=TURN_RIGHT, 2=ATTACK. Held keys combine (turn while shooting). The controls the subject sees are the game phase's 'instructions'; keep their text in sync with 'keys' by hand.",
-  "_keys_reference": "https://github.com/Farama-Foundation/ViZDoom/blob/main/scenarios/defend_the_line.cfg",
-  "_audio_note": "env_kwargs.audio_buffer_enabled turns Doom's sound on: it arrives in obs['audio'], is played through the session's speakers, and is logged per frame. Doom makes 1/35 s of sound per step, so fps * env_kwargs.frame_skip must be 35: the session stops the block otherwise, because sound could not follow the frames.",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {

@@ -1,9 +1,8 @@
 {
-  "_game": "SuperTuxKart (sports/racing): Northern Resort (track snowmountain, 1147 m per lap) -- the current game, via its own gym server",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {
-      "include": "common/race.json",
+      "__include": "common/race.json",
       "instructions": {
         "title": "SuperTuxKart: Northern Resort",
         "text": [

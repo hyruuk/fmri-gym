@@ -1,11 +1,8 @@
 {
-  "_game": "Crafter (level 1: affordance, eight buttons)",
-  "_level_note": "Level 1 of the paradigm's four (crafter_gym.levels.LEVELS, the rig's own table): nothing hostile, the four life stats frozen at 9 and hidden, so only lava can kill. The task chain names one of eleven entries at a time (crafter_gym.tasks). rewind_on [\"lost\"] with rewind_frames 1 is the rig's rollback for this level: a death sends the world back one move and play goes on, as a new episode from that state; it is a phase field rather than a level rule so that a model played on the same env dies as the game says.",
-  "_shared_note": "The game phase's other fields are common/crafter.json, which all four levels include; the notes that explain them are level 4's (L4.json).",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {
-      "include": "common/crafter.json",
+      "__include": "common/crafter.json",
       "instructions": {
         "title": "Crafter, level 1",
         "text": [

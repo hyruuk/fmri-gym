@@ -1,22 +1,23 @@
 """The curriculum: what one run plays. Load, save, check, and the trigger presets.
 
 A curriculum is one JSON file: a ``curriculum`` list of phases (see README)
-and an optional ``triggers`` section (:mod:`fmri_gym.triggers`);
-``_``-prefixed keys are notes. Several runs make a session, which is a shell
+and an optional ``triggers`` section (:mod:`fmri_gym.triggers`); a key
+that starts with ``##`` is a comment, anywhere. Several runs make a session, which is a shell
 script (:func:`fmri_gym.gui.write_session`), not a curriculum.
 
 The file says what is played, not who plays it or where: subject, output
 folder, window and the test switches are the run config
 (:mod:`fmri_gym.config`), so one file serves every participant at every site.
 
-There is one shape. A bare list, an unknown top-level key or an unknown phase
-type is refused at start-up, with the reason.
+There is one shape. A bare list, an unknown top-level key, an unknown phase
+type or a phase key starting with ``_`` (the one prefix the loader keeps for
+itself) is refused at start-up, with the reason.
 
-A phase may start from a shared one: ``"include": "common/<game>.json"``
+A phase may start from a shared one: ``"__include": "common/<game>.json"``
 names a file (relative to the curriculum's own) holding one phase object, and
 the phase's other keys are laid over it (:func:`overlay`). Curricula of one
 game then write the setup once and only what differs per level. Shared
-phases live in folders named ``common`` (:data:`PHASE_DIR`), which hold no
+phases live in folders named ``common`` (:data:`COMMON_DIRNAME`), which hold no
 curricula. Includes are resolved when the file is loaded, so everything
 downstream, the manifest included, sees each phase written out in full.
 """
@@ -38,10 +39,12 @@ from .triggers import TriggerError, TriggerSettings
 PHASE_TYPES = ("fixation", "message", "game", "survey", "check_display", "check_frames",
                "check_triggers", "check_controls", "check_photodiode")
 SECTIONS = ("curriculum", "triggers")
+#: A key that starts with this is a comment: nothing reads it.
+COMMENT_PREFIX = "##"
 #: A phase's key naming the file of the shared phase it starts from.
-INCLUDE = "include"
+INCLUDE_KEY = "__include"
 #: Folders of this name hold shared phases, which are included, not played.
-PHASE_DIR = "common"
+COMMON_DIRNAME = "common"
 #: Exit status of ``fmri_play`` when the run was quit (ESC) before its end; a
 #: session script (``set -e``) stops on it instead of starting the next run.
 EXIT_QUIT = 3
@@ -191,24 +194,34 @@ def check_shape(curriculum: Any, where: str) -> dict:
     :param where: file path (or another name for the source), for the message.
     :return: ``curriculum``, unchanged.
     :raises ValueError: if it is not an object with a ``curriculum`` list of
-        typed phases, or has a top-level key that is neither a section nor a
-        ``_`` note.
+        typed phases, has a top-level key that is neither a section nor a
+        comment, or a phase key that starts with ``_``.
     """
     if not isinstance(curriculum, dict) or not isinstance(curriculum.get("curriculum"), list):
         raise ValueError(f'{where}: expected a JSON object with a "curriculum" list')
-    unknown = [k for k in curriculum if k not in SECTIONS and not k.startswith("_")]
+    unknown = [k for k in curriculum if k not in SECTIONS and not is_comment(k)]
     if unknown:
         raise ValueError(f"{where}: unknown top-level key(s) {unknown}; the sections are "
-                         f'{SECTIONS}, and a note must start with "_"')
+                         f'{SECTIONS}, and a comment starts with "{COMMENT_PREFIX}"')
     for i, phase in enumerate(curriculum["curriculum"]):
         if not isinstance(phase, dict) or phase.get("type") not in PHASE_TYPES:
             raise ValueError(f'{where}: phase {i} must be an object whose "type" is one of '
                              f"{PHASE_TYPES}")
+        underscored = [k for k in phase if k.startswith("_")]
+        if underscored:
+            raise ValueError(f"{where}: phase {i} has {underscored}; a comment starts with "
+                             f'"{COMMENT_PREFIX}", and "{INCLUDE_KEY}" names a file of '
+                             f"{COMMON_DIRNAME}/")
     return curriculum
 
 
+def is_comment(key: str) -> bool:
+    """Whether ``key`` is a comment (it starts with :data:`COMMENT_PREFIX`)."""
+    return key.startswith(COMMENT_PREFIX)
+
+
 def load_curriculum(path: str) -> dict:
-    """Load a curriculum file, each phase's ``include`` resolved.
+    """Load a curriculum file, each phase's ``__include`` resolved.
 
     :param path: JSON file path.
     :return: the curriculum dict, every phase in full.
@@ -223,9 +236,9 @@ def load_curriculum(path: str) -> dict:
     return check_shape(curriculum, path)
 
 
-def is_phase_file(path: str) -> bool:
-    """Whether ``path`` is a shared phase (in a :data:`PHASE_DIR` folder), not a curriculum."""
-    return os.path.basename(os.path.dirname(os.path.abspath(path))) == PHASE_DIR
+def is_common_file(path: str) -> bool:
+    """Whether ``path`` is a shared phase (in a :data:`COMMON_DIRNAME` folder), not a curriculum."""
+    return os.path.basename(os.path.dirname(os.path.abspath(path))) == COMMON_DIRNAME
 
 
 def overlay(base: dict, top: dict) -> dict:
@@ -245,16 +258,16 @@ def overlay(base: dict, top: dict) -> dict:
 
 
 def _resolve(phase: Any, path: str, seen: frozenset[str]) -> Any:
-    """``phase`` laid over the phase its ``include`` names, which may include another.
+    """``phase`` laid over the phase its ``__include`` names, which may include another.
 
     :raises ValueError: if the include is not a path to a JSON object, or comes back round.
     """
-    if not isinstance(phase, dict) or INCLUDE not in phase:
+    if not isinstance(phase, dict) or INCLUDE_KEY not in phase:
         return phase
-    name = phase[INCLUDE]
+    name = phase[INCLUDE_KEY]
     target = os.path.normpath(os.path.join(os.path.dirname(path), str(name)))
     if not isinstance(name, str) or not os.path.isfile(target):
-        raise ValueError(f'{path}: "{INCLUDE}" must name a file next to it, got {name!r}')
+        raise ValueError(f'{path}: "{INCLUDE_KEY}" must name a file next to it, got {name!r}')
     if target in seen:
         raise ValueError(f"{path}: {name} includes itself, through {sorted(seen)}")
     with open(target) as f:
@@ -262,7 +275,7 @@ def _resolve(phase: Any, path: str, seen: frozenset[str]) -> Any:
     if not isinstance(base, dict):
         raise ValueError(f"{target}: a shared phase is one JSON object")
     base = _resolve(base, target, seen | {target})
-    return overlay(base, {k: v for k, v in phase.items() if k != INCLUDE})
+    return overlay(base, {k: v for k, v in phase.items() if k != INCLUDE_KEY})
 
 
 def save_curriculum(curriculum: dict, path: str) -> None:

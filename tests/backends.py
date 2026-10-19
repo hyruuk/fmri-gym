@@ -18,7 +18,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from fmri_gym.curriculum import is_phase_file, load_curriculum
+from fmri_gym.curriculum import is_common_file, load_curriculum
 
 REPO = Path(__file__).resolve().parents[1]
 CURRICULA = REPO / "configs" / "curricula"
@@ -141,7 +141,7 @@ def phase_backend(phase: dict) -> str:
 
 def all_configs() -> list[Path]:
     """Every runnable curriculum file in the repo, sorted."""
-    return sorted(p for p in CURRICULA.rglob("*.json") if not is_phase_file(str(p)))
+    return sorted(p for p in CURRICULA.rglob("*.json") if not is_common_file(str(p)))
 
 
 def configs_of(backend: str) -> list[Path]:

@@ -1,9 +1,9 @@
 {
-  "_game": "Baba Is Auto: Novice Locksmith (novice_locksmith), a Baba Is You level on the baba-is-auto engine (language / rule-manipulation puzzle)",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {
-      "include": "common/baba_auto.json", "game": "novice_locksmith",
+      "__include": "common/baba_auto.json",
+      "game": "novice_locksmith",
       "instructions": {
         "title": "Baba Is You: Novice Locksmith",
         "text": [

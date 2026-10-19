@@ -40,7 +40,7 @@ from .adapters import get_adapter
 from .audio import Audio
 from .bids import BlockProgress, RunProgress
 from .config import RunConfig
-from .curriculum import BlockMode, GamePhase, fold_cli_options
+from .curriculum import BlockMode, GamePhase, fold_cli_options, is_comment
 from .display import Display, check_monitor
 from .keys import get_events, held_key_names, key_name
 from .menu import Menu
@@ -66,6 +66,12 @@ END_FIXATION_S = 10.0
 RESUMABLE_CHANGES = frozenset({"duration", "max_duration", "n_episodes", "advancing_outcomes",
                                "outcome_duration", "instructions", "keys", "menu", "seed",
                                "audio", "rewind_on", "rewind_frames"})
+
+
+def _is_note(key: str) -> bool:
+    """A phase key that says nothing about the game: a comment, or a ``_`` key, which a
+    manifest written by an earlier version of the configs holds as a note."""
+    return is_comment(key) or key.startswith("_")
 
 
 @dataclass(frozen=True, slots=True)
@@ -345,7 +351,7 @@ def _run_progress(
         then = last_game.phase
         now = phases[last_game.phase_index] if last_game.phase_index < len(phases) else {}
         changed = sorted(k for k in then.keys() | now.keys() if then.get(k) != now.get(k)
-                         and k not in RESUMABLE_CHANGES and not k.startswith("_"))
+                         and k not in RESUMABLE_CHANGES and not _is_note(k))
         if changed:
             raise ValueError(f"--resume: phase {last_game.phase_index}, the last game "
                              f"{run_label} played, is not the same game in this curriculum "

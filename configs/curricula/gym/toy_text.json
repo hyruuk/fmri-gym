@@ -1,21 +1,20 @@
 {
-  "_demo": "All toy_text games, 2 episodes each. They DO render RGB (gymnasium pygame renderers). FrozenLake is set is_slippery=False so arrows are deterministic; each game has its correct action->key map.",
   "curriculum": [
     {"type": "message", "text": "FrozenLake (arrows move; get to the goal)", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
-    {"include": "common/frozenlake.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
+    {"__include": "common/frozenlake.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
     {"type": "message", "text": "FrozenLake 8x8 (arrows move)", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
-    {"include": "common/frozenlake8x8.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
+    {"__include": "common/frozenlake8x8.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
     {"type": "message", "text": "CliffWalking (arrows move; avoid the cliff)", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
-    {"include": "common/cliffwalking.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
+    {"__include": "common/cliffwalking.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
     {"type": "message", "text": "Taxi (arrows move, SPACE pickup, RETURN dropoff)", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
-    {"include": "common/taxi.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
+    {"__include": "common/taxi.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
     {"type": "message", "text": "Blackjack (LEFT=stick, RIGHT=hit)", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
-    {"include": "common/blackjack.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
+    {"__include": "common/blackjack.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
     {"type": "fixation", "duration": 3.0}
   ]
 }

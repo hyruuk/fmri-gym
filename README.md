@@ -126,7 +126,7 @@ A curriculum's file name, after its folder's, is the run's BIDS task label (`cur
 | `vgdl/` | 11 | aliens, avoidGeorge, beesAndBirds, jaws, missile_command, plaqueAttack, portals, preconditions, pushBoulders, relational (needs the VGDL checkout), and `all` |
 | `vizdoom/` | 78 | basic, deadly_corridor, defend_center, defend_line, health_gathering_supreme, my_way_home, predict_position, take_cover, deathmatch, and `take_cover_defend_line` (two of them back to back); freedoom1_e1m1 … freedoom1_e4m9 and freedoom2_map01 … freedoom2_map32 (every map of [Freedoom](https://freedoom.github.io/) Phase 1 and Phase 2, whose WADs ship with `vizdoom`; `VizdoomDoom*` plays the original WADs, given them) |
 
-Each carries `_game` / `_note` (setup reminders) and `_keys_note` (what the action indices in its `keys` mean). Most are a `fixation → game → fixation` run whose game phase opens on its own instructions screen.
+Each backend's `common/README.md` says what its curricula play, how to set them up and what the action indices in their `keys` mean. Most are a `fixation → game → fixation` run whose game phase opens on its own instructions screen.
 
 #### Games without a curriculum
 
@@ -270,7 +270,7 @@ uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula
 uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/rushhour/complete.json --ses 1 --run 1   # the program's session then the rest of the library: 49 puzzles, one block each
 ```
 
-Controls, phase fields and the logged columns are documented in the configs' `_note`s and in the package's README ("A person at the board").
+Controls, phase fields and the logged columns are documented in `configs/curricula/rushhour/common/README.md` and in the package's README ("A person at the board").
 
 ## Running Baba Is Auto (`baba_auto`)
 
@@ -373,7 +373,7 @@ class EnvAdapter:
 
 ## Curriculum format
 
-A **run** is one JSON file: a `"curriculum"` of phases, an optional `"triggers"` section (below), and `_`-prefixed notes. A bare list, an unknown top-level key or an unknown phase `type` stops the run at start-up with the reason.
+A **run** is one JSON file: a `"curriculum"` of phases, an optional `"triggers"` section (below), and comments: any key that starts with `##` (`"## why": "..."`), used sparingly -- a backend's curricula are documented in their `common/README.md`. A bare list, an unknown top-level key, an unknown phase `type` or a phase key that starts with `_` stops the run at start-up with the reason.
 
 One config is one run. A whole scanning session is a plain shell script with one line per run, in order -- so every run is a process of its own, with a fresh interpreter, display and trigger port:
 
@@ -468,17 +468,17 @@ They assume `sub-01` and a 1024x768 window, and play into the session their fold
  "show_score": false}           // crafter: draw the achievement count beside the frame
 ```
 
-### Shared phases (the `include` field)
+### Shared phases (the `__include` field)
 
 The levels of one game repeat most of their game phase: the keys, the instructions, the mode, the env's settings. A phase can instead start from a shared one and write only what differs:
 
 ```jsonc
 // configs/curricula/vizdoom/freedoom1_e2m5.json
-{"include": "common/freedoom1.json", "game": "VizdoomFreedoom1E2M5-S2-v0",
+{"__include": "common/freedoom1.json", "game": "VizdoomFreedoom1E2M5-S2-v0",
  "instructions": {"title": "Freedoom: Underground Hub"}}
 ```
 
-`include` names a file relative to the curriculum's own folder, which holds one phase object (`configs/curricula/vizdoom/common/freedoom1.json`: type, backend, instructions, `env_kwargs`, keys, mode, fps, and the notes that explain them). The phase's own keys are laid over it: an object in both merges key by key, so the line above changes the title and keeps the instructions' text; anything else (a list, a number, a string) replaces the shared value whole. A key cannot be taken away, so a shared phase holds only what every phase that includes it keeps. A shared phase may include another, relative to its own folder. Shared phases live in folders named `common`, which hold no curricula: neither `fmri-edit`'s lists nor the tests treat them as runs.
+`__include` names a file relative to the curriculum's own folder, which holds one phase object (`configs/curricula/vizdoom/common/freedoom1.json`: type, backend, instructions, `env_kwargs`, keys, mode, fps). The `common/README.md` beside it explains them: setup, what the keys' indices mean, the notes a level needs. The phase's own keys are laid over it: an object in both merges key by key, so the line above changes the title and keeps the instructions' text; anything else (a list, a number, a string) replaces the shared value whole. A key cannot be taken away, so a shared phase holds only what every phase that includes it keeps. A shared phase may include another, relative to its own folder. Shared phases live in folders named `common`, which hold no curricula: neither `fmri-edit`'s lists nor the tests treat them as runs.
 
 Includes are resolved when the file is read, so everything after that sees each phase in full: `fmri-play`, the editor and the manifest, which keeps the run's curriculum as it was played. Saving a curriculum from `fmri-edit` writes it that way too, its includes written out.
 
@@ -492,7 +492,7 @@ Every game phase states its whole keyboard map. **There is no default**: which k
   - **`Discrete`** (ale, coom, vgdl, crafter, minihack, baba, rushhour, gym) or **`Box`** (gym): the value is the action itself, an index or a list (`"LEFT": [-1.0, 0.0]`). The most specific combo whose keys are all held wins (`"UP+SPACE"` over `"UP"`), and the **`""`** entry is what a frame with no key held sends. `""` is required unless the phase is `turn_based`, where nothing is sent between presses: these spaces have no action that means "do nothing" everywhere (FrozenLake's 0 is LEFT, MiniHack's is "move N"). A value outside the space is refused when the env is built.
   - Any other action space is refused when the env is built.
 
-Each adapter's module docstring says what its indices mean, and each config's `_keys_note` spells out the map it uses. For an Atari game, read its meanings:
+Each adapter's module docstring says what its indices mean, and each backend's `configs/curricula/<backend>/common/README.md` spells out the map its curricula use. For an Atari game, read its meanings:
 
 ```python
 import gymnasium as gym, ale_py; gym.register_envs(ale_py)

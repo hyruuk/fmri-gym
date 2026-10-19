@@ -1,9 +1,7 @@
 {
-  "_game": "MiniHack: MiniHack-Eat-Allocentric-v0",
-  "_note": "pip install minihack (needs setuptools<81). Eating floor food is a TWO-step NetHack action: press E, then NetHack asks 'eat it? [ynq]' and you answer Y (yes). That confirm keystroke is why eating seems to 'freeze' after E -- you must then press Y. (NetHack draws the prompt on the tty message line, which is NOT part of the pixel observation, so it can't be shown on screen; the E-then-Y recipe in the instructions is what the player follows.) In NetHack y/n ARE the NW/SE movement keys, so the diagonal keys double as the yes/no answers (Y=act 7='y', N=act 5='n'). MiniHack-Eat-Allocentric-v0 is minihack_levels' twin of MiniHack-Eat-v0 with pixel_crop fixed on the level's map, so the level holds still and the agent moves; eat_egocentric.json plays MiniHack-Eat-v0 itself, the egocentric view, a 9x9 window centred on the agent.",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
-    {"include": "common/eat.json", "game": "minihack_levels:MiniHack-Eat-Allocentric-v0"},
+    {"__include": "common/eat.json", "game": "minihack_levels:MiniHack-Eat-Allocentric-v0"},
     {"type": "fixation", "duration": 2.0}
   ]
 }

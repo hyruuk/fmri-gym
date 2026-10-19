@@ -380,7 +380,7 @@ def curated_games(root: str = CURRICULA_DIR) -> tuple[dict[str, dict[str, tuple[
     games: dict[str, dict[str, tuple[str, dict]]] = {}
     unreadable: list[str] = []
     for path in sorted(glob.glob(os.path.join(root, "**", "*.json"), recursive=True)):
-        if curriculum.is_phase_file(path):
+        if curriculum.is_common_file(path):
             continue
         try:
             config = curriculum.load_curriculum(path)
@@ -398,14 +398,14 @@ def listed_files(ext: str) -> list[str]:
 
     Sessions (``sh``) and runs (``json``) are picked from here rather than found
     through a file dialog, so the repo's examples are one click away. Shared phases
-    (:func:`fmri_gym.curriculum.is_phase_file`) are not runs; they are left out.
+    (:func:`fmri_gym.curriculum.is_common_file`) are not runs; they are left out.
 
     :param ext: ``"sh"`` for session scripts, ``"json"`` for run configs.
     :return: paths relative to the working directory, in path order.
     """
     root = CURRICULA_DIR if ext == "json" else CONFIGS_DIR
     paths = sorted(glob.glob(os.path.join(root, "**", f"*.{ext}"), recursive=True))
-    return [os.path.relpath(p) for p in paths if not curriculum.is_phase_file(p)]
+    return [os.path.relpath(p) for p in paths if not curriculum.is_common_file(p)]
 
 
 def suggest_name(stem: str, taken: set[str]) -> str:

@@ -1,11 +1,9 @@
 {
-  "_game": "COOM: Health Gathering (Doom continual-RL suite; own scenario, not stock ViZDoom)",
-  "_note": "Needs TTomilin/COOM cloned into external/coom at the commit the README pins (README 'External checkouts') -- the coom backend reads its conf.cfg/.wad scenario assets directly, it does not pip install the COOM package (which pins a conflicting gymnasium version).",
-  "_keys_note": "COOM's Discrete(12) action table (turn x move x execute): 0=noop, 1=execute, 2=forward, 3=forward+execute, 4=turn right, 6=turn right+forward, 8=turn left, 10=turn left+forward. For health_gathering the 4th ('execute') button is SPEED, on LSHIFT below; the no-key entry is \"\": 0. Keep the instructions' Controls text in sync with 'keys' by hand.",
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {
-      "include": "common/coom.json", "game": "health_gathering",
+      "__include": "common/coom.json",
+      "game": "health_gathering",
       "instructions": {
         "title": "Health Gathering",
         "text": [

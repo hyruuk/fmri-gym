@@ -1,7 +1,4 @@
 {
-  "_keys_note": "Discrete(11): 0-7 = compass (0=N,1=E,2=S,3=W,4=NE,5=SE,6=SW,7=NW), 8=OPEN, 9=KICK, 10=SEARCH. Arrows map to the cardinals; y/u/b/n to the diagonals; O/K/S to the door/search commands. turn_based:true is required -- noop is action 0 (=move N). Keep the instructions' Controls text in sync with 'keys' by hand.",
-  "_keys_reference": "https://github.com/facebookresearch/minihack",
-  "_curriculum_note": "Blocking: the block is this task played until completed (mode 'episode', n_episodes 1, advancing_outcomes ['won']); a death or the env's own step limit restarts the same level, and max_duration 300 s is the cap. ESC is the experimenter's way out.",
   "type": "game", "backend": "minihack",
   "instructions": {
     "title": "MiniHack: Corridor", "align": "left", "keys_to_dismiss": ["SPACE"],

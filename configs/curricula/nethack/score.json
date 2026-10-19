@@ -1,6 +1,4 @@
 {
-  "_game": "NetHack: NetHackScore-v0",
-  "_note": "pip install nle (needs setuptools<81). Terminal game: TTY grid rendered to pixels; arrow keys move (vi-keys N/E/S/W), ENTER confirms prompts. Distinct from the minihack backend.",
   "curriculum": [
     {"type": "message", "text": "NetHack: NetHackScore-v0", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
