@@ -5,3 +5,15 @@ One file per rig, in a folder per site: `rigs/<site>/<rig>.json`, e.g. `rigs/bos
 A rig is site-specific and shared by every run and every game on it; a curriculum (`../curricula/`) is game-specific and shared by every site; a session (`../subjects/`) is one subject's one visit. Keep each setting in the one place it belongs.
 
 `rig-check.sh` plays the rig check (`../curricula/checks/rig-check-long.json`) on this machine, filed under `sub-rig`.
+
+The rig's `"triggers"` say how a run starts and what the recording gets (README, "Triggers"). A rig whose MEG or EEG recording starts from the trigger line, codes over serial:
+
+```json
+"triggers": {
+  "sync": {"mode": "send", "delay": 0.0},
+  "backend": "serial", "port": "/dev/ttyUSB0",
+  "codes": {"frame_bits": 3, "task_start": 8, "task_stop": 16, "episode_start": 32, "scanner_start": 64}
+}
+```
+
+An fMRI rig whose trigger box types `=` at every volume needs only `"triggers": {"sync": {"mode": "wait", "key": "="}, "backend": "null"}`.

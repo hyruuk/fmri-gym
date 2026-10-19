@@ -37,9 +37,9 @@ see: the site and rig, the PI, the monitor or projector, the photodiode, the
 sound path to the ear, the trigger hardware. A rig check is how a rig gets its
 file: when it is missing or invalid, the check opens a form to fill it in
 (:func:`ensure_rig`); a check that says nothing of where it ran could not be
-pooled, so without it none starts.
-The rig-check configs ship with ``"triggers": null``, no setup being anyone's
-default: the first check asks for one and saves it.
+pooled, so without it none starts. A rig whose file says nothing of its
+triggers is asked for them on its first check, and the answer is saved in
+the rig file: no setup is anyone's default.
 
 **What is filed.** Beside the run's own ``manifest.json`` and one ``.npz`` per
 check: ``report.html`` for the people who run the rig (a verdict per test, the
@@ -110,56 +110,49 @@ def has_checks(curriculum: dict) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def prepare(curriculum: dict, path: str) -> str | None:
-    """Before the window: the trigger settings, and a line the run can open.
+def prepare(rig: rig_file.RigConfig) -> tuple[rig_file.RigConfig, str | None]:
+    """Before the window: the rig's trigger settings, and a line the run can open.
 
-    A rig check as downloaded has ``"triggers": null``: no setup is anyone's
-    default, so the first run asks for one -- a preset, or one's own -- and
-    saves it in the curriculum (:func:`_ask_triggers`). A trigger line that does not open
-    would stop the run before any check; here it fails the triggers check
-    instead, and the run goes on with no codes (said on the console and in
-    the manifest), so the other checks still run.
+    A rig whose file says nothing of its triggers is asked for them -- a
+    preset, or one's own -- and the answer is saved in its file
+    (:func:`_ask_triggers`). A trigger line that does not open would stop the
+    run before any check; here it fails the triggers check instead, and the
+    run plays on the rig without its line (said on the console and in the
+    manifest), so the other checks still run.
 
-    :param curriculum: the run's curriculum; its ``triggers`` section is
-        filled in when it has none, and replaced when its line does not open.
-    :param path: the curriculum's file, where a chosen section is saved.
-    :raises ValueError: when the curriculum has no trigger settings and none is chosen.
-    :return: why the line did not open, for the manifest; ``None`` when it did.
+    :param rig: the rig the check plays on.
+    :raises ValueError: when the rig has no trigger settings and none is chosen.
+    :return: the rig to play on, and why its line did not open (``None`` when it did).
     """
-    if "triggers" in curriculum and curriculum["triggers"] is None:
-        _ask_triggers(curriculum, path)
-    section = curriculum.get("triggers") or {}
+    if not rig.has_trigger_setup:
+        rig = _ask_triggers(rig)
     try:
-        Triggers.from_dict(section).close()
-        return None
+        Triggers(rig.triggers).close()
+        return rig, None
     except (TriggerError, OSError) as exc:
         error = f"{type(exc).__name__}: {exc}"
-    sync = dict(section.get("sync", {}))
-    if sync.get("mode") == "send":
-        sync["mode"] = "none"  # send needs a line; waiting for the scanner does not
-    curriculum["triggers"] = {**section, "backend": "null", "sync": sync}
     print(f"rig check: the trigger line did not open ({error}); the triggers check fails, "
           "the other checks run without codes", file=sys.stderr)
-    return error
+    return rig.without_trigger_line(), error
 
 
-def _ask_triggers(curriculum: dict, path: str) -> None:
-    """Fill in a curriculum's ``"triggers": null`` from the dialog, and save it.
+def _ask_triggers(rig: rig_file.RigConfig) -> rig_file.RigConfig:
+    """The rig with the trigger settings the dialog gives, saved in its file.
 
     :raises ValueError: with no screen for the dialog, or when it is cancelled.
     """
-    fix = (f"{path} has no trigger settings (\"triggers\": null): set them on the editor's "
-           "Triggers tab (fmri-edit), or answer the dialog a rig check opens")
+    where = rig_file.path(rig.name)
+    fix = (f'{where} has no "triggers": set them on the editor\'s Triggers tab (fmri-edit) '
+           "or in the file, or answer the dialog a rig check opens")
     if not can_show_form():
         raise ValueError(f"rig check: {fix}; there is no screen here for the dialog")
     from .gui_qt import choose_triggers
-    section = choose_triggers(path)
+    section = choose_triggers(str(where))
     if section is None:
         raise ValueError(f"rig check: {fix}; it was cancelled")
-    curriculum["triggers"] = section
-    from .config.curriculum import save_curriculum
-    save_curriculum(curriculum, path)  # before the run folds its flags into it
-    print(f"rig check: trigger settings saved in {path}", file=sys.stderr)
+    rig_file.save({**rig_file.load(rig.name), "triggers": section})
+    print(f"rig check: trigger settings saved in {where}", file=sys.stderr)
+    return rig_file.RigConfig.open(rig.name)
 
 
 def finish(run: Run, session: int) -> bool:

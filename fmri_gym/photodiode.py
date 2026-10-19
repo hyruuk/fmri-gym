@@ -7,7 +7,7 @@ the screen can. This task, run once per rig with the same :class:`Display`
 and :class:`Triggers` a session uses, flashes a patch and records the flips,
 so the offset can be measured and then subtracted in analysis::
 
-    python -m fmri_gym.photodiode --fullscreen --config configs/curricula/demos/meg.json
+    python -m fmri_gym.photodiode --fullscreen --rig <site>/<rig>
 
 The patch (default 120 px, bottom-right) goes white ``n`` times for
 ``--on-ms`` and black again, with a randomized gap in between so nothing
@@ -335,11 +335,11 @@ def summarize(offsets: np.ndarray, times: np.ndarray) -> dict[str, float]:
 
 
 def _trigger_settings(args: argparse.Namespace) -> TriggerSettings:
-    """Trigger settings from ``--config`` (its ``triggers`` section), overridden by flags."""
+    """Trigger settings from ``--rig`` (its rig file's ``triggers``), overridden by flags."""
     section: dict = {}
-    if args.config:
-        with open(args.config) as f:
-            section = dict(json.load(f).get("triggers") or {})
+    if args.rig:
+        from .config.rig import load
+        section = dict(load(args.rig).get("triggers", {}))
         section.pop("sync", None)     # the calibration has no run start to sync
     if args.trigger_backend:
         section["backend"] = args.trigger_backend
@@ -364,7 +364,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--monitor", type=int, default=0,
                    help="which monitor: the one the sessions use, since the offset is its own")
     p.add_argument("--no-vsync", action="store_true")
-    p.add_argument("--config", help="curriculum/config JSON whose triggers section to use")
+    p.add_argument("--rig", help="the rig, <site>/<rig>, whose rig file's triggers to use")
     p.add_argument("--trigger-backend", choices=("null", "lsl", "serial", "parallel"))
     p.add_argument("--trigger-port")
     p.add_argument("--audio", action="store_true",

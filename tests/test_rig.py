@@ -85,3 +85,25 @@ def test_a_loose_rig_json_is_pointed_at(tmp_path):
     (tmp_path / "rig.json").write_text("{}")
     with pytest.raises(ValueError, match="move rig.json there"):
         RigConfig.open(None)
+
+
+def test_triggers_are_the_rigs():
+    rig.save({**FIELDS, "rig": "meg", "triggers": {"sync": {"mode": "send"}, "backend": "lsl"}})
+    meg = RigConfig.open("site1/meg")
+    assert meg.has_trigger_setup and meg.triggers.backend == "lsl"
+    assert meg.without_trigger_line().triggers.sync.mode == "none"
+    rig.save({**FIELDS, "rig": "plain"})
+    assert not RigConfig.open("site1/plain").has_trigger_setup
+    rig.path("site1/plain").write_text(json.dumps({**FIELDS, "rig": "plain",
+                                                   "triggers": {"backend": "serial"}}))
+    with pytest.raises(ValueError, match="needs a port"):
+        RigConfig.open("site1/plain")
+
+
+def test_a_game_key_the_scanner_types_is_refused_on_that_rig():
+    from fmri_gym.config.run import scanner_key_clashes
+    rig.save({**FIELDS, "rig": "box", "triggers": {"sync": {"mode": "wait", "key": "5"}}})
+    box = RigConfig.open("site1/box")
+    curriculum = {"curriculum": [{"type": "game", "keys": {"5": 1, "LEFT": 0}}]}
+    assert scanner_key_clashes(curriculum, box) and not scanner_key_clashes(
+        {"curriculum": [{"type": "game", "keys": {"LEFT": 0}}]}, box)

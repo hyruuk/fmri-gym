@@ -54,3 +54,23 @@ class RunConfig:
                    run=args.run, duration=args.duration, end_fixation=args.end_fixation,
                    resume=args.resume,
                    dummy_trigger=args.dummy_trigger, rig=rig)
+
+
+def scanner_key_clashes(curriculum: dict, rig: RigConfig) -> list[str]:
+    """The game keys a curriculum binds to the key the rig's scanner types at every volume.
+
+    A button box in a digit mode sends its trigger as a digit too (Current
+    Designs: ``5``). With the rig waiting for that key (``sync.mode`` ``wait``),
+    a game bound to it would act at every volume: a problem of this curriculum
+    on this rig, which neither file shows alone.
+
+    :return: one problem per clashing binding.
+    """
+    sync = rig.triggers.sync
+    name = sync.key.upper()
+    if sync.mode != "wait" or not (len(name) == 1 and name.isalnum()):
+        return []  # "=" is no game key: nothing can clash
+    return [f"phase {i}: keys: {combo} uses {sync.key!r}, the key {rig.name}'s scanner types at "
+            "every volume (its triggers.sync.key): bind another key"
+            for i, phase in enumerate(curriculum["curriculum"])
+            for combo in phase.get("keys", {}) if name in combo.upper().split("+")]

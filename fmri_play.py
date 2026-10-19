@@ -34,7 +34,7 @@ from fmri_gym import Run, checks
 from fmri_gym.config.curriculum import EXIT_QUIT, load_curriculum, validate_curriculum
 from fmri_gym.display import quit_like_esc
 from fmri_gym.config.rig import RigConfig
-from fmri_gym.config.run import RunConfig
+from fmri_gym.config.run import RunConfig, scanner_key_clashes
 from fmri_gym.run import END_FIXATION_S
 
 
@@ -92,11 +92,14 @@ def main() -> None:
     do_rig_check = checks.has_checks(curriculum)
     # A rig check is how a rig gets its file: it opens the form when there is none.
     rig = checks.ensure_rig(args.rig) if do_rig_check else RigConfig.open(args.rig)
-    print(f"rig: {rig.status()}", file=sys.stderr)
-    run_config = RunConfig.from_args(args, rig)
     trigger_error = None
-    if do_rig_check:  # a line that opens, first
-        trigger_error = checks.prepare(curriculum, run_config.curriculum_path)
+    if do_rig_check:  # its triggers, and a line that opens, first
+        rig, trigger_error = checks.prepare(rig)
+    print(f"rig: {rig.status()}", file=sys.stderr)
+    clashes = scanner_key_clashes(curriculum, rig)
+    if clashes:
+        raise ValueError(f"{args.curriculum} on {rig.name}: " + "; ".join(clashes))
+    run_config = RunConfig.from_args(args, rig)
     run = Run.from_config_and_curriculum(run_config, curriculum)
     if do_rig_check:
         run.logger.set_extra("trigger_error", trigger_error)

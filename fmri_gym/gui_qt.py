@@ -377,7 +377,11 @@ class _Editor(QtWidgets.QMainWindow):
             ("Controls", self._tab_controls), ("Triggers", self._tab_triggers))}
         for title, page in pages.items():
             self.tabs.addTab(page, title)
-        self.config_pages = (pages["Controls"], pages["Triggers"])  # a command line has no config
+        self.config_pages = (pages["Controls"],)  # a command line has no config
+        # The triggers are the rig's: shown for the launch's rig, whatever line is selected.
+        self.launch_form.widgets["rig"].currentTextChanged.connect(
+            lambda _text: self._show_rig_triggers())
+        self._show_rig_triggers()
 
     def _build_menu(self) -> None:
         menu = self.menuBar().addMenu("&File")
@@ -637,7 +641,7 @@ class _Editor(QtWidgets.QMainWindow):
         page = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(page)
         self.preset = QtWidgets.QComboBox()
-        self.preset.addItems(list(curriculum.TRIGGER_PRESETS))
+        self.preset.addItems(list(rig_file.TRIGGER_PRESETS))
         # Nothing picked: the forms show the file's settings, not a preset's.
         self.preset.setPlaceholderText("choose a preset...")
         self.preset.setCurrentIndex(-1)
@@ -656,7 +660,12 @@ class _Editor(QtWidgets.QMainWindow):
         forms.addWidget(self._group("codes go out over", self.trigger_form), 1)
         layout.addLayout(forms)
         layout.addLayout(_row(_button("Check", self._refresh_triggers),
-                              _button("Test (send task_start)", self._test_triggers)))
+                              _button("Test (send task_start)", self._test_triggers),
+                              _button("Save to the rig file", self._save_rig_triggers)))
+        self.trigger_rig = QtWidgets.QLabel()
+        self.trigger_rig.setObjectName("hint")
+        self.trigger_rig.setWordWrap(True)
+        layout.addWidget(self.trigger_rig)
         self.trigger_text = QtWidgets.QLabel()
         self.trigger_text.setObjectName("report")
         self.trigger_text.setWordWrap(True)
@@ -714,6 +723,48 @@ class _Editor(QtWidgets.QMainWindow):
             return
         self.launch_form.set_choices("rig", rig_file.names())
         self.launch_form.write("rig", rig_file.name_of(saved))
+        self._show_rig_triggers()
+
+    def _launch_rig(self) -> str | None:
+        """The rig the Launch tab names, or the only one there is; ``None`` without one."""
+        name = self.launch_form.get().get("rig")
+        names = rig_file.names()
+        if name is None:
+            return names[0] if len(names) == 1 else None
+        return name if name in names else None
+
+    def _show_rig_triggers(self) -> None:
+        """The Triggers tab on the launch's rig's ``triggers``: they are the rig's, not a run's."""
+        name = self._launch_rig()
+        section = dict(rig_file.draft(name).get("triggers", {})) if name else {}
+        codes = {**asdict(Codes()), **section.pop("codes", {})}
+        self._set_sync(section.pop("sync", {}), codes["scanner_start"])
+        self.code_form.set(codes)
+        self.trigger_form.set({**_trigger_defaults(), **section})
+        self.trigger_rig.setText(
+            f"The triggers of the rig {name} ({rig_file.path(name)}), for every run on it. "
+            "Save to the rig file keeps a change." if name else
+            "No rig picked on the Launch tab: pick one, or Edit rig... to make one, to see and "
+            "save its triggers.")
+        self._refresh_triggers()
+
+    def _save_rig_triggers(self) -> None:
+        """Write the tab's settings as the launch's rig's ``triggers``."""
+        name = self._launch_rig()
+        if name is None:
+            self._error("No rig picked on the Launch tab: its triggers have nowhere to go")
+            return
+        try:
+            section = self._current_triggers()
+        except ValueError as exc:
+            self._error(str(exc))
+            return
+        problems = rig_file.trigger_problems(section)
+        if problems:
+            self._error("\n".join(problems))
+            return
+        where = rig_file.save({**rig_file.load(name), "triggers": section})
+        self._set_status(f"triggers saved in {where}")
 
     # -- model <-> widgets -------------------------------------------------
 
@@ -757,12 +808,6 @@ class _Editor(QtWidgets.QMainWindow):
         self.edit_index = self.ctl_index = None
         self._refresh_phase_list(0 if self.phases else None)
         self._refresh_ctl_phases()
-        section = dict(config.get("triggers") or {})  # null: not set up yet (a rig check)
-        codes = {**asdict(Codes()), **section.pop("codes", {})}
-        self._set_sync(section.pop("sync", {}), codes["scanner_start"])
-        self.code_form.set(codes)
-        self.trigger_form.set({**_trigger_defaults(), **section})
-        self._refresh_triggers()
         self._show_json(config)
 
     def collect(self) -> dict:
@@ -771,8 +816,7 @@ class _Editor(QtWidgets.QMainWindow):
         :raises ValueError: naming the offending field.
         """
         self._commit()
-        return {**copy.deepcopy(self.notes), "triggers": self._current_triggers(),
-                "curriculum": copy.deepcopy(self.phases)}
+        return {**copy.deepcopy(self.notes), "curriculum": copy.deepcopy(self.phases)}
 
     def _set_status(self, text: str = "") -> None:
         step = self.steps[self.step_index]
@@ -1476,7 +1520,7 @@ class _Editor(QtWidgets.QMainWindow):
     def _apply_preset(self) -> None:
         if self.preset.currentIndex() < 0:
             return
-        section = copy.deepcopy(curriculum.TRIGGER_PRESETS[self.preset.currentText()])
+        section = copy.deepcopy(rig_file.TRIGGER_PRESETS[self.preset.currentText()])
         start = self.sync_form.get().get("scanner_start", Codes().scanner_start)  # a preset keeps it
         self._set_sync(section.pop("sync"), start)
         self.trigger_form.set({**_trigger_defaults(), **section})
@@ -1503,7 +1547,7 @@ class _Editor(QtWidgets.QMainWindow):
         except ValueError as exc:  # a non-numeric field, named in the message
             self.trigger_text.setText(str(exc))
             return
-        problems = curriculum.trigger_problems(section)
+        problems = rig_file.trigger_problems(section)
         self.trigger_text.setText("\n".join(problems) if problems
                                   else gui.describe_triggers(section))
 
@@ -1679,7 +1723,6 @@ class _Editor(QtWidgets.QMainWindow):
                          for p in curriculum.validate_curriculum(self.configs[step["config"]])]
         if all(step["skip"] for step in self.steps):
             problems.append("every run is skipped: nothing would play")
-        problems += gui.trigger_mismatches(self.steps, self.configs)
         if not self._has_rig_check():  # a rig check makes the rig's file when it has none
             try:
                 gui.launch_values(self.launch_form.get()).data_root()
@@ -1754,6 +1797,8 @@ class _RigForm(QtWidgets.QDialog):
     def __init__(self, values: dict) -> None:
         super().__init__()
         self.setWindowTitle(f"Rig file: {rig_file.folder()}/<site>/<rig>.json")
+        #: what the form does not edit (the Triggers tab does), kept as it is
+        self._kept = {k: values[k] for k in ("triggers",) if k in values}
         self.setMinimumWidth(640)
         self.fields: dict[str, QtWidgets.QWidget] = {}
         layout = QtWidgets.QVBoxLayout(self)
@@ -1889,7 +1934,7 @@ class _RigForm(QtWidgets.QDialog):
         out["has_pad"] = self.switches["has_pad"].isChecked()
         out["has_audio"] = self.switches["has_audio"].isChecked()
         out["data_root"] = self.data_root.text().strip()
-        return out
+        return {**out, **self._kept}
 
     def accept(self) -> None:
         """Close with Save only when valid: a disabled button does not stop Enter."""
@@ -1942,7 +1987,7 @@ class _TriggerChoice(QtWidgets.QDialog):
         intro.setWordWrap(True)
         layout.addWidget(intro)
         self.preset = QtWidgets.QComboBox()
-        self.preset.addItems([self._PICK, *curriculum.TRIGGER_PRESETS])
+        self.preset.addItems([self._PICK, *rig_file.TRIGGER_PRESETS])
         self.preset.activated.connect(self._apply_preset)
         layout.addLayout(_row(QtWidgets.QLabel("setup"), self.preset))
         self.sync_form, self.trigger_form = _Form(gui.SYNC_FIELDS), _Form(gui.TRIGGER_FIELDS)
@@ -1966,7 +2011,7 @@ class _TriggerChoice(QtWidgets.QDialog):
     def _apply_preset(self) -> None:
         if self.preset.currentText() == self._PICK:
             return
-        section = copy.deepcopy(curriculum.TRIGGER_PRESETS[self.preset.currentText()])
+        section = copy.deepcopy(rig_file.TRIGGER_PRESETS[self.preset.currentText()])
         sync = {**asdict(SyncSettings()), **section.pop("sync"),
                 "scanner_start": Codes().scanner_start}
         self.sync_form.set(sync)
@@ -1988,7 +2033,7 @@ class _TriggerChoice(QtWidgets.QDialog):
         self.sync_form.show_rows(["mode", *gui.SYNC_ROWS.get(mode, ())])
         try:
             section = self.section()
-            problems = curriculum.trigger_problems(section)
+            problems = rig_file.trigger_problems(section)
         except ValueError as exc:  # a number half typed, named in the message
             section, problems = None, [str(exc)]
         except KeyError:  # a form half refilled by a preset: its next change completes it

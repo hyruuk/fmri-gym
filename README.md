@@ -75,7 +75,7 @@ A run is a JSON file and a session is a `.sh` script (below). Write them by hand
 
 ```bash
 uv sync --extra dbp --extra gui
-uv run fmri-edit --curriculum configs/curricula/demos/meg.json
+uv run fmri-edit --curriculum configs/curricula/ale/pong.json
 uv run fmri-edit --session configs/subjects/boston-college/sub-01/ses-001/dbp_mix.sh
 uv run fmri-edit                                    # start from a new run
 ```
@@ -149,6 +149,7 @@ Runtime flow: experimenter screen (**SPACE**) → "Waiting for scanner..." → s
 | `"has_pad"` | read a plugged-in game controller | `true` |
 | `"has_audio"` | play game audio; `false` mutes every block | `true` |
 | `"data_root"` | where the BIDS tree goes | `data` |
+| `"triggers"` | how a run starts and what codes the recording gets, over which line (see [Triggers](#triggers-fmri-vs-megeeg)) | wait for `=`, no codes, reported as NOT SET |
 
 `fmri-play --rig <site>/<rig>` picks the rig. With one rig file there is nothing to pick; with none, or with several and no `--rig`, `fmri-play` does not start and says how to pick or make one. Each rig gets one long rig check, which makes its file: its form asks for each field the first time (`fmri-play --curriculum configs/curricula/checks/rig-check-long.json --subject sub-rig --ses 1 --run 1 --rig <site>/<rig>`; `python -m fmri_gym.checks rig --rig <site>/<rig>` opens the form alone, or edits it later); commit the file it writes. In the editor, the Launch tab picks the rig and its **Edit rig...** opens the same form. The console says which rig file a run read and what it settles, and every run's manifest keeps it (`"rig"`, defaults written out).
 
@@ -552,7 +553,7 @@ A resumed episode starts from that savestate rather than from its seed alone, so
 
 ## Triggers: fMRI vs MEG/EEG
 
-The `"triggers"` section next to `"curriculum"` says how a run starts and what the recording gets (full example: `configs/curricula/demos/meg.json`):
+The rig file's `"triggers"` section (see *Rigs*) says how a run starts and what the recording gets, for every curriculum played on the rig (a full example is in `configs/rigs/README.md`):
 
 ```jsonc
 "triggers": {
@@ -569,7 +570,7 @@ The `"triggers"` section next to `"curriculum"` says how a run starts and what t
 
 `backend`: `null`, `lsl`, `serial` or `parallel` — `uv sync --extra triggers` (pylsl / pyserial / pyparallel); `port` for serial/parallel, `lsl_stream_name` for LSL.
 
-Which of these a rig needs varies: the scanner may type a key at every volume, or start its recording when the stimulus PC sends a code, or neither. So the config says what happens rather than naming a modality, and the editor offers a template per common setup:
+Which of these a rig needs varies: the scanner may type a key at every volume, or start its recording when the stimulus PC sends a code, or neither. So the rig file says what happens rather than naming a modality, and the editor's Triggers tab offers a template per common setup:
 
 | setup | `sync.mode` | `backend` |
 |---|---|---|
@@ -578,7 +579,7 @@ Which of these a rig needs varies: the scanner may type a key at every volume, o
 | the recording is started by hand, the PC gets the scanner's key | `wait` | `serial` / `parallel` / `lsl` |
 | bench test, nothing connected | `none` | `null` |
 
-Leaving `sync.mode` or `backend` out defaults to `wait` / `null`, and says so: the experimenter screen, the console and the manifest all report it (`NOT SET in config: sync.mode, backend`), as they do for `--dummy-trigger`.
+Leaving `sync.mode` or `backend` out defaults to `wait` / `null`, and says so: the experimenter screen, the console and the manifest all report it (`NOT SET in the rig file: sync.mode, backend`), as they do for `--dummy-trigger`.
 
 What is sent: `task_start` when the clock anchors, `episode_start` at each reset, one code per frame (`"frame_every": N` to thin, `"on_frame": false` to drop), `task_stop` at the end. Codes never share bits, so two triggers on the same sample still decode: frames cycle 1–7 in the low 3 bits, `task_start`=8, `task_stop`=16, `episode_start`=32, `scanner_start`=64, and a lifecycle code is OR'd with the current frame code (all under `"codes"`; overlaps are refused). Every value sent is logged: per frame as `trigger` on the block's `frame` lines, lifecycle events with their `run_time` under `triggers` in `manifest.json`.
 
@@ -591,13 +592,13 @@ Frames are shown with a vsync-locked flip and each frame's onset is logged as `f
 - Once per rig, measure the constant flip-to-photon offset with a photodiode on the screen, then subtract it from `flip_time` and the frame triggers:
 
   ```bash
-  python -m fmri_gym.photodiode --fullscreen --config configs/curricula/demos/meg.json   # diode into the MEG/EEG amp
+  python -m fmri_gym.photodiode --fullscreen --rig <site>/<rig>     # diode into the MEG/EEG amp, codes on the rig's line
   python -m fmri_gym.photodiode --fullscreen --audio                          # diode into this PC's sound card
   python -m fmri_gym.photodiode --fullscreen --audio --audio-click --mic       # + mic on input 1: when sound is heard
   ```
 
   The first flashes a patch with the frame trigger on each white flip; match the triggers to the diode edges in your recording with `fmri_gym.photodiode.match_edges(trigger_times, edge_times)`. The second records the diode on the sound-card input and prints the offsets itself (`--list-audio-devices` to pick the input). `--audio-click` also plays a tone burst on each white flip through the session's audio output and reports when it reaches the DAC; with `--mic`, when a microphone on input channel 1 hears it.
-- **The rig check** runs all of these as one run: `configs/curricula/checks/rig-check.json`, whose curriculum holds check phases instead of games, played by `fmri-play` with the window, trigger line and audio output a session opens. So the editor edits it like any config -- its **Triggers** tab sets the line it tests (make it the session's), its **Controls** tab the buttons it asks for (Use a device layout to fill them in) -- and it can stand first in any session: add `configs/curricula/checks/rig-check.json` as its first run. A failed test does not stop the check or the session: it is listed, with why, on screen, on the console and in the report. On its own, the session `configs/rigs/rig-check.sh` plays the long check (filed under `sub-rig`, as MEG-BIDS files empty-room recordings under `sub-emptyroom`; its first line, the quick check, is skipped: un-skip it to play that one): open it in the editor, `fmri-edit --session configs/rigs/rig-check.sh`, and press Play, or run `sh configs/rigs/rig-check.sh`.
+- **The rig check** runs all of these as one run: `configs/curricula/checks/rig-check.json`, whose curriculum holds check phases instead of games, played by `fmri-play` with the window, trigger line and audio output a session opens. So the editor edits it like any config -- the line it tests is the rig's (its **Triggers** tab edits the rig's triggers), its **Controls** tab the buttons it asks for (Use a device layout to fill them in) -- and it can stand first in any session: add `configs/curricula/checks/rig-check.json` as its first run. A failed test does not stop the check or the session: it is listed, with why, on screen, on the console and in the report. On its own, the session `configs/rigs/rig-check.sh` plays the long check (filed under `sub-rig`, as MEG-BIDS files empty-room recordings under `sub-emptyroom`; its first line, the quick check, is skipped: un-skip it to play that one): open it in the editor, `fmri-edit --session configs/rigs/rig-check.sh`, and press Play, or run `sh configs/rigs/rig-check.sh`.
 
   | phase | test | fails when |
   |---|---|---|

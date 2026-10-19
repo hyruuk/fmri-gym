@@ -4,14 +4,14 @@ Session manager has two panels. Session design is the session's lines
 (:func:`write_session`) -- each a run, a config file, or an external
 command; add, repeat, remove, reorder, skip -- as a list or as the script
 itself. Run design is the selected run's config (:mod:`fmri_gym.config.curriculum`), as a
-phase list with one form per phase type or as its JSON. Two more tabs edit
-that config: Controls (the ``keys`` remap of a game phase,
-with the backend's defaults on request), Triggers (the start sync, the
-backend and the codes, with fMRI/MEG/EEG presets, a check and a live test). The
-last tab, Launch, holds the command-line flags
-of this one launch (subject, session, rig, test switch): they are never saved
-to the file. How the rig plays it -- window, controller, audio, data folder --
-is the rig file's (:mod:`fmri_gym.config.rig`), which Launch's Edit rig... opens.
+phase list with one form per phase type or as its JSON. Controls edits that
+config's game phases' ``keys``. Launch holds the command-line flags of this
+one launch (subject, session, rig, test switch): they are never saved to the
+file. How the rig plays it -- window, controller, audio, data folder,
+triggers -- is the rig file's (:mod:`fmri_gym.config.rig`): Launch's Edit
+rig... opens its form, and the Triggers tab edits its triggers (the start
+sync, the backend and the codes, with fMRI/MEG/EEG presets, a check and a
+live test).
 File > New / Open / Save / Save As.
 
 A lone config is a session of one run with no script. Save writes the configs
@@ -41,7 +41,7 @@ import os
 import re
 import shlex
 import sys
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass, replace
 from typing import Any, Sequence
 
 from . import bids
@@ -481,44 +481,6 @@ def launch_values(form: dict) -> Launch:
         raise ValueError("--subject: required")
     off = {f.key: False for f in LAUNCH_FIELDS if f.kind == "bool"}
     return Launch(**{"ses": None, "rig": None, **off, **form})
-
-
-def trigger_mismatches(steps: list[dict], configs: dict[str, dict]) -> list[str]:
-    """Runs of one session whose triggers differ: a session has one scanner and one line.
-
-    Each run keeps its own ``triggers`` section, so one edited on the Triggers
-    tab changes that run only; a rig check set to ``send`` before a game run
-    left at ``wait`` would test a line the session never uses.
-
-    :param steps: the session's lines; skipped ones and commands are left out.
-    :param configs: config path -> config.
-    :return: one problem naming each run's settings, or nothing when they agree.
-    """
-    seen: dict[str, list[str]] = {}
-    for step in steps:
-        if step["skip"] or "config" not in step:
-            continue
-        try:
-            s = asdict(TriggerSettings.from_dict(configs[step["config"]].get("triggers")))
-        except (TypeError, ValueError):
-            continue  # validate_curriculum names what is wrong with it
-        s.pop("defaulted")
-        seen.setdefault(json.dumps(s, sort_keys=True), []).append(step["config"])
-    if len(seen) < 2:
-        return []
-    groups = "; ".join(f"{', '.join(paths)}: {_short_triggers(json.loads(key))}"
-                       for key, paths in seen.items())
-    return [f"the session's runs have different triggers ({groups}); a session has one "
-            "scanner and one trigger line: make them the same on the Triggers tab"]
-
-
-def _short_triggers(s: dict) -> str:
-    """``sync wait for '=', backend null`` / ``sync send, backend serial /dev/ttyUSB0``."""
-    sync = s["sync"]
-    start = f"sync wait for {sync['key']!r}" if sync["mode"] == "wait" else f"sync {sync['mode']}"
-    line = {"lsl": s["lsl_stream_name"], "serial": s["port"], "parallel": s["port"]}
-    where = f" {line[s['backend']]}" if line.get(s["backend"]) else ""
-    return f"{start}, backend {s['backend']}{where}"
 
 
 def phase_label(index: int, phase: dict) -> str:

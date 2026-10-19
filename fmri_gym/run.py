@@ -439,7 +439,7 @@ class Run:
         check_monitor(config.rig.screen.monitor)
         fold_cli_options(phases, has_audio=config.rig.has_audio)
 
-        triggers = Triggers.from_dict(curriculum.get("triggers"))
+        triggers = Triggers(config.rig.triggers)
         print(f"triggers: {triggers.status()}", file=sys.stderr)
         if config.dummy_trigger:
             print("triggers: --dummy-trigger: the experimenter and scanner waits are skipped; "

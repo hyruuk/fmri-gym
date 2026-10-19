@@ -24,7 +24,11 @@ code say the same thing:
   the monitor's resolution;
 - ``"has_pad"``: read a plugged-in game controller (:mod:`fmri_gym.pad`);
 - ``"has_audio"``: play game audio; ``false`` mutes every block;
-- ``"data_root"``: where the BIDS tree goes, ``<root>/sub-XX/ses-NNN/beh/<run>/``.
+- ``"data_root"``: where the BIDS tree goes, ``<root>/sub-XX/ses-NNN/beh/<run>/``;
+- ``"triggers"``: the scanner's start sync and the trigger codes, over which
+  line (:class:`~fmri_gym.triggers.TriggerSettings`); left out, the run waits
+  for ``=`` and sends no codes, and says so on the experimenter screen and in
+  the manifest (``defaulted``).
 
 It is written by hand or in the rig form (``python -m fmri_gym.checks rig --rig
 <site>/<rig>``), which a rig check also opens when its rig has no valid file.
@@ -35,9 +39,11 @@ from __future__ import annotations
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
+
+from ..triggers import TriggerError, TriggerSettings
 
 MODALITIES = ("fmri", "meg", "eeg", "behav")
 #: What the rig is: every key required (``notes`` may be empty).
@@ -64,7 +70,21 @@ EXAMPLES = {
 #: the pad and the audio on.
 DEFAULTS: dict[str, Any] = {
     "screen": {"size": "1024x768", "is_fullscreen": False, "monitor": 0, "has_vsync": True},
-    "has_pad": True, "has_audio": True, "data_root": "data",
+    "has_pad": True, "has_audio": True, "data_root": "data", "triggers": {},
+}
+#: Trigger presets the editor and the rig check offer. Each names ``sync.mode``
+#: and ``backend`` outright: a section that leaves them out runs, but is
+#: reported as NOT SET.
+TRIGGER_PRESETS: dict[str, dict] = {
+    "fMRI (wait for '=', no codes)": {
+        "sync": {"mode": "wait", "key": "="}, "backend": "null"},
+    # MEG and EEG alike: the stimulus PC starts the recording and marks it, over serial.
+    "MEG (start from the trigger line, serial codes)": {
+        "sync": {"mode": "send", "delay": 0.0}, "backend": "serial", "port": "/dev/ttyUSB0"},
+    "EEG (start from the trigger line, serial codes)": {
+        "sync": {"mode": "send", "delay": 0.0}, "backend": "serial", "port": "/dev/ttyUSB0"},
+    "Behavioural (no scanner)": {
+        "sync": {"mode": "none"}, "backend": "null"},
 }
 #: Site and rig: values in the TSV, never in a file name, so BIDS's letters-and-digits
 #: rule does not bind them; still no spaces, as rows are grouped by them when pooled.
@@ -121,6 +141,8 @@ class RigConfig:
     has_audio: bool
     #: the BIDS tree's root.
     data_root: str
+    #: the scanner's start sync and the trigger codes, over which line.
+    triggers: TriggerSettings
 
     @classmethod
     def from_dict(cls, rig: dict, name: str) -> RigConfig:
@@ -143,7 +165,8 @@ class RigConfig:
         return cls(name=name, fields={k: rig[k] for k in FIELDS},
                    screen=ScreenConfig.from_dict(rig.get("screen", {})),
                    has_pad=settings["has_pad"], has_audio=settings["has_audio"],
-                   data_root=settings["data_root"])
+                   data_root=settings["data_root"],
+                   triggers=TriggerSettings.from_dict(settings["triggers"]))
 
     @classmethod
     def open(cls, name: str | None) -> RigConfig:
@@ -155,10 +178,25 @@ class RigConfig:
         name = choose(name)
         return cls.from_dict(load(name), name)
 
+    @property
+    def has_trigger_setup(self) -> bool:
+        """Whether the file says how the run starts or where codes go (not both defaulted)."""
+        return set(self.triggers.defaulted) != {"sync.mode", "backend"}
+
+    def without_trigger_line(self) -> RigConfig:
+        """This rig with no trigger line (``null`` backend): what a rig check plays on when
+        the line does not open, so its other checks still run. ``send`` becomes ``none``,
+        since it needs a line; the file is untouched."""
+        sync = self.triggers.sync
+        if sync.mode == "send":
+            sync = replace(sync, mode="none")
+        return replace(self, triggers=replace(self.triggers, backend="null", sync=sync))
+
     def record(self) -> dict[str, Any]:
         """The rig file as the run played it, every default written out: the manifest's."""
         return {**self.fields, "screen": self.screen.record(), "has_pad": self.has_pad,
-                "has_audio": self.has_audio, "data_root": self.data_root}
+                "has_audio": self.has_audio, "data_root": self.data_root,
+                "triggers": asdict(self.triggers)}
 
     def status(self) -> str:
         """One line for the console: which file, and what it settles."""
@@ -167,7 +205,8 @@ class RigConfig:
                   else f"{screen.size[0]}x{screen.size[1]} window")
         return (f"{path(self.name)} | {window} on monitor {screen.monitor}, vsync "
                 f"{'on' if screen.has_vsync else 'off'} | pad {'on' if self.has_pad else 'off'}"
-                f" | audio {'on' if self.has_audio else 'off'} | data in {self.data_root}")
+                f" | audio {'on' if self.has_audio else 'off'} | data in {self.data_root}"
+                f" | triggers {self.triggers.sync.mode}, codes over {self.triggers.backend}")
 
 
 def folder() -> Path:
@@ -301,4 +340,23 @@ def _setting_problems(rig: dict) -> list[str]:
     root = rig.get("data_root", DEFAULTS["data_root"])
     if not isinstance(root, str) or not root:
         out.append(f'"data_root" must be a folder, got {root!r}')
-    return out
+    return out + trigger_problems(rig.get("triggers", {}))
+
+
+def trigger_problems(section: Any) -> list[str]:
+    """What :class:`~fmri_gym.triggers.TriggerSettings` refuses in a ``triggers`` section, as text.
+
+    The port is the one check added here: the settings accept a missing port
+    and the backend refuses it on opening, which a check before the run never does.
+
+    :return: at most one problem (the first the settings raise).
+    """
+    if not isinstance(section, dict):
+        return [f'"triggers": expected an object, got {section!r}']
+    try:
+        s = TriggerSettings.from_dict(section)
+    except (TypeError, ValueError, TriggerError) as exc:
+        return [str(exc)]
+    if s.backend in ("serial", "parallel") and not s.port:
+        return [f"triggers: backend {s.backend!r} needs a port"]
+    return []

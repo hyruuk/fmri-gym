@@ -1,14 +1,13 @@
-"""The curriculum: what one run plays. Load, save, check, and the trigger presets.
+"""The curriculum: what one run plays. Load, save, check.
 
-A curriculum is one JSON file: a ``curriculum`` list of phases (see README)
-and an optional ``triggers`` section (:mod:`fmri_gym.triggers`); a key
-that starts with ``##`` is a comment, anywhere. Several runs make a session, which is a shell
+A curriculum is one JSON file: a ``curriculum`` list of phases (see README);
+a key that starts with ``##`` is a comment, anywhere. Several runs make a session, which is a shell
 script (:func:`fmri_gym.gui.write_session`), not a curriculum.
 
 The file says what is played, not who plays it or where: subject and test
 switches are the run config (:mod:`fmri_gym.config.run`), and the window,
-audio and output folder the rig's (:mod:`fmri_gym.config.rig`), so one file
-serves every participant at every site.
+audio, triggers and output folder the rig's (:mod:`fmri_gym.config.rig`), so
+one file serves every participant at every site. Nothing here reads a rig.
 
 There is one shape. A bare list, an unknown top-level key, an unknown phase
 type or a phase key starting with ``_`` (the one prefix the loader keeps for
@@ -25,7 +24,6 @@ downstream, the manifest included, sees each phase written out in full.
 
 from __future__ import annotations
 
-import copy
 import json
 import os
 from dataclasses import dataclass
@@ -34,12 +32,11 @@ from typing import Any
 
 from ..keys import KEY_NAMES
 from ..menu import menu_problems
-from ..triggers import TriggerError, TriggerSettings
 
 #: The phases of a run; the ``check_*`` ones make a rig check (:mod:`fmri_gym.checks`).
 PHASE_TYPES = ("fixation", "message", "game", "survey", "check_display", "check_frames",
                "check_triggers", "check_controls", "check_photodiode")
-SECTIONS = ("curriculum", "triggers")
+SECTIONS = ("curriculum",)
 #: A key that starts with this is a comment: nothing reads it.
 COMMENT_PREFIX = "##"
 #: A phase's key naming the file of the shared phase it starts from.
@@ -55,21 +52,6 @@ RESUMABLE_CHANGES = frozenset({"duration", "n_episodes", "advance_on", "show_out
 #: Exit status of ``fmri_play`` when the run was quit (ESC) before its end; a
 #: session script (``set -e``) stops on it instead of starting the next run.
 EXIT_QUIT = 3
-
-#: Trigger presets the editor offers. Each names ``sync.mode`` and ``backend``
-#: outright: a section that leaves them out runs, but is reported as NOT SET.
-TRIGGER_PRESETS: dict[str, dict] = {
-    "fMRI (wait for '=', no codes)": {
-        "sync": {"mode": "wait", "key": "="}, "backend": "null"},
-    # MEG and EEG alike: the stimulus PC starts the recording and marks it, over serial.
-    "MEG (start from the trigger line, serial codes)": {
-        "sync": {"mode": "send", "delay": 0.0}, "backend": "serial", "port": "/dev/ttyUSB0"},
-    "EEG (start from the trigger line, serial codes)": {
-        "sync": {"mode": "send", "delay": 0.0}, "backend": "serial", "port": "/dev/ttyUSB0"},
-    "Behavioural (no scanner)": {
-        "sync": {"mode": "none"}, "backend": "null"},
-}
-
 
 #: An episode's possible outcomes: EnvAdapter.outcome's names, and the subject's own endings.
 OUTCOMES = frozenset({"won", "lost", "terminated", "truncated", "playing", "forfeit", "reset"})
@@ -396,7 +378,6 @@ def save_curriculum(curriculum: dict, path: str) -> None:
 def new_curriculum() -> dict:
     """A minimal starting curriculum: one message, one fixation, one game."""
     return {
-        "triggers": copy.deepcopy(next(iter(TRIGGER_PRESETS.values()))),
         "curriculum": [
             {"type": "message", "text": "Get ready\n\n(press SPACE to start)"},
             {"type": "fixation", "duration": 2.0},
@@ -426,8 +407,8 @@ def fold_cli_options(phases: list[dict], *, has_audio: bool) -> None:
 def validate_curriculum(curriculum: dict) -> list[str]:
     """Problems that would stop ``fmri_play`` before the first phase.
 
-    Cheap checks only (no env is built, no port opened), for the editor's
-    Check: the required game fields and the triggers section.
+    Cheap checks only (no env is built), for the editor's Check: the phases'
+    required fields and their shapes.
 
     :param curriculum: a curriculum dict of the right shape.
     :return: human-readable problems, empty when the curriculum looks runnable.
@@ -439,33 +420,7 @@ def validate_curriculum(curriculum: dict) -> list[str]:
     for i, phase in enumerate(phases):
         problems.extend(f"phase {i}: {p}" for p in _phase_problems(phase, i))
     problems.extend(_opening_problems(phases))
-    problems.extend(trigger_problems(curriculum.get("triggers")))
-    problems.extend(trigger_key_clashes(curriculum))
     return problems
-
-
-def trigger_key_clashes(curriculum: dict) -> list[str]:
-    """Phases whose ``keys`` bind the key the scanner types at every volume.
-
-    A button box in a digit mode sends its trigger as a digit too (Current
-    Designs: ``5``). With ``sync.mode`` ``wait`` on that key, a game bound to
-    it would act at every volume. Only a phase's own ``keys`` are checked: a
-    backend's default map is known once its env is built.
-
-    :param curriculum: a curriculum of the right shape.
-    :return: one problem per clashing binding.
-    """
-    try:
-        sync = TriggerSettings.from_dict(curriculum.get("triggers")).sync
-    except (TypeError, ValueError, TriggerError):
-        return []  # trigger_problems says why
-    name = sync.key.upper()
-    if sync.mode != "wait" or not (len(name) == 1 and name.isalnum()):
-        return []  # "=" is no game key: nothing can clash
-    return [f"phase {i}: keys: {combo} uses {sync.key!r}, the key the scanner types at every "
-            f"volume (triggers.sync.key): bind another key"
-            for i, phase in enumerate(curriculum["curriculum"])
-            for combo in phase.get("keys", {}) if name in combo.upper().split("+")]
 
 
 def _opening_problems(phases: list[dict]) -> list[str]:
@@ -618,22 +573,4 @@ def _fps_problems(phase: dict) -> list[str]:
                 "not assumed: 60 for console cores and Atari, 35 / frame_skip for Doom)"]
     if isinstance(fps, bool) or not isinstance(fps, (int, float)) or fps <= 0:
         return [f"fps: expected a positive number of steps per second, got {fps!r}"]
-    return []
-
-
-def trigger_problems(section: dict | None) -> list[str]:
-    """What :class:`~fmri_gym.triggers.TriggerSettings` refuses, as text.
-
-    The port is the one check added here: the settings accept a missing port
-    and the backend refuses it on opening, which the editor's Check never does.
-
-    :param section: the ``triggers`` section, or ``None``.
-    :return: at most one problem (the first the settings raise).
-    """
-    try:
-        s = TriggerSettings.from_dict(section)
-    except (TypeError, ValueError, TriggerError) as exc:
-        return [str(exc)]
-    if s.backend in ("serial", "parallel") and not s.port:
-        return [f"triggers: backend {s.backend!r} needs a port"]
     return []
