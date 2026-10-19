@@ -171,7 +171,7 @@ Those four directions are the obvious ones -- 0, 90, 180, 270 -- and the calibra
 
 **The centre is not a constant, so it is measured as one movement, not stored as one place.** Cold, this pad read -0.003 one session and -0.019 the next; after it had been deflected once it sat at -0.10 in the first and -0.165 in the second and stayed there. The gimbal does not return where it started. So the calibration measures *how far* the centre moves -- where the stick sits before it has been touched against where it settles after the sweep -- and a run takes its centre once, the first time the stick is used and then let go still for a second, allowed to move only as far as that measurement says it can. It never re-centres while a direction is pressed, which would release the key under a subject leaning on the stick, and a stick that settles further out than the measured movement is refused with a message rather than believed: that is a stick that has drifted past its calibration, and the stops have not moved with it, so one side really has lost travel. With a 0.20 drift injected into a recorded session, a fixed centre held a key down on 43% of the frames where nobody was pushing; taking it once, 16%.
 
-**The rig check measures it.** `check_controls` looks for a controller first. If one is plugged in it runs the calibration there and then, on the window the check already has open, and writes this rig's `pad.json` -- so the measurement is part of setting the rig up rather than a separate thing to remember, and every later run on the machine reads what it wrote. The check then asks for its keys as usual, now through the calibration it just made, and fails if the fit is not usable: a cued trial with no push, a cue read as another control, or under 10 degrees between a push and the next direction. With no controller plugged in there is nothing to measure and whatever device is in use is expected to send the keys itself, which is what the key prompts test. `"pad": false` in the phase skips the measurement and leaves any existing calibration alone; `"pad_reps"` sets how many times each control is cued (3, so 30 trials).
+**The rig check measures it.** `check_controls` looks for a controller first. If one is plugged in it runs the calibration there and then, on the window the check already has open, and writes this rig's `pad.json` -- so the measurement is part of setting the rig up rather than a separate thing to remember, and every later run on the machine reads what it wrote. The check then asks for its keys as usual, now through the calibration it just made, and fails if the fit is not usable: a cued trial with no push, a cue read as another control, or under 10 degrees between a push and the next direction. With no controller plugged in there is nothing to measure and whatever device is in use is expected to send the keys itself, which is what the key prompts test. `"has_pad": false` in the phase skips the measurement and leaves any existing calibration alone; `"pad_reps"` sets how many times each control is cued (3, so 30 trials).
 
 ## Running stable-retro games
 
@@ -327,7 +327,8 @@ Most games need only the last: a pip package already provides the env. Nothing a
 fmri_gym/
   run.py        # trigger, clock, curriculum loop, phases  — 100% engine-agnostic
   config/
-    curriculum.py   # the curriculum file: load, save, check
+    curriculum.py   # Curriculum: the curriculum file, loaded once into typed phases; load, save, includes
+    phases.py       # one dataclass per phase type (Fixation, Message, Survey, GamePhase, Check*), its checks
     rig.py          # the rig files (configs/rigs/<site>/<rig>.json): what it is, screen, pad, audio, data root
     run.py          # RunConfig: one run's command line and the rig it is played on
   display.py        # pygame: fixed window, aspect-fit frame, fixation, text; vsync-locked flip + call_on_flip
@@ -607,7 +608,7 @@ Frames are shown with a vsync-locked flip and each frame's onset is logged as `f
   | `check_triggers` | triggers | the line does not open, LSL does not read back what was sent, or the scanner's pulses do not come or come irregularly (counted when the run waits for the scanner). This PC's ports and LSL are listed first, with a warning when none is usable. Codes sent over serial/parallel are printed: check them in the recording |
   | `check_controls` | controls | a key is not read back through the event queue as itself (automatic), or is not pressed when asked for on screen (the input devices plugged in are listed) |
   | `check_photodiode` | photodiode | the diode misses a flash, or sees only the flashes with a click (it hears sound). `"readout": "recording"`: matched offline to the frame triggers |
-  | | audio | a tone burst (every other flash, through the session's output) never reaches the DAC, or with `"mic": true` a microphone at the ear on input 1 misses one |
+  | | audio | a tone burst (every other flash, through the session's output) never reaches the DAC, or with `"has_mic": true` a microphone at the ear on input 1 misses one |
 
   The rig-check configs ship with `"triggers": null`: no setup is anyone's default. The first rig check asks for one -- a preset (fMRI, MEG, EEG, behavioural) or your own -- and saves it in the config; the Triggers tab changes it later. With no screen for the dialog it stops and says so.
 

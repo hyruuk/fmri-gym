@@ -271,9 +271,9 @@ PHASE_FIELDS: dict[str, list[Field]] = {
                   "frame triggers (the Triggers tab's line)."),
         Field("input_device", "input device", tip="Sound-card input, index or name "
                                                   "(blank: the default)."),
-        Field("mic", "microphone", "bool", default=False,
+        Field("has_mic", "has_mic", "bool", default=False,
               tip="A microphone at the ear on input 1: the clicks are timed when heard."),
-        Field("audio", "audio test", "bool", default=True,
+        Field("has_audio", "has_audio", "bool", default=True,
               tip="A tone burst on every other flash through the session's audio output, "
                   "timed at the DAC."),
         Field("n", "flashes", "int", tip="Flashes (default 10; the long check 850)."),

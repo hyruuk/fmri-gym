@@ -183,27 +183,6 @@ def run_output(root: str, subject: str, curriculum_path: str,
     return RunOutput(folder, label, attempt)
 
 
-def fold_seeds(phases: list[dict], label: str) -> dict:
-    """Give each game phase that pins no ``"seed"`` the one derived for this run.
-
-    The run plays episode e with ``seed + e`` as for any phase, and the
-    manifest's curriculum shows every seed; what was derived is said here.
-
-    :param phases: the curriculum's phases, seeded in place.
-    :param label: :func:`run_label` -- so every attempt at a run replays the
-        same episodes.
-    :return: the manifest's ``seeds`` entry: the run label, and phase -> how set.
-    """
-    how = {}
-    for i, phase in enumerate(phases):
-        if phase["type"] != "game":
-            continue
-        how[i] = "pinned" if "seed" in phase else "derived"
-        phase.setdefault("seed", phase_seed(label, i))
-        print(f"seeds: phase {i} = {phase['seed']} ({how[i]})", file=sys.stderr)
-    return {"derived_from": label, "phases": how}
-
-
 def phase_seed(label: str, index: int) -> int:
     """A game phase's base seed when it pins none: its episodes get ``seed, seed + 1, ...``.
 

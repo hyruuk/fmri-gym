@@ -285,3 +285,20 @@ def test_changed_files_select_backends(paths, direct, core):
     selection = select(paths)
     assert selection.direct == direct
     assert selection.core is core
+
+
+def test_a_curriculum_loads_once_into_typed_phases(tmp_path):
+    from fmri_gym.config.curriculum import Curriculum
+    from fmri_gym.config.phases import Fixation, GamePhase, Message
+    path = _write(tmp_path / "run.json", {"curriculum": [
+        {"type": "message", "text": ["a", "b"], "key": "any"},
+        {"type": "fixation", "duration": 1.5},
+        {**PHASE, "seed": 7}, PHASE]})
+    loaded = Curriculum.load(str(path))
+    assert [type(p) for p in loaded.phases] == [Message, Fixation, GamePhase, GamePhase]
+    assert loaded.phases[0].text == "a\nb" and loaded.phases[1].duration == 1.5
+    seeded, how = loaded.with_seeds(lambda i: 100 + i)
+    assert [p.seed for p in seeded.phases[2:]] == [7, 103] and how == {2: "pinned", 3: "derived"}
+    assert seeded.record()[3]["seed"] == 103 and loaded.record()[3] == PHASE
+    with pytest.raises(ValueError, match="fps"):
+        Curriculum.from_dict({"curriculum": [{**PHASE, "fps": 0}]}, "bad.json")

@@ -30,7 +30,7 @@ import sys
 import time
 from collections import Counter, deque
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -40,7 +40,8 @@ from . import bids, pad
 from .adapters import get_adapter
 from .audio import Audio
 from .bids import BlockProgress, RunProgress
-from .config.curriculum import BlockMode, GamePhase, game_changes
+from .config.curriculum import Curriculum, game_changes
+from .config.phases import CHECK_PHASES, BlockMode, Fixation, GamePhase, Message, Survey
 from .config.run import RunConfig
 from .display import Display, check_monitor
 from .keys import get_events, held_key_names, key_name
@@ -235,17 +236,6 @@ def _wait_for_char(
         display.idle(time.perf_counter() + 0.005, poll=0.005)
 
 
-def _join_multiline_text(text: str | list | tuple) -> str:
-    """Normalize message ``text`` to a single string.
-
-    Accepts a plain string or a list/tuple of lines (joined with ``\\n``), so
-    curriculum JSON can keep long instructions readable without ``\\n`` escapes.
-    """
-    if isinstance(text, (list, tuple)):
-        return "\n".join("" if line is None else str(line) for line in text)
-    return str(text)
-
-
 def _wait_for_duration(display: Display, duration: float, until: float = math.inf) -> None:
     """Block for ``duration`` seconds.
 
@@ -312,22 +302,20 @@ def _final_outcome(
     return outcome, message
 
 
-def _run_progress(
-    data_root: str, subject: str, curriculum_path: str, phases: list[dict]
-) -> RunProgress | None:
+def _run_progress(data_root: str, subject: str, curriculum: Curriculum) -> RunProgress | None:
     """Where ``--resume`` starts: the subject's progress in this curriculum, checked against it.
 
     :param data_root: the BIDS tree's root.
     :param subject: ``sub-<label>``.
-    :param curriculum_path: the curriculum file; its name is the task label.
-    :param phases: the curriculum's phases.
+    :param curriculum: the curriculum; its file's name is the task label.
     :return: :func:`~fmri_gym.bids.last_position`, or ``None`` (said on stderr)
         when no earlier run of this curriculum got past its opening phases.
     :raises ValueError: if that run played the curriculum to its end, or its
         last game phase is another game in this curriculum
         (:func:`~fmri_gym.config.curriculum.game_changes`).
     """
-    progress = bids.last_position(data_root, subject, curriculum_path)
+    phases = curriculum.phases
+    progress = bids.last_position(data_root, subject, curriculum.path)
     if progress is None:
         print("resume: no earlier run of this curriculum got past its opening phases; starting "
               "at the beginning", file=sys.stderr)
@@ -338,7 +326,8 @@ def _run_progress(
                          "over without --resume")
     if last_game is not None:
         then = last_game.phase
-        now = phases[last_game.phase_index] if last_game.phase_index < len(phases) else {}
+        now = (phases[last_game.phase_index].spec if last_game.phase_index < len(phases)
+               else {})
         changed = game_changes(then, now)
         if changed:
             raise ValueError(f"--resume: phase {last_game.phase_index}, the last game "
@@ -356,42 +345,36 @@ class Run:
     def __init__(
         self,
         config: RunConfig,
-        phases: list[dict],
         display: Display,
         outdir: str,
-        audio: Audio | None = None,
-        triggers: Triggers | None = None,
+        audio: Audio,
+        triggers: Triggers,
         resume_from: RunProgress | None = None,
     ) -> None:
         """Set up clock, logger, and phase dispatch for one subject.
 
-        :param config: the run config: subject, duration, test switch, and the rig it is
-            played on; recorded in the manifest.
-        :param phases: the curriculum's phases, in order (dicts: ``type``, timings, …).
+        :param config: the run config: its curriculum (seeded), its rig, subject,
+            duration, test switch; the curriculum and the rig go in the manifest.
         :param display: shared pygame display used by all phases.
         :param outdir: the run's folder, for its manifest and block logs.
-        :param audio: shared audio output used by all phases; one is created if
-            omitted, and stays silent unless an adapter returns sound.
+        :param audio: shared audio output used by all phases.
         :param triggers: shared trigger output (start sync + codes; see
-            :mod:`fmri_gym.triggers`), built by the caller like the display
-            and the audio. ``None`` = the fMRI default: wait for ``=``, send
-            no trigger codes.
+            :mod:`fmri_gym.triggers`), opened on the rig's line.
         :param resume_from: where to start in the curriculum, and what the block
             there has left (:func:`~fmri_gym.bids.last_position`); ``None``
             starts at its beginning.
         """
         self.config = config
-        self.phases = phases
         self.display = display
-        self.audio = audio or Audio()
+        self.audio = audio
         self.clock = Clock()
-        self.logger = Logger(outdir, config.subject, phases, self.clock)
+        self.logger = Logger(outdir, config.subject, config.curriculum.record(), self.clock)
         self.logger.set_extra("rig", config.rig.record())
         self.logger.set_extra("display", display.describe())
         self.logger.set_extra("dummy_trigger", config.dummy_trigger)
         self.logger.set_extra("audio", self.audio.describe())
         self.outdir = outdir
-        self.triggers = triggers or Triggers.from_dict(None)
+        self.triggers = triggers
         self.sync = self.triggers.sync
         self.resume_from = resume_from
         #: ``perf_counter`` at which the phases stop for the closing fixation.
@@ -401,31 +384,28 @@ class Run:
                               None if resume_from is None else resume_from.record())
 
     @classmethod
-    def from_config_and_curriculum(cls, config: RunConfig, curriculum: dict[str, Any]) -> "Run":
-        """Everything one run needs, from its run config and its curriculum.
+    def from_config(cls, config: RunConfig) -> "Run":
+        """Everything one run needs, from its run config.
 
         Works out where the run writes and what seeds it plays, then opens the
         trigger line, the audio output and the window -- in that order, so a
         bad section, an unopenable port or an unusable output stops the run
         before anything is on screen. Each says on stderr what it got.
 
-        :param config: the command line and the rig, as the run reads them.
-        :param curriculum: the curriculum, already checked
-            (:func:`~fmri_gym.config.curriculum.validate_curriculum`).
+        :param config: the curriculum, the rig and the command line, as the run reads them.
         :return: the run, ready to :meth:`play`.
         :raises ValueError: on a BIDS name or number, a monitor or a window
             size this machine or this subject refuses; a duration no longer
             than the closing fixation; a progress to resume from that this
             curriculum cannot carry on (see :func:`_run_progress`).
         """
-        phases = curriculum["curriculum"]
         if config.end_fixation < 0:
             raise ValueError(f"--end-fixation {config.end_fixation:g}: expected seconds >= 0")
         if config.duration is not None and config.duration <= config.end_fixation:
             raise ValueError(f"--duration {config.duration:g}: a run closes on "
                              f"{config.end_fixation:g} s of fixation (--end-fixation), so it "
                              "must be longer than that")
-        out = bids.run_output(config.rig.data_root, config.subject, config.curriculum_path,
+        out = bids.run_output(config.rig.data_root, config.subject, config.curriculum.path,
                               config.ses, config.run)
         if out.attempt > 1:
             print(f"{out.label} already has data: this is attempt {out.attempt} at it, and "
@@ -433,9 +413,12 @@ class Run:
         print(f"output: {out.folder}", file=sys.stderr)
         resume_from = None
         if config.resume:
-            resume_from = _run_progress(config.rig.data_root, config.subject,
-                                        config.curriculum_path, phases)
-        seeds = bids.fold_seeds(phases, out.label)
+            resume_from = _run_progress(config.rig.data_root, config.subject, config.curriculum)
+        curriculum, how = config.curriculum.with_seeds(lambda i: bids.phase_seed(out.label, i))
+        for i, phase in enumerate(curriculum.phases):
+            if i in how:
+                print(f"seeds: phase {i} = {phase.seed} ({how[i]})", file=sys.stderr)
+        config = replace(config, curriculum=curriculum)
         check_monitor(config.rig.screen.monitor)
 
         triggers = Triggers(config.rig.triggers)
@@ -450,10 +433,9 @@ class Run:
         screen = config.rig.screen
         display = Display(size=screen.size, fullscreen=screen.is_fullscreen,
                           vsync=screen.has_vsync, monitor=screen.monitor)
-        run = cls(config, phases, display, out.folder, audio=audio, triggers=triggers,
-                  resume_from=resume_from)
+        run = cls(config, display, out.folder, audio, triggers, resume_from)
         run.logger.set_extra("run", {"label": out.label, "attempt": out.attempt})
-        run.logger.set_extra("seeds", seeds)
+        run.logger.set_extra("seeds", {"derived_from": out.label, "phases": how})
         run.logger.set_extra("pad", pad_status)   # which controller answered, and as what
         run.logger.set_extra("versions", {  # the banner fmri_gym hides said these
             "pygame": pygame.version.ver, "sdl": ".".join(map(str, pygame.get_sdl_version()))})
@@ -500,70 +482,55 @@ class Run:
         self.logger.set_trigger_time()
         self.triggers.lifecycle("task_start")
 
-    def _fixation(self, phase: dict, index: int) -> None:
-        """Show a fixation cross for ``phase["duration"]`` seconds.
+    def _fixation(self, phase: Fixation, index: int) -> None:
+        """Show a fixation cross for the phase's ``duration`` seconds.
 
-        :param phase: fixation-phase config (``duration``, default 2.0).
         :param index: phase index in the curriculum (for the manifest).
         """
-        duration = phase.get("duration", 2.0)
-
         onset = self.clock.from_perf(self.display.draw_fixation())
-        _wait_for_duration(self.display, duration, until=self._run_end)
+        _wait_for_duration(self.display, phase.duration, until=self._run_end)
 
         self.logger.log_phase({"index": index, "type": "fixation",
                                "onset": onset, "offset": self.clock.run_time()})
 
-    def _message(self, phase: dict, index: int) -> None:
-        """Show on-screen text until a key press or timed duration.
+    def _message(self, phase: Message, index: int) -> None:
+        """Show on-screen text until a key press or timed duration (:meth:`_show_message`).
 
-        :param phase: message-phase config (see :meth:`_show_message`).
         :param index: phase index in the curriculum (for the manifest).
         """
         self.logger.log_phase({"index": index, "type": "message", **self._show_message(phase)})
 
-    def _show_message(self, phase: dict) -> dict:
-        """Draw a message and wait until a key press or its duration.
+    def _show_message(self, message: Message) -> dict:
+        """Draw a message and wait until a key press or its duration (see :class:`Message`).
 
-        :param phase: ``text`` as a string or list of lines; optional
-            ``duration`` / ``key`` / ``keys_to_dismiss`` / ``align``. ``key`` is
-            the character that dismisses the screen (default SPACE), or
-            ``"any"``; ``keys_to_dismiss`` is a list of key NAMES instead, which
-            with a ``duration`` ends the screen at whichever comes first.
         :return: the ``text`` shown, its ``onset`` and ``offset``.
         :raises KeyboardInterrupt: on window close or ESC.
         """
-        text = _join_multiline_text(phase.get("text", ""))
-        duration = phase.get("duration")
-
-        onset = self.clock.from_perf(
-            self.display.draw_text(text, align=phase.get("align", "center")))
-        if "keys_to_dismiss" in phase:
+        duration = message.duration
+        onset = self.clock.from_perf(self.display.draw_text(message.text, align=message.align))
+        if message.keys_to_dismiss is not None:
             deadline = time.perf_counter() + (math.inf if duration is None else duration)
             if self.config.dummy_trigger:      # a test run skips the waits for a key
                 deadline = min(deadline, time.perf_counter() + 0.05)
-            _wait_for_keys(self.display, phase["keys_to_dismiss"], min(deadline, self._run_end))
+            _wait_for_keys(self.display, list(message.keys_to_dismiss),
+                           min(deadline, self._run_end))
         elif duration is None:
-            _wait_for_char(self.display, phase.get("key", " "),
+            _wait_for_char(self.display, message.key,
                            dummy_trigger=self.config.dummy_trigger, until=self._run_end)
         else:
             _wait_for_duration(self.display, duration, until=self._run_end)
-        return {"text": text, "onset": onset, "offset": self.clock.run_time()}
+        return {"text": message.text, "onset": onset, "offset": self.clock.run_time()}
 
-    def _survey(self, phase: dict, index: int) -> None:
+    def _survey(self, phase: Survey, index: int) -> None:
         """Run a Likert-style survey and log each confirmed response.
 
-        :param phase: survey-phase config (``questions``, optional ``n_points``).
         :param index: phase index in the curriculum (for the manifest).
         :raises KeyboardInterrupt: on window close or ESC.
         """
-        questions = phase.get("questions", [])
-        n_points = phase.get("n_points", 7)
         onset = self.clock.run_time()
-
-        responses = []
+        responses: list[dict] = []
         try:
-            self._ask(questions, n_points, responses)
+            self._ask(list(phase.questions), phase.n_points, responses)
         finally:  # a quit mid-survey keeps the answers already confirmed
             self.logger.log_phase({"index": index, "type": "survey",
                                    "onset": onset, "offset": self.clock.run_time(),
@@ -781,23 +748,18 @@ class Run:
                                until=self._run_end)
         return result
 
-    def _instructions(self, phase: dict, resumed: bool) -> dict | None:
+    def _instructions(self, phase: GamePhase, resumed: bool) -> dict | None:
         """Show a game phase's ``instructions``, if any, as a message headed by its title.
 
-        :param phase: the game phase (``instructions``: ``title``, ``text``,
-            ``align``, ``duration``, ``keys_to_dismiss``).
         :param resumed: whether the block carries on from an earlier run: the
             heading says "Resuming <title>" rather than "Starting <title>".
         :return: for the game's manifest entry, the ``text`` shown with its
             ``onset`` and ``offset``; ``None`` without instructions.
         :raises KeyboardInterrupt: on window close or ESC.
         """
-        spec = phase.get("instructions")
-        if spec is None:
+        if phase.instructions is None:
             return None
-        heading = f"{'Resuming' if resumed else 'Starting'} {spec['title']}"
-        text = _join_multiline_text(spec.get("text", ""))
-        return self._show_message({**spec, "text": f"{heading}\n\n{text}"})
+        return self._show_message(phase.instructions.message(resumed))
 
     def _show(
         self, adapter: EnvAdapter, play_sound: bool, score: float, block_end: float
@@ -820,22 +782,22 @@ class Run:
             self.audio.play(sound, flip_t)
         return flip_t, frame, sound
 
-    def _game(self, phase: dict, index: int, block_progress: BlockProgress | None = None) -> None:
+    def _game(self, game_phase: GamePhase, index: int,
+              block_progress: BlockProgress | None = None) -> None:
         """Run a game block (one or more episodes) and save frame-level data.
 
         Creates the env via the phase's backend adapter, plays until duration /
         episode count / quit, then writes its log and a manifest phase entry.
 
-        :param phase: the game phase's dict: the fields of
-            :class:`~fmri_gym.config.curriculum.GamePhase`, ``keys``,
-            ``instructions``, ``menu``, and the backend's own.
+        :param game_phase: the block; its ``spec`` (``keys``, ``menu``, and the
+            backend's own keys) is what the adapter and the menu are built from.
         :param index: phase index in the curriculum (for the manifest).
         :param block_progress: what an earlier run that stopped this block
             left of it; ``None`` plays the block from its beginning.
         :raises KeyboardInterrupt: if the subject quits mid-block.
         """
         ## Settings
-        game_phase = GamePhase.from_dict(phase, index)
+        spec = game_phase.spec
         # A block an earlier run stopped goes on with the time and episodes it has left.
         block_time_elapsed = (0.0 if block_progress is None
                               else block_progress.block_time_elapsed)
@@ -847,15 +809,15 @@ class Run:
         # oldest is rewind_frames before the ending.
         recent_states = (deque(maxlen=game_phase.rewind_frames + 1)
                          if game_phase.rewind_on else None)
-        instructions = self._instructions(phase, resumed=block_progress is not None)
+        instructions = self._instructions(game_phase, resumed=block_progress is not None)
 
         # Some backends (nle, browser games) take several seconds to start;
         # show a Loading screen so the previous fixation "+" doesn't freeze.
-        self.display.draw_text(f"Loading {phase.get('text') or game_phase.game} …")
-        adapter = get_adapter(game_phase.backend, phase)
+        self.display.draw_text(f"Loading {game_phase.text or game_phase.game} …")
+        adapter = get_adapter(game_phase.backend, spec)
         speed = ({} if game_phase.is_turn_based
                  else self._speed(adapter, game_phase.fps, index, game_phase.game))
-        data_dir = self.logger.open_block(index, game_phase.backend, game_phase.game, phase,
+        data_dir = self.logger.open_block(index, game_phase.backend, game_phase.game, spec,
                                           game_phase.seed)
 
         ## Init loop over episodes
@@ -869,7 +831,7 @@ class Run:
         own_end = block_start + game_phase.duration - block_time_elapsed
         block_end = min(own_end, self._run_end)
         # The hold-a-key pause menu (reset / forfeit / resume), if the phase has one.
-        menu = Menu(phase["menu"], block_start) if "menu" in phase else None
+        menu = Menu(spec["menu"], block_start) if "menu" in spec else None
         episodes: list[EpisodeResult] = []
         outcome = ""
 
@@ -984,12 +946,12 @@ class Run:
         user_quit = False
         start = 0 if self.resume_from is None else self.resume_from.phase_index
         block_progress = None if self.resume_from is None else self.resume_from.block_progress
-        handlers = {"fixation": self._fixation, "message": self._message,
-                    "game": self._game, "survey": self._survey}
-        if any(p["type"].startswith("check_") for p in self.phases):
+        handlers: dict[type, Callable[[Any, int], None]] = {
+            Fixation: self._fixation, Message: self._message, GamePhase: self._game,
+            Survey: self._survey}
+        if self.config.curriculum.has_checks:
             from . import checks  # rig-check phases: measured with this run's display and lines
-            handlers.update({kind: partial(checks.run_check, self)
-                             for kind in checks.CHECK_TYPES})
+            handlers.update({kind: partial(checks.run_check, self) for kind in CHECK_PHASES})
         try:
             self._trigger()
             if self.config.duration is not None:
@@ -997,15 +959,13 @@ class Run:
                                  - self.config.end_fixation)
 
             reached_end = True
-            for index, phase in enumerate(self.phases):
-                if index < start and not phase.get("include_on_resume", False):
+            for index, phase in enumerate(self.config.curriculum.phases):
+                if index < start and not phase.include_on_resume:
                     continue                    # an earlier run played it
                 if self._time_up():
                     reached_end = False
                     break
-                handler = handlers.get(phase["type"])
-                if handler is None:
-                    raise ValueError(f"unknown phase type: {phase['type']!r}")
+                handler = handlers[type(phase)]
                 if index == start and block_progress is not None:
                     self._game(phase, index, block_progress)  # the block an earlier run stopped
                     continue

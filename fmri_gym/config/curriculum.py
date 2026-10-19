@@ -26,16 +26,14 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
-from enum import Enum
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 from typing import Any
 
-from ..keys import KEY_NAMES
-from ..menu import menu_problems
+from .phases import PHASE_CLASSES, GamePhase, Phase, phase_from_dict, phase_problems
 
-#: The phases of a run; the ``check_*`` ones make a rig check (:mod:`fmri_gym.checks`).
-PHASE_TYPES = ("fixation", "message", "game", "survey", "check_display", "check_frames",
-               "check_triggers", "check_controls", "check_photodiode")
+#: The phase types, one class each (:mod:`fmri_gym.config.phases`).
+PHASE_TYPES = tuple(PHASE_CLASSES)
 SECTIONS = ("curriculum",)
 #: A key that starts with this is a comment: nothing reads it.
 COMMENT_PREFIX = "##"
@@ -52,127 +50,6 @@ RESUMABLE_CHANGES = frozenset({"duration", "n_episodes", "advance_on", "show_out
 #: Exit status of ``fmri_play`` when the run was quit (ESC) before its end; a
 #: session script (``set -e``) stops on it instead of starting the next run.
 EXIT_QUIT = 3
-
-#: An episode's possible outcomes: EnvAdapter.outcome's names, and the subject's own endings.
-OUTCOMES = frozenset({"won", "lost", "terminated", "truncated", "playing", "forfeit", "reset"})
-
-
-class BlockMode(str, Enum):
-    """What ends a game block: its clock, or its count of episodes."""
-
-    #: the block lasts ``duration`` seconds
-    DURATION = "duration"
-    #: the block lasts ``n_episodes`` episodes, or ``duration`` seconds at most
-    EPISODE = "episode"
-
-
-@dataclass(frozen=True, slots=True)
-class GamePhase:
-    """A game phase's settings as the loop plays them, read off its dict once.
-
-    Each field is the phase's key of the same name. The dict itself stays
-    what the adapter is built from and what the block's log keeps, since its
-    backend-specific keys are the adapter's business; this is the part the
-    loop reads, every field with its default, so the defaults are stated in
-    one place and a wrong value is refused before the block starts
-    (:func:`validate_curriculum` builds one per game phase).
-    """
-
-    backend: str
-    #: the env id, as the backend reads it
-    game: str
-    mode: BlockMode
-    #: seconds the block lasts (``mode`` ``duration``, default 30) or lasts
-    #: at most (``mode`` ``episode``, default 300)
-    duration: float
-    #: episodes an ``episode`` block lasts
-    n_episodes: int
-    #: A blocking block: only an episode whose outcome is listed (usually
-    #: ``["won"]``) counts toward ``n_episodes``; any other replays the same
-    #: instance (the seed follows the count), so the subject stays on a level
-    #: until they clear it, ``duration`` runs out, or they forfeit from the
-    #: menu. ``None``: every episode counts, whatever its outcome.
-    advance_on: tuple[str, ...] | None
-    #: An episode ending in one of these outcomes sends the world back
-    #: ``rewind_frames`` frames and play goes on, as a new episode from that
-    #: state: session policy, not a rule of the game, so a model played on
-    #: the same env ends as the game says. Empty: no ending is rewound.
-    rewind_on: tuple[str, ...]
-    #: how far back a rewound episode goes; ``None`` when nothing is rewound
-    rewind_frames: int | None
-    #: seconds the final score and outcome stay on screen after an episode
-    show_outcome_duration: float
-    #: the block's base seed: its episode ``e`` plays ``seed + e``
-    seed: int
-    #: a savestate every this many frames: 1 keeps one per frame, larger
-    #: trades savestate density for disk (retro states are ~1 MB/frame)
-    state_stride: int
-    #: Turn-based games (grid worlds: FrozenLake, CliffWalking, Taxi, ...)
-    #: advance ONE step per deliberate key PRESS, not once per frame. In a
-    #: real-time loop they would auto-step every frame with the noop action
-    #: (which for e.g. FrozenLake is action 0 = LEFT), so the agent "moves on
-    #: its own" and a single held key fires many times.
-    is_turn_based: bool
-    #: Real-time blocks poll HELD keys, so a press that starts and ends
-    #: between two frames is never seen -- at a grid world's few frames per
-    #: second that loses most taps. ``has_latched_keys`` lets a fresh keydown win
-    #: instead, falling back to the held-key poll (so holding a key still
-    #: repeats). Off by default: backends whose actions are key COMBINATIONS
-    #: must keep polling.
-    has_latched_keys: bool
-    #: A turn-based block draws a frame only when the subject presses, so
-    #: the seconds its HUD shows stop between presses while the clock the
-    #: block actually ends on does not. ``has_live_hud`` redraws the standing
-    #: frame a few times a second through the wait, which changes nothing
-    #: but the pixels: no step, no log row, no trigger, no sound. Off by
-    #: default, so a block that has run this way keeps running this way.
-    has_live_hud: bool
-    #: pass the adapter's sound to the speakers; muting never changes what is logged
-    has_audio: bool
-    #: the block's steps per second. Every game phase states its own: what
-    #: the block plays at is the curriculum's business, not a default that
-    #: changes with the engine underneath it.
-    fps: float
-
-    @property
-    def frame_period(self) -> float:
-        """Seconds per frame."""
-        return 1.0 / self.fps
-
-    @classmethod
-    def from_dict(cls, phase: dict, index: int) -> GamePhase:
-        """Read a game phase's dict, filling in the defaults.
-
-        :param phase: the phase, of type ``game``, with the fields
-            :func:`validate_curriculum` insists on (``game``, ``fps``, ``keys``).
-        :param index: its index in the curriculum, which the default seed is from.
-        :raises ValueError: ``has_live_hud`` on a real-time block, or a
-            ``has_audio`` that is not true or false.
-        """
-        is_turn_based = bool(phase.get("is_turn_based", False))
-        has_live_hud = bool(phase.get("has_live_hud", False))
-        if has_live_hud and not is_turn_based:
-            raise ValueError('"has_live_hud" is for is_turn_based blocks, whose wait is '
-                             "unbounded; a real-time block already redraws every frame")
-        has_audio = phase.get("has_audio", True)
-        if not isinstance(has_audio, bool):
-            raise ValueError(f'"has_audio" must be true or false, got {has_audio!r}')
-        mode = BlockMode(phase.get("mode", "duration"))
-        advance_on = phase.get("advance_on")
-        return cls(
-            backend=phase.get("backend", "gym"), game=phase["game"], mode=mode,
-            duration=phase.get("duration", 30.0 if mode is BlockMode.DURATION else 300.0),
-            n_episodes=phase.get("n_episodes", 1),
-            advance_on=None if advance_on is None else tuple(advance_on),
-            rewind_on=tuple(phase.get("rewind_on", ())),
-            rewind_frames=phase.get("rewind_frames"),
-            show_outcome_duration=float(phase.get("show_outcome_duration", 2.0)),
-            seed=phase.get("seed", 1000 + index),
-            state_stride=max(1, int(phase.get("state_stride", 1))),
-            is_turn_based=is_turn_based,
-            has_latched_keys=bool(phase.get("has_latched_keys", False)),
-            has_live_hud=has_live_hud, has_audio=has_audio, fps=phase["fps"])
-
 
 def check_shape(curriculum: Any, where: str) -> dict:
     """Enforce the one curriculum shape.
@@ -391,8 +268,9 @@ def new_curriculum() -> dict:
 def validate_curriculum(curriculum: dict) -> list[str]:
     """Problems that would stop ``fmri_play`` before the first phase.
 
-    Cheap checks only (no env is built), for the editor's Check: the phases'
-    required fields and their shapes.
+    Cheap checks only (no env is built), for the editor's Check and the load:
+    each phase as its class has it (:func:`~fmri_gym.config.phases.phase_problems`),
+    and the phases a resumed run plays first.
 
     :param curriculum: a curriculum dict of the right shape.
     :return: human-readable problems, empty when the curriculum looks runnable.
@@ -402,7 +280,7 @@ def validate_curriculum(curriculum: dict) -> list[str]:
     if not phases:
         problems.append("curriculum: needs at least one phase")
     for i, phase in enumerate(phases):
-        problems.extend(f"phase {i}: {p}" for p in _phase_problems(phase, i))
+        problems.extend(f"phase {i}: {p}" for p in phase_problems(phase))
     problems.extend(_opening_problems(phases))
     return problems
 
@@ -426,135 +304,61 @@ def _opening_problems(phases: list[dict]) -> list[str]:
     return out
 
 
-def _phase_problems(phase: dict, index: int) -> list[str]:
-    if phase["type"].startswith("check_"):
-        from ..checks import phase_problems
-        return phase_problems(phase)
-    if phase["type"] == "message":
-        return _dismiss_problems("keys_to_dismiss", phase.get("keys_to_dismiss"))
-    if phase["type"] != "game":
-        return []
-    out = []
-    if not phase.get("game"):
-        out.append("game: missing env id")
-    if phase.get("mode", "duration") not in [mode.value for mode in BlockMode]:
-        out.append(f"mode: expected 'duration' or 'episode', got {phase.get('mode')!r}")
-    out.extend(_fps_problems(phase))
-    out.extend(_keys_problems(phase))
-    # advance_on gates n_episodes, so it means nothing to a block that ends
-    # on the clock; the names are EnvAdapter.outcome's plus the menu's.
-    if "advance_on" in phase:
-        names = phase["advance_on"]
-        if not isinstance(names, list) or not names or not all(isinstance(n, str) for n in names):
-            out.append(f"advance_on: expected a list of outcome names, got {names!r}")
-        elif set(names) - OUTCOMES:
-            out.append(f"advance_on: unknown {sorted(set(names) - OUTCOMES)}; "
-                       f"the names are {sorted(OUTCOMES)}")
-        elif phase.get("mode", "duration") != "episode":
-            out.append("advance_on: only in mode 'episode' (a duration block ends on the clock)")
-    seconds = phase.get("show_outcome_duration", 0)
-    if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or seconds < 0:
-        out.append(f"show_outcome_duration: expected seconds >= 0, got {seconds!r}")
-    if "menu" in phase:
-        out.extend(menu_problems(phase["menu"]))
-    if "instructions" in phase:
-        out.extend(_instructions_problems(phase["instructions"]))
-    out.extend(_rewind_problems(phase))
-    if not out:     # the fields above are what from_dict takes as given
-        try:
-            GamePhase.from_dict(phase, index)
-        except ValueError as exc:
-            out.append(str(exc))
-    return out
+@dataclass(frozen=True, slots=True)
+class Curriculum:
+    """A curriculum, read once: its file and its phases, each its type's object.
 
-
-#: Outcomes a block may rewind on: the game's own endings. Not `truncated`,
-#: the env's step cap, which a rewound episode would hit again for ever.
-REWINDABLE = frozenset({"won", "lost", "terminated"})
-
-
-def _rewind_problems(phase: dict) -> list[str]:
-    """``rewind_on`` (outcomes) and ``rewind_frames`` (how far back) come as a pair."""
-    if "rewind_on" not in phase and "rewind_frames" not in phase:
-        return []
-    names, frames = phase.get("rewind_on"), phase.get("rewind_frames")
-    out = []
-    if not isinstance(names, list) or not names or not all(isinstance(n, str) for n in names):
-        out.append(f"rewind_on: expected a list of outcome names, got {names!r}")
-    elif set(names) - REWINDABLE:
-        out.append(f"rewind_on: {sorted(set(names) - REWINDABLE)} cannot be rewound; the "
-                   f"game's own endings are {sorted(REWINDABLE)}")
-    if isinstance(frames, bool) or not isinstance(frames, int) or frames < 1:
-        out.append(f"rewind_frames: expected the frames to go back, >= 1, got {frames!r}")
-    return out
-
-
-def _instructions_problems(spec: Any) -> list[str]:
-    """A game phase's ``instructions``: a title, a text, and what makes the screen go away."""
-    if not isinstance(spec, dict):
-        return [f"instructions: expected an object, got {spec!r}"]
-    out = []
-    unknown = set(spec) - {"title", "text", "align", "duration", "keys_to_dismiss"}
-    if unknown:
-        out.append(f"instructions: unknown field(s) {sorted(unknown)}; the fields are title, "
-                   "text, align, duration and keys_to_dismiss")
-    if not isinstance(spec.get("title"), str) or not spec["title"]:
-        out.append('instructions: title: missing (the screen says "Starting <title>" or '
-                   '"Resuming <title>")')
-    if spec.get("align", "center") not in ("center", "left"):
-        out.append(f"instructions: align: expected 'center' or 'left', got {spec['align']!r}")
-    duration = spec.get("duration")
-    if duration is not None and (isinstance(duration, bool)
-                                 or not isinstance(duration, (int, float)) or duration <= 0):
-        out.append(f"instructions: duration: expected seconds > 0, got {duration!r}")
-    keys = spec.get("keys_to_dismiss")
-    out.extend(_dismiss_problems("instructions: keys_to_dismiss", keys))
-    if duration is None and keys is None:
-        out.append("instructions: give a duration, keys_to_dismiss, or both")
-    return out
-
-
-def _dismiss_problems(where: str, keys: Any) -> list[str]:
-    """``keys_to_dismiss``, if given: a list of key names (:data:`~fmri_gym.keys.KEY_NAMES`)."""
-    if keys is None or (isinstance(keys, list) and keys and not set(keys) - KEY_NAMES):
-        return []
-    return [f"{where}: expected a list of key names (as in fmri_gym/keys.py), got {keys!r}"]
-
-
-def _keys_problems(phase: dict) -> list[str]:
-    """``keys`` is required, and each name in it must be a key that can be pressed.
-
-    There is no default map: which key does what differs between sites (a
-    keyboard here, a gamepad that types keys there), so the file states it in
-    full. A name outside :data:`~fmri_gym.keys.KEY_NAMES` can never be pressed,
-    and the binding would be dead without a word; ``""`` is the no-key action.
-    Whether the values fit the env's action space is checked when the env is
-    built (:mod:`fmri_gym.adapters.keymap`).
+    Not one game's: a curriculum is a sequence of phases, and its games may be
+    several (a block design of fixed-duration blocks of different games). The
+    run's task label is its file's name.
     """
-    keys = phase.get("keys")
-    if not isinstance(keys, dict) or not keys:
-        return ['keys: missing; map each key to the env action it sends, e.g. {"": 0, "LEFT": 3, '
-                '"RIGHT": 2, "UP+SPACE": 5} ("" is no key held; names as in fmri_gym/keys.py; '
-                "there is no default map)"]
-    unknown = sorted({k for combo in keys if combo for k in combo.split("+")} - KEY_NAMES)
-    if unknown:
-        return [f"keys: {unknown} are not key names; use those in fmri_gym/keys.py (UP, SPACE, "
-                "RETURN, LSHIFT, A-Z, 0-9, F1-F12, KP0-KP9, ...)"]
-    return []
 
+    #: the file it was read from; its name is the run's task label
+    path: str
+    phases: tuple[Phase, ...]
 
-def _fps_problems(phase: dict) -> list[str]:
-    """``fps`` is required: a block's rate is the config's, not the engine's.
+    @classmethod
+    def load(cls, path: str) -> Curriculum:
+        """Read and check a curriculum file (:func:`load_curriculum`, :func:`validate_curriculum`).
 
-    It was the engine's own rate when the phase left it out, so the same file
-    played at a different speed depending on the backend underneath it -- and
-    silently changed rate when that backend did. The manifest reports the
-    engine's own rate against it after a run.
-    """
-    fps = phase.get("fps")
-    if fps is None:
-        return ["fps: missing; state the block's steps per second (the engine's own rate is "
-                "not assumed: 60 for console cores and Atari, 35 / frame_skip for Doom)"]
-    if isinstance(fps, bool) or not isinstance(fps, (int, float)) or fps <= 0:
-        return [f"fps: expected a positive number of steps per second, got {fps!r}"]
-    return []
+        :raises ValueError: naming every problem, before anything is played.
+        """
+        return cls.from_dict(load_curriculum(path), path)
+
+    @classmethod
+    def from_dict(cls, curriculum: dict, path: str) -> Curriculum:
+        """Check a curriculum dict of the right shape, and read its phases.
+
+        :raises ValueError: naming every problem.
+        """
+        problems = validate_curriculum(curriculum)
+        if problems:
+            raise ValueError(f"{path}: " + "; ".join(problems))
+        return cls(path=path, phases=tuple(phase_from_dict(d, i)
+                                           for i, d in enumerate(curriculum["curriculum"])))
+
+    @property
+    def has_checks(self) -> bool:
+        """Whether it is a rig check: any of its phases is a check (:mod:`fmri_gym.checks`)."""
+        return any(p.type.startswith("check_") for p in self.phases)
+
+    def with_seeds(self, seed_of: Callable[[int], int]) -> tuple[Curriculum, dict[int, str]]:
+        """The curriculum with every game phase seeded: its own ``seed``, else ``seed_of(index)``.
+
+        The seed is written into the phase's ``spec`` too, so the manifest shows
+        every seed played.
+
+        :return: the seeded curriculum, and per game phase ``"pinned"`` or ``"derived"``.
+        """
+        phases, how = [], {}
+        for i, phase in enumerate(self.phases):
+            if isinstance(phase, GamePhase):
+                how[i] = "pinned" if phase.seed is not None else "derived"
+                seed = phase.seed if phase.seed is not None else seed_of(i)
+                phase = replace(phase, seed=seed, spec={**phase.spec, "seed": seed})
+            phases.append(phase)
+        return replace(self, phases=tuple(phases)), how
+
+    def record(self) -> list[dict]:
+        """Its phases as the file has them (includes resolved): the manifest's ``curriculum``."""
+        return [phase.spec for phase in self.phases]

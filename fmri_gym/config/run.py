@@ -1,10 +1,11 @@
-"""The run config: one run's command line, and the rig it is played on.
+"""The run config: a curriculum on a rig, and the few things only this run says.
 
-``fmri_play`` owns the flags and their spellings; :class:`RunConfig` names what
-they mean to the run, and :meth:`RunConfig.from_args` is the one place the
-command line is read. How the run is shown and heard and where its data goes
-are the rig's (:class:`~fmri_gym.config.rig.RigConfig`), held here rather than
-copied, so each setting has one name and one home.
+A curriculum (:class:`~fmri_gym.config.curriculum.Curriculum`) knows nothing of
+any rig, and a rig (:class:`~fmri_gym.config.rig.RigConfig`) nothing of any
+curriculum; a run is one of each, played for one subject, so what needs both
+-- a game key the rig's scanner types at every volume -- is checked here
+(:meth:`RunConfig.problems`). ``fmri_play`` owns the flags and their
+spellings; :meth:`RunConfig.from_args` is the one place the command line is read.
 """
 
 from __future__ import annotations
@@ -12,21 +13,25 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 
+from .curriculum import Curriculum
+from .phases import GamePhase
 from .rig import RigConfig
 
 
 @dataclass(frozen=True, slots=True)
 class RunConfig:
-    """One run's command line and the rig it is played on, as the run reads it.
+    """One run: its curriculum, its rig, and who, which run, for how long.
 
     Every field is required, so a flag a caller forgets is a ``TypeError`` at
     the desk and never a default in the scanner.
     """
 
+    #: what is played
+    curriculum: Curriculum
+    #: where: window, pad, audio, triggers, data root
+    rig: RigConfig
     #: ``sub-<label>``: the BIDS subject.
     subject: str
-    #: the curriculum file; its name is the run's task label.
-    curriculum_path: str
     #: the BIDS session number, from 1.
     ses: int
     #: this task's run number in the session, from 1.
@@ -40,37 +45,34 @@ class RunConfig:
     resume: bool
     #: skip the experimenter and scanner waits: a test run, not a session.
     dummy_trigger: bool
-    #: the rig it is played on: window, pad, audio, data root.
-    rig: RigConfig
 
     @classmethod
-    def from_args(cls, args: argparse.Namespace, rig: RigConfig) -> RunConfig:
+    def from_args(cls, args: argparse.Namespace, curriculum: Curriculum,
+                  rig: RigConfig) -> RunConfig:
         """Read ``fmri_play``'s parsed flags.
 
         :param args: the namespace of ``fmri_play``'s parser, one attribute per flag.
+        :param curriculum: the curriculum ``--curriculum`` names, loaded.
         :param rig: the rig ``--rig`` picked.
         """
-        return cls(subject=args.subject, curriculum_path=args.curriculum, ses=args.ses,
+        return cls(curriculum=curriculum, rig=rig, subject=args.subject, ses=args.ses,
                    run=args.run, duration=args.duration, end_fixation=args.end_fixation,
-                   resume=args.resume,
-                   dummy_trigger=args.dummy_trigger, rig=rig)
+                   resume=args.resume, dummy_trigger=args.dummy_trigger)
 
+    def problems(self) -> list[str]:
+        """What keeps this curriculum from being played on this rig, which neither shows alone.
 
-def scanner_key_clashes(curriculum: dict, rig: RigConfig) -> list[str]:
-    """The game keys a curriculum binds to the key the rig's scanner types at every volume.
+        A button box in a digit mode sends its trigger as a digit too (Current
+        Designs: ``5``). With the rig waiting for that key (``sync.mode``
+        ``wait``), a game bound to it would act at every volume.
 
-    A button box in a digit mode sends its trigger as a digit too (Current
-    Designs: ``5``). With the rig waiting for that key (``sync.mode`` ``wait``),
-    a game bound to it would act at every volume: a problem of this curriculum
-    on this rig, which neither file shows alone.
-
-    :return: one problem per clashing binding.
-    """
-    sync = rig.triggers.sync
-    name = sync.key.upper()
-    if sync.mode != "wait" or not (len(name) == 1 and name.isalnum()):
-        return []  # "=" is no game key: nothing can clash
-    return [f"phase {i}: keys: {combo} uses {sync.key!r}, the key {rig.name}'s scanner types at "
-            "every volume (its triggers.sync.key): bind another key"
-            for i, phase in enumerate(curriculum["curriculum"])
-            for combo in phase.get("keys", {}) if name in combo.upper().split("+")]
+        :return: one problem per clashing binding.
+        """
+        sync = self.rig.triggers.sync
+        name = sync.key.upper()
+        if sync.mode != "wait" or not (len(name) == 1 and name.isalnum()):
+            return []  # "=" is no game key: nothing can clash
+        return [f"phase {i}: keys: {combo} uses {sync.key!r}, the key {self.rig.name}'s scanner "
+                "types at every volume (its triggers.sync.key): bind another key"
+                for i, phase in enumerate(self.curriculum.phases) if isinstance(phase, GamePhase)
+                for combo in phase.spec["keys"] if name in combo.upper().split("+")]

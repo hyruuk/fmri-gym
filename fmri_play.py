@@ -31,10 +31,10 @@ import signal
 import sys
 
 from fmri_gym import Run, checks
-from fmri_gym.config.curriculum import EXIT_QUIT, load_curriculum, validate_curriculum
+from fmri_gym.config.curriculum import EXIT_QUIT, Curriculum
 from fmri_gym.display import quit_like_esc
 from fmri_gym.config.rig import RigConfig
-from fmri_gym.config.run import RunConfig, scanner_key_clashes
+from fmri_gym.config.run import RunConfig
 from fmri_gym.run import END_FIXATION_S
 
 
@@ -83,24 +83,20 @@ def _parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = _parser().parse_args()
-    curriculum = load_curriculum(args.curriculum)
-    # The editor's Check, so a file edited by hand gets it too.
-    problems = validate_curriculum(curriculum)
-    if problems:
-        raise ValueError(f"{args.curriculum}: " + "; ".join(problems))
-
-    do_rig_check = checks.has_checks(curriculum)
+    # The editor's Check runs on load, so a file edited by hand gets it too.
+    curriculum = Curriculum.load(args.curriculum)
+    do_rig_check = curriculum.has_checks
     # A rig check is how a rig gets its file: it opens the form when there is none.
     rig = checks.ensure_rig(args.rig) if do_rig_check else RigConfig.open(args.rig)
     trigger_error = None
     if do_rig_check:  # its triggers, and a line that opens, first
         rig, trigger_error = checks.prepare(rig)
     print(f"rig: {rig.status()}", file=sys.stderr)
-    clashes = scanner_key_clashes(curriculum, rig)
-    if clashes:
-        raise ValueError(f"{args.curriculum} on {rig.name}: " + "; ".join(clashes))
-    run_config = RunConfig.from_args(args, rig)
-    run = Run.from_config_and_curriculum(run_config, curriculum)
+    run_config = RunConfig.from_args(args, curriculum, rig)
+    problems = run_config.problems()
+    if problems:
+        raise ValueError(f"{args.curriculum} on {rig.name}: " + "; ".join(problems))
+    run = Run.from_config(run_config)
     if do_rig_check:
         run.logger.set_extra("trigger_error", trigger_error)
     previous = signal.signal(signal.SIGINT, quit_like_esc)

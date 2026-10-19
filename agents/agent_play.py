@@ -28,7 +28,8 @@ from collections import Counter
 from policies import Policy, RandomPolicy, VLMPolicy
 
 from fmri_gym import Clock, Logger, get_adapter
-from fmri_gym.config.curriculum import GamePhase, load_curriculum, validate_curriculum
+from fmri_gym.config.curriculum import Curriculum
+from fmri_gym.config.phases import GamePhase
 from fmri_gym.run import EpisodeResult
 
 
@@ -166,18 +167,18 @@ def play_episode(adapter, policy: Policy, logger: Logger, clock: Clock, *,
     return end, skipped, chunks
 
 
-def play_block(phase: dict, index: int, args, logger: Logger,
+def play_block(game_phase: GamePhase, index: int, args, logger: Logger,
                clock: Clock) -> str:
     """Play every episode of one game block and write its log.
 
-    :param phase: the game-phase config, used exactly as a run uses it.
+    :param game_phase: the game phase, seeded, used exactly as a run uses it.
     :param index: phase index in the curriculum (names the block's folder).
     :param args: parsed command-line arguments.
     :param logger: the run's logger writing the block.
     :param clock: the run's clock.
     :return: the block's folder name.
     """
-    game_phase = GamePhase.from_dict(phase, index)
+    phase = game_phase.spec
     # A policy has no ears. Whatever the block's curriculum plays to a subject
     # as a sound, it reads as a line of text, so the two players are told the
     # same things; scanner curricula keep that line off the screen to hold the
@@ -235,25 +236,22 @@ def main() -> None:
     p.add_argument("--policy-seed", type=int, default=0)
     args = p.parse_args()
 
-    curriculum = load_curriculum(args.curriculum)
-    # The same check fmri_play runs, so one curriculum file suits both players.
-    problems = validate_curriculum(curriculum)
-    if problems:
-        raise ValueError(f"{args.curriculum}: " + "; ".join(problems))
-    phases = curriculum["curriculum"]
+    # The same load and check fmri_play runs, so one curriculum file suits both players.
+    # No run label to derive seeds from: a phase that pins none plays 1000 + its index.
+    curriculum, _ = Curriculum.load(args.curriculum).with_seeds(lambda i: 1000 + i)
     outdir = args.outdir or os.path.join(
         "data", f"{args.subject}_{time.strftime('%Y%m%d-%H%M%S')}")
     clock = Clock()
     # No scanner here, so the run's zero is simply when it started: the time
     # columns stay the same shape as a human run's, measured from that.
     clock.trigger()
-    logger = Logger(outdir, args.subject, phases, clock)
+    logger = Logger(outdir, args.subject, curriculum.record(), clock)
     logger.set_trigger_time()
 
-    for index, phase in enumerate(phases):
-        if phase.get("type") != "game":
+    for index, phase in enumerate(curriculum.phases):
+        if not isinstance(phase, GamePhase):
             continue
-        print(f"block {index}: {phase.get('game')} via {args.policy}")
+        print(f"block {index}: {phase.game} via {args.policy}")
         print(" ->", play_block(phase, index, args, logger, clock))
     print("Manifest:", logger.save_manifest())
     logger.close()

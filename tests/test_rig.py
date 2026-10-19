@@ -101,9 +101,15 @@ def test_triggers_are_the_rigs():
 
 
 def test_a_game_key_the_scanner_types_is_refused_on_that_rig():
-    from fmri_gym.config.run import scanner_key_clashes
+    from fmri_gym.config.curriculum import Curriculum
+    from fmri_gym.config.run import RunConfig
     rig.save({**FIELDS, "rig": "box", "triggers": {"sync": {"mode": "wait", "key": "5"}}})
     box = RigConfig.open("site1/box")
-    curriculum = {"curriculum": [{"type": "game", "keys": {"5": 1, "LEFT": 0}}]}
-    assert scanner_key_clashes(curriculum, box) and not scanner_key_clashes(
-        {"curriculum": [{"type": "game", "keys": {"LEFT": 0}}]}, box)
+
+    def run_of(keys: dict) -> RunConfig:
+        game = {"type": "game", "game": "CartPole-v1", "fps": 30, "keys": keys}
+        curriculum = Curriculum.from_dict({"curriculum": [game]}, "cartpole.json")
+        return RunConfig(curriculum=curriculum, rig=box, subject="sub-01", ses=1, run=1,
+                         duration=None, end_fixation=10.0, resume=False, dummy_trigger=True)
+
+    assert run_of({"": 0, "5": 1}).problems() and not run_of({"": 0, "LEFT": 1}).problems()
