@@ -81,6 +81,15 @@ CORNERS = ("br", "bl", "tr", "tl")
 # ---------------------------------------------------------------------------
 
 
+class Verdict(NamedTuple):
+    """A rig-check test's verdict, as the manifest and the report record it."""
+
+    #: ``pass``, ``fail``, ``offline`` (read in the recording) or ``not run``
+    status: str
+    #: what to look at, for a verdict that is not a pass; else ``None``
+    why: str | None
+
+
 def _patch_rect(size: tuple[int, int], corner: str, px: int) -> pygame.Rect:
     """The patch rectangle in a corner of the screen."""
     x = size[0] - px if corner[1] == "r" else 0
@@ -536,15 +545,6 @@ def _missed(arrays: dict, key: str, noun: str = "flashes") -> str | None:
         return None
     return (f"{missed.size} of {len(arrays[key])} {noun} "
             f"(#{', #'.join(map(str, missed[:10]))}{', ...' if missed.size > 10 else ''})")
-
-
-class Verdict(NamedTuple):
-    """A rig-check test's verdict, as the manifest and the report record it."""
-
-    #: ``pass``, ``fail``, ``offline`` (read in the recording) or ``not run``
-    status: str
-    #: what to look at, for a verdict that is not a pass; else ``None``
-    why: str | None
 
 
 def _light_verdict(arrays: dict, summary: dict) -> Verdict:

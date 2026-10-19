@@ -27,7 +27,7 @@ The names follow BIDS, apart from that attempt suffix; the contents do not yet
 ``_events.tsv`` sidecars).
 
 A curriculum can outlast a run: :func:`last_position` reads where the
-subject's latest run of a config stopped, from that run's manifest and its
+subject's latest run of a curriculum stopped, from that run's manifest and its
 last block's ``block_end`` line, so the next run can carry on from there.
 """
 
@@ -46,6 +46,67 @@ from typing import Callable, NamedTuple
 _LABEL = re.compile(r"[A-Za-z0-9]+")
 
 
+class RunOutput(NamedTuple):
+    """Where one run writes, and what names it (see :func:`run_output`)."""
+
+    #: The folder to write into: the label, plus ``_02``, ``_03``... for a re-acquisition.
+    folder: str
+    #: :func:`run_label`, with no attempt suffix: the seed key, and the run this is of.
+    label: str
+    #: 1 the first time this run is played, 2 the next time, ...
+    attempt: int
+
+
+class LastGame(NamedTuple):
+    """The last game phase a run played: where it sat, and what it was."""
+
+    #: its index in the curriculum
+    phase_index: int
+    #: the phase as that run's curriculum had it (a phase dict, diffed field by field)
+    phase: dict
+
+
+@dataclass(frozen=True, slots=True)
+class BlockProgress:
+    """What a game block an earlier run stopped hands the run that carries it on."""
+
+    #: seconds the block has played so far, over every run that played it
+    block_time_elapsed: float
+    #: episodes counted toward its ``n_episodes`` so far
+    num_completed_episodes: int
+    #: the savestate of the episode it stopped in, restored over that
+    #: episode's reset; ``None`` starts the episode over
+    episode_initial_state: bytes | None
+
+
+@dataclass(frozen=True, slots=True)
+class RunProgress:
+    """Where a subject's latest run of a curriculum stopped (see :func:`last_position`)."""
+
+    #: the label of the run that stopped there
+    run_label: str
+    #: the phase the next run starts at
+    phase_index: int
+    #: the last game phase that run played; ``None`` if it played none
+    last_game: LastGame | None
+    #: set when phase ``phase_index`` is a game block that run stopped
+    #: part-way, with what it has left; ``None`` plays the phase from its
+    #: beginning
+    block_progress: BlockProgress | None = None
+
+    def record(self) -> dict:
+        """The manifest's ``resumed_from`` entry: everything but the savestate's bytes."""
+        last_game = self.last_game
+        out = {"run": self.run_label,
+               "last_game": None if last_game is None else
+               {"index": last_game.phase_index, "phase": last_game.phase},
+               "index": self.phase_index}
+        if self.block_progress is not None:
+            out["block_time_elapsed"] = self.block_progress.block_time_elapsed
+            out["num_completed_episodes"] = self.block_progress.num_completed_episodes
+        return out
+
+
 def subject_label(subject: str) -> str:
     """The ``sub-<label>`` a subject id must be.
 
@@ -59,16 +120,18 @@ def subject_label(subject: str) -> str:
     return subject
 
 
-def task_label(config_path: str) -> str:
-    """A config's task label: its file name, letters and digits only (``ale__pong`` -> ``alepong``).
+def task_label(curriculum_path: str) -> str:
+    """A curriculum's task label: its file name, letters and digits only.
+
+    ``ale__pong.json`` gives ``alepong``.
 
     :raises ValueError: if nothing is left (a file named ``__.json``).
     """
-    stem = os.path.splitext(os.path.basename(config_path))[0]
+    stem = os.path.splitext(os.path.basename(curriculum_path))[0]
     label = "".join(re.findall(r"[A-Za-z0-9]", stem))
     if not label:
-        raise ValueError(f"{config_path}: no letter or digit in its name to make a BIDS task "
-                         "label from; rename the file")
+        raise ValueError(f"{curriculum_path}: no letter or digit in its name to make a BIDS "
+                         "task label from; rename the file")
     return label
 
 
@@ -85,18 +148,7 @@ def run_label(subject: str, session: int, task: str, run: int) -> str:
     return f"{subject}_ses-{session:03d}_task-{task}_run-{run:03d}"
 
 
-class RunOutput(NamedTuple):
-    """Where one run writes, and what names it (see :func:`run_output`)."""
-
-    #: The folder to write into: the label, plus ``_02``, ``_03``... for a re-acquisition.
-    folder: str
-    #: :func:`run_label`, with no attempt suffix: the seed key, and the run this is of.
-    label: str
-    #: 1 the first time this run is played, 2 the next time, ...
-    attempt: int
-
-
-def run_output(root: str, subject: str, config_path: str,
+def run_output(root: str, subject: str, curriculum_path: str,
                session: int, run: int) -> RunOutput:
     """Where this run writes, what names it, and which attempt at it this is.
 
@@ -105,17 +157,17 @@ def run_output(root: str, subject: str, config_path: str,
 
     :param root: the BIDS tree's root (``--data-root``).
     :param subject: ``sub-<label>``.
-    :param config_path: the run's config file; its name is the task label.
+    :param curriculum_path: the run's curriculum file; its name is the task label.
     :param session: the BIDS session number (``--ses``), from 1.
     :param run: this task's run number in the session (``--run``), from 1.
-    :raises ValueError: on a subject or config name BIDS refuses, or a session
-        or run number below 1.
+    :raises ValueError: on a subject or curriculum name BIDS refuses, or a
+        session or run number below 1.
     """
     subject = subject_label(subject)
     for flag, number in (("ses", session), ("run", run)):
         if number < 1:
             raise ValueError(f"--{flag} counts from 1, got {number}")
-    label = run_label(subject, session, task_label(config_path), run)
+    label = run_label(subject, session, task_label(curriculum_path), run)
     base = os.path.join(_beh(root, subject, session), label)
     folder, attempt = base, 1
     while os.path.exists(folder):
@@ -124,19 +176,19 @@ def run_output(root: str, subject: str, config_path: str,
     return RunOutput(folder, label, attempt)
 
 
-def fold_seeds(curriculum: list[dict], label: str) -> dict:
+def fold_seeds(phases: list[dict], label: str) -> dict:
     """Give each game phase that pins no ``"seed"`` the one derived for this run.
 
     The run plays episode e with ``seed + e`` as for any phase, and the
     manifest's curriculum shows every seed; what was derived is said here.
 
-    :param curriculum: the run's phases, seeded in place.
+    :param phases: the curriculum's phases, seeded in place.
     :param label: :func:`run_label` -- so every attempt at a run replays the
         same episodes.
     :return: the manifest's ``seeds`` entry: the run label, and phase -> how set.
     """
     how = {}
-    for i, phase in enumerate(curriculum):
+    for i, phase in enumerate(phases):
         if phase["type"] != "game":
             continue
         how[i] = "pinned" if "seed" in phase else "derived"
@@ -161,72 +213,26 @@ def phase_seed(label: str, index: int) -> int:
     return int.from_bytes(digest[:4], "big") >> 1
 
 
-class LastGame(NamedTuple):
-    """The last game phase a run played: where it sat, and what it was."""
-
-    #: its index in the curriculum
-    index: int
-    #: the phase as that run's config had it (a config's dict, diffed field by field)
-    phase: dict
-
-
-@dataclass(frozen=True, slots=True)
-class BlockProgress:
-    """What a game block an earlier run stopped hands the run that carries it on."""
-
-    #: seconds the block has played so far, over every run that played it
-    block_time_elapsed: float
-    #: episodes counted toward its ``n_episodes`` so far
-    num_completed_episodes: int
-    #: the savestate of the episode it stopped in, restored over that
-    #: episode's reset; ``None`` starts the episode over
-    initial_state: bytes | None
-
-
-@dataclass(frozen=True, slots=True)
-class ResumePosition:
-    """Where a subject's latest run of a config stopped (see :func:`last_position`)."""
-
-    #: the label of the run that stopped there
-    run: str
-    #: the phase the next run starts at
-    index: int
-    #: the last game phase that run played; ``None`` if it played none
-    last_game: LastGame | None
-    #: set when phase ``index`` is a game block that run stopped part-way,
-    #: with what it has left; ``None`` plays the phase from its beginning
-    progress: BlockProgress | None = None
-
-    def record(self) -> dict:
-        """The manifest's ``resumed_from`` entry: everything but the savestate's bytes."""
-        out = {"run": self.run,
-               "last_game": None if self.last_game is None else self.last_game._asdict(),
-               "index": self.index}
-        if self.progress is not None:
-            out["block_time_elapsed"] = self.progress.block_time_elapsed
-            out["num_completed_episodes"] = self.progress.num_completed_episodes
-        return out
-
-
-def last_position(root: str, subject: str, config_path: str) -> ResumePosition | None:
-    """Where the subject's latest run of this config (in any session) stopped.
+def last_position(root: str, subject: str, curriculum_path: str) -> RunProgress | None:
+    """Where the subject's latest run of this curriculum (in any session) stopped.
 
     The latest run is the last one to start that played something besides
     its ``include_on_resume`` opening phases. A game block it stopped
     (``block_did_not_finish`` in its ``block_end`` line) is carried on: its
     index, the seconds it has played, the episodes counted toward it and, if
-    an episode was still going, the savestate it stopped in. Otherwise the next run picks up after
-    the last game block played, or at the last other phase shown, played
-    again from its beginning (unless it was the curriculum's last).
+    an episode was still going, the savestate it stopped in. Otherwise the
+    next run picks up after the last game block played, or at the last other
+    phase shown, played again from its beginning (unless it was the
+    curriculum's last).
 
     :param root: the BIDS tree's root.
     :param subject: ``sub-<label>``.
-    :param config_path: the config; its name is the task label.
-    :return: the position, with ``progress`` for a block that is carried on;
-        ``None`` if no run of this config got past its opening phases.
+    :param curriculum_path: the curriculum; its name is the task label.
+    :return: the progress, with ``block_progress`` for a block that is carried
+        on; ``None`` if no run of this curriculum got past its opening phases.
     """
     from .logging import read_events, read_state
-    task = task_label(config_path)
+    task = task_label(curriculum_path)
     pattern = os.path.join(root, subject, "ses-*", "beh", f"{subject}_ses-*_task-{task}_run-*",
                            "manifest.json")
     runs = []
@@ -248,21 +254,21 @@ def last_position(root: str, subject: str, config_path: str) -> ResumePosition |
     last = played[-1]
     if last["type"] != "game":
         final = last["index"] == len(manifest["curriculum"]) - 1
-        return ResumePosition(run, last["index"] + final, last_game)
+        return RunProgress(run, last["index"] + final, last_game)
     events = read_events(os.path.join(folder, last["data_dir"]))
     end = events[-1]
     if not end["block_did_not_finish"]:
-        return ResumePosition(run, last["index"] + 1, last_game)
+        return RunProgress(run, last["index"] + 1, last_game)
     episode_ends = [e for e in events if e["type"] == "episode_end"]
     state = (end["extra"] or {}).get("state")
     going = bool(episode_ends) and episode_ends[-1]["outcome"] in ("playing", "quit")
     if going and state is None:
         print(f"resume: {last['backend']} keeps no savestate, so the episode phase "
               f"{last['index']} stopped in starts over", file=sys.stderr)
-    progress = BlockProgress(
+    block_progress = BlockProgress(
         end["block_time_elapsed"], end["num_completed_episodes"],
         read_state(state) if going and state is not None else None)
-    return ResumePosition(run, last["index"], last_game, progress)
+    return RunProgress(run, last["index"], last_game, block_progress)
 
 
 def _beh(root: str, subject: str, session: int) -> str:

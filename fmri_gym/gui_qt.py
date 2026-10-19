@@ -37,7 +37,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import Qt
 
 from . import bids
-from . import config as cfg
+from . import curriculum
 from . import gui
 from .display import list_monitors, monitor_label
 from .triggers import Codes, SyncSettings, TriggerError, Triggers, TriggerSettings
@@ -504,7 +504,7 @@ class _Editor(QtWidgets.QMainWindow):
         self.phase_list.currentRowChanged.connect(self._select_phase)
         add = QtWidgets.QPushButton("Add")
         add.setMenu(QtWidgets.QMenu(add))
-        for kind in cfg.PHASE_TYPES:
+        for kind in curriculum.PHASE_TYPES:
             add.menu().addAction(kind).triggered.connect(
                 lambda _checked=False, k=kind: self._add_phase(k))
         buttons = QtWidgets.QVBoxLayout()
@@ -584,7 +584,7 @@ class _Editor(QtWidgets.QMainWindow):
             self._add_config(path)
             return
         try:
-            self.open_config(cfg.load_config(path), path)
+            self.open_config(curriculum.load_curriculum(path), path)
         except (OSError, ValueError) as exc:
             self._error(f"cannot open {path}: {exc}")
 
@@ -636,7 +636,7 @@ class _Editor(QtWidgets.QMainWindow):
         page = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(page)
         self.preset = QtWidgets.QComboBox()
-        self.preset.addItems(list(cfg.TRIGGER_PRESETS))
+        self.preset.addItems(list(curriculum.TRIGGER_PRESETS))
         # Nothing picked: the forms show the file's settings, not a preset's.
         self.preset.setPlaceholderText("choose a preset...")
         self.preset.setCurrentIndex(-1)
@@ -783,7 +783,8 @@ class _Editor(QtWidgets.QMainWindow):
         if not steps:
             raise ValueError(f"{path}: no run in it")
         # Every config now, so a missing one is named here and not at some later click.
-        configs = {s["config"]: cfg.load_config(s["config"]) for s in steps if "config" in s}
+        configs = {s["config"]: curriculum.load_curriculum(s["config"])
+                   for s in steps if "config" in s}
         self.session_path, self.steps = path, steps
         self.configs, self.opened, self.new = configs, set(), set()
         if launch is not None:
@@ -793,7 +794,7 @@ class _Editor(QtWidgets.QMainWindow):
 
     def _show_config(self, config: dict) -> None:
         """Load the selected run's config into the phase list and the config tabs."""
-        self.notes = {k: v for k, v in config.items() if k not in cfg.SECTIONS}
+        self.notes = {k: v for k, v in config.items() if k not in curriculum.SECTIONS}
         self.phases = copy.deepcopy(config["curriculum"])
         self.edit_index = self.ctl_index = None
         self._refresh_phase_list(0 if self.phases else None)
@@ -847,7 +848,7 @@ class _Editor(QtWidgets.QMainWindow):
     def _read_json(self) -> dict:
         """:raises ValueError: if the JSON view does not hold a config (the reason says why)."""
         try:
-            return cfg.check_shape(json.loads(self.json_text.toPlainText()), "JSON")
+            return curriculum.check_shape(json.loads(self.json_text.toPlainText()), "JSON")
         except json.JSONDecodeError as exc:
             raise ValueError(f"JSON: not valid JSON ({exc})") from exc
 
@@ -873,7 +874,7 @@ class _Editor(QtWidgets.QMainWindow):
         if not steps:
             raise ValueError("script: no line to play")
         try:  # configs shown here keep their unsaved edits; the others are read now
-            new = {s["config"]: cfg.load_config(s["config"]) for s in steps
+            new = {s["config"]: curriculum.load_curriculum(s["config"]) for s in steps
                    if "config" in s and s["config"] not in self.configs}
         except OSError as exc:
             raise ValueError(f"script: {exc}") from exc
@@ -1045,7 +1046,7 @@ class _Editor(QtWidgets.QMainWindow):
     def _add_config(self, path: str) -> None:
         if path not in self.configs:
             try:
-                self.configs[path] = cfg.load_config(path)
+                self.configs[path] = curriculum.load_curriculum(path)
             except (OSError, ValueError) as exc:
                 self._error(f"cannot add {path}: {exc}")
                 return
@@ -1053,7 +1054,7 @@ class _Editor(QtWidgets.QMainWindow):
 
     def _add_new(self) -> None:
         """A new config, named after its first game's backend until Save asks where it goes."""
-        config = cfg.new_config()
+        config = curriculum.new_curriculum()
         path = self._provisional_path(config)
         self.configs[path] = config
         self.new.add(path)
@@ -1452,7 +1453,7 @@ class _Editor(QtWidgets.QMainWindow):
         except ValueError as exc:
             self._error(str(exc))
             return
-        problems = cfg.validate_config({"curriculum": [phase]})
+        problems = curriculum.validate_curriculum({"curriculum": [phase]})
         if problems:
             self.check_text.setPlainText("\n".join(problems))
             return
@@ -1513,7 +1514,7 @@ class _Editor(QtWidgets.QMainWindow):
     def _apply_preset(self) -> None:
         if self.preset.currentIndex() < 0:
             return
-        section = copy.deepcopy(cfg.TRIGGER_PRESETS[self.preset.currentText()])
+        section = copy.deepcopy(curriculum.TRIGGER_PRESETS[self.preset.currentText()])
         start = self.sync_form.get().get("scanner_start", Codes().scanner_start)  # a preset keeps it
         self._set_sync(section.pop("sync"), start)
         self.trigger_form.set({**_trigger_defaults(), **section})
@@ -1540,14 +1541,14 @@ class _Editor(QtWidgets.QMainWindow):
         except ValueError as exc:  # a non-numeric field, named in the message
             self.trigger_text.setText(str(exc))
             return
-        problems = cfg.trigger_problems(section)
+        problems = curriculum.trigger_problems(section)
         self.trigger_text.setText("\n".join(problems) if problems
                                   else gui.describe_triggers(section))
 
     def _test_triggers(self) -> None:
         """Open the backend exactly as a run would and send one ``task_start``."""
         try:
-            triggers = Triggers.from_config(self._current_triggers())
+            triggers = Triggers.from_dict(self._current_triggers())
         except (TriggerError, ValueError, TypeError) as exc:
             self.trigger_text.setText(f"test failed: {exc}")
             return
@@ -1563,7 +1564,7 @@ class _Editor(QtWidgets.QMainWindow):
     # -- file / run ----------------------------------------------------------
 
     def _new(self) -> None:
-        self.open_config(cfg.new_config(), None)
+        self.open_config(curriculum.new_curriculum(), None)
 
     def _open(self) -> None:
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -1576,7 +1577,7 @@ class _Editor(QtWidgets.QMainWindow):
             if path.endswith(".sh"):
                 self.open_session(path)
             else:
-                self.open_config(cfg.load_config(path), path)
+                self.open_config(curriculum.load_curriculum(path), path)
         except (OSError, ValueError) as exc:
             self._error(f"cannot open {path}: {exc}")
 
@@ -1630,7 +1631,7 @@ class _Editor(QtWidgets.QMainWindow):
         paths = sorted({s["config"] for s in self.steps if "config" in s} & self.opened)
         try:
             for path in paths:
-                cfg.save_config(self.configs[path], path)
+                curriculum.save_curriculum(self.configs[path], path)
             if script is not None:
                 with open(self.session_path, "w") as f:
                     f.write(script)
@@ -1689,14 +1690,15 @@ class _Editor(QtWidgets.QMainWindow):
         return problems
 
     def _problems(self) -> list[str]:
-        """What would stop the session, line by line (see :func:`fmri_gym.config.validate_config`)."""
+        """What would stop the session, line by line (``validate_curriculum`` on each run)."""
         problems = []
         for i, step in enumerate(self.steps, start=1):
             label = f"run {i}: " if self._is_session() else ""
             if "command" in step:
                 problems += [f"{label}the external command is empty"] * (not step["command"])
                 continue
-            problems += [label + p for p in cfg.validate_config(self.configs[step["config"]])]
+            problems += [label + p
+                         for p in curriculum.validate_curriculum(self.configs[step["config"]])]
         if all(step["skip"] for step in self.steps):
             problems.append("every run is skipped: nothing would play")
         problems += gui.trigger_mismatches(self.steps, self.configs)
@@ -1868,7 +1870,7 @@ class _TriggerChoice(QtWidgets.QDialog):
         intro.setWordWrap(True)
         layout.addWidget(intro)
         self.preset = QtWidgets.QComboBox()
-        self.preset.addItems([self._PICK, *cfg.TRIGGER_PRESETS])
+        self.preset.addItems([self._PICK, *curriculum.TRIGGER_PRESETS])
         self.preset.activated.connect(self._apply_preset)
         layout.addLayout(_row(QtWidgets.QLabel("setup"), self.preset))
         self.sync_form, self.trigger_form = _Form(gui.SYNC_FIELDS), _Form(gui.TRIGGER_FIELDS)
@@ -1892,7 +1894,7 @@ class _TriggerChoice(QtWidgets.QDialog):
     def _apply_preset(self) -> None:
         if self.preset.currentText() == self._PICK:
             return
-        section = copy.deepcopy(cfg.TRIGGER_PRESETS[self.preset.currentText()])
+        section = copy.deepcopy(curriculum.TRIGGER_PRESETS[self.preset.currentText()])
         sync = {**asdict(SyncSettings()), **section.pop("sync"),
                 "scanner_start": Codes().scanner_start}
         self.sync_form.set(sync)
@@ -1914,7 +1916,7 @@ class _TriggerChoice(QtWidgets.QDialog):
         self.sync_form.show_rows(["mode", *gui.SYNC_ROWS.get(mode, ())])
         try:
             section = self.section()
-            problems = cfg.trigger_problems(section)
+            problems = curriculum.trigger_problems(section)
         except ValueError as exc:  # a number half typed, named in the message
             section, problems = None, [str(exc)]
         except KeyError:  # a form half refilled by a preset: its next change completes it

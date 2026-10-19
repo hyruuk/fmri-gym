@@ -16,7 +16,7 @@ import numpy as np
 from .logging import read_events, read_state
 
 
-class ReconstructionPlan(NamedTuple):
+class EpisodeReconstructionPlan(NamedTuple):
     """One episode's start and every action it took, from its block's log."""
 
     episode_id: int
@@ -28,7 +28,7 @@ class ReconstructionPlan(NamedTuple):
     actions: list
 
 
-def reconstruction_plan(block: str, episode_id: int | None = None) -> ReconstructionPlan:
+def reconstruction_plan(block: str, episode_id: int | None = None) -> EpisodeReconstructionPlan:
     """One episode's seed and actions.
 
     :param block: the block's folder.
@@ -46,14 +46,14 @@ def reconstruction_plan(block: str, episode_id: int | None = None) -> Reconstruc
     actions = [e["action"] for e in events
                if e["type"] == "frame" and e["episode_id"] == episode_id]
     state = starts[episode_id].get("initial_state")  # blocks logged before it was a field lack it
-    return ReconstructionPlan(episode_id, starts[episode_id]["seed"],
-                              None if state is None else read_state(state), actions)
+    return EpisodeReconstructionPlan(episode_id, starts[episode_id]["seed"],
+                                     None if state is None else read_state(state), actions)
 
 
 def reconstruct_episode(
     block: str, episode_id: int | None = None, adapter: Any = None,
     n_actions: int | None = None,
-) -> tuple[Any, ReconstructionPlan]:
+) -> tuple[Any, EpisodeReconstructionPlan]:
     """Replay one episode through an adapter, leaving it at the episode's last frame.
 
     :param block: the block's folder.

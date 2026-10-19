@@ -28,7 +28,7 @@ from collections import Counter
 from policies import Policy, RandomPolicy, VLMPolicy
 
 from fmri_gym import Clock, Logger, get_adapter
-from fmri_gym.config import GamePhase, load_config, validate_config
+from fmri_gym.curriculum import GamePhase, load_curriculum, validate_curriculum
 from fmri_gym.run import EpisodeResult
 
 
@@ -177,27 +177,28 @@ def play_block(phase: dict, index: int, args, logger: Logger,
     :param clock: the run's clock.
     :return: the block's folder name.
     """
-    gp = GamePhase.from_phase(phase, index)
-    # A policy has no ears. Whatever the block's config plays to a subject as a
-    # sound, it reads as a line of text, so the two players are told the same
-    # things; scanner configs keep that line off the screen to hold the gaze on
-    # the frame. Adapters without cues ignore the key.
-    adapter = get_adapter(gp.backend, {**phase, "cue_overlay": True})
+    game_phase = GamePhase.from_dict(phase, index)
+    # A policy has no ears. Whatever the block's curriculum plays to a subject
+    # as a sound, it reads as a line of text, so the two players are told the
+    # same things; scanner curricula keep that line off the screen to hold the
+    # gaze on the frame. Adapters without cues ignore the key.
+    adapter = get_adapter(game_phase.backend, {**phase, "cue_overlay": True})
     policy = build_policy(args, adapter)
 
-    data_dir = logger.open_block(index, gp.backend, gp.game, phase, gp.seed)
+    data_dir = logger.open_block(index, game_phase.backend, game_phase.game, phase,
+                                 game_phase.seed)
     episodes: list[EpisodeResult] = []
     skipped = chunks = 0
     for episode_id in range(args.n_episodes):
         before = logger.n_frames
         end, n_skipped, chunks = play_episode(
-            adapter, policy, logger, clock, seed=gp.seed + episode_id,
-            episode_id=episode_id, state_stride=gp.state_stride,
-            fps=gp.fps, turn_based=gp.turn_based, max_frames=args.max_frames,
-            n_chunks=chunks)
+            adapter, policy, logger, clock, seed=game_phase.seed + episode_id,
+            episode_id=episode_id, state_stride=game_phase.state_stride,
+            fps=game_phase.fps, turn_based=game_phase.is_turn_based,
+            max_frames=args.max_frames, n_chunks=chunks)
         episodes.append(end)
         skipped += n_skipped
-        print(f"  episode {episode_id} (seed {gp.seed + episode_id}): "
+        print(f"  episode {episode_id} (seed {game_phase.seed + episode_id}): "
               f"{logger.n_frames - before} frames, {end.outcome}, score {end.score:g}")
 
     extra = adapter.block_extra()
@@ -215,8 +216,8 @@ def play_block(phase: dict, index: int, args, logger: Logger,
         "dropped_calls": policy.dropped,
     }
     logger.close_block(**summary, extra=extra)
-    logger.log_phase({"index": index, "type": "game", "backend": gp.backend,
-                      "game": gp.game, **summary, "data_dir": data_dir})
+    logger.log_phase({"index": index, "type": "game", "backend": game_phase.backend,
+                      "game": game_phase.game, **summary, "data_dir": data_dir})
     return data_dir
 
 
@@ -234,22 +235,22 @@ def main() -> None:
     p.add_argument("--policy-seed", type=int, default=0)
     args = p.parse_args()
 
-    config = load_config(args.curriculum)
-    # The same check fmri_play runs, so one config file suits both players.
-    problems = validate_config(config)
+    curriculum = load_curriculum(args.curriculum)
+    # The same check fmri_play runs, so one curriculum file suits both players.
+    problems = validate_curriculum(curriculum)
     if problems:
         raise ValueError(f"{args.curriculum}: " + "; ".join(problems))
-    curriculum = config["curriculum"]
+    phases = curriculum["curriculum"]
     outdir = args.outdir or os.path.join(
         "data", f"{args.subject}_{time.strftime('%Y%m%d-%H%M%S')}")
     clock = Clock()
     # No scanner here, so the run's zero is simply when it started: the time
     # columns stay the same shape as a human run's, measured from that.
     clock.trigger()
-    logger = Logger(outdir, args.subject, curriculum, clock)
+    logger = Logger(outdir, args.subject, phases, clock)
     logger.set_trigger_time()
 
-    for index, phase in enumerate(curriculum):
+    for index, phase in enumerate(phases):
         if phase.get("type") != "game":
             continue
         print(f"block {index}: {phase.get('game')} via {args.policy}")

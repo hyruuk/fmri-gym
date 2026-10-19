@@ -3,7 +3,7 @@
 Session manager has two panels. Session design is the session's lines
 (:func:`write_session`) -- each a run, a config file, or an external
 command; add, repeat, remove, reorder, skip -- as a list or as the script
-itself. Run design is the selected run's config (:mod:`fmri_gym.config`), as a
+itself. Run design is the selected run's config (:mod:`fmri_gym.curriculum`), as a
 phase list with one form per phase type or as its JSON. Two more tabs edit
 that config: Controls (the ``keys`` remap of a game phase,
 with the backend's defaults on request), Triggers (the start sync, the
@@ -43,7 +43,7 @@ from dataclasses import asdict, dataclass, replace
 from typing import Any, Sequence
 
 from . import bids
-from . import config as cfg
+from . import curriculum
 from .triggers import (SYNC_MODES, TRIGGER_BACKENDS, TriggerSettings)
 
 #: Suggestions for a game phase's ``backend`` (free text is accepted too; the
@@ -379,7 +379,7 @@ def curated_games(root: str = CONFIGS_DIR) -> tuple[dict[str, dict[str, tuple[st
     unreadable: list[str] = []
     for path in sorted(glob.glob(os.path.join(root, "**", "*.json"), recursive=True)):
         try:
-            config = cfg.load_config(path)
+            config = curriculum.load_curriculum(path)
         except (OSError, ValueError):
             unreadable.append(os.path.relpath(path))
             continue
@@ -507,7 +507,7 @@ def trigger_mismatches(steps: list[dict], configs: dict[str, dict]) -> list[str]
         try:
             s = asdict(TriggerSettings.from_dict(configs[step["config"]].get("triggers")))
         except (TypeError, ValueError):
-            continue  # validate_config names what is wrong with it
+            continue  # validate_curriculum names what is wrong with it
         s.pop("defaulted")
         seen.setdefault(json.dumps(s, sort_keys=True), []).append(step["config"])
     if len(seen) < 2:
@@ -628,7 +628,7 @@ def describe_triggers(section: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Session scripts (the .sh the Session manager edits; config.py has the .json)
+# Session scripts (the .sh the Session manager edits; curriculum.py has the .json)
 # ---------------------------------------------------------------------------
 
 
@@ -800,7 +800,7 @@ def edit_config(config: dict, path: str | None,
                 session: str | None = None) -> list[str] | None:
     """Open the editor; return the command that plays what it showed, or ``None``.
 
-    :param config: config dict (see :func:`fmri_gym.config.check_shape`).
+    :param config: config dict (see :func:`fmri_gym.curriculum.check_shape`).
     :param path: file it came from, for Save; ``None`` if new.
     :param session: a session script to open instead of ``config``.
     :return: what Play starts, word by word -- one ``fmri-play`` for a run
@@ -836,7 +836,8 @@ def main() -> None:
     args = p.parse_args()
     if args.session and args.curriculum:
         p.error("--session and --curriculum: the session already names its configs")
-    config = cfg.load_config(args.curriculum) if args.curriculum else cfg.new_config()
+    config = (curriculum.load_curriculum(args.curriculum) if args.curriculum
+              else curriculum.new_curriculum())
     try:
         command = edit_config(config, args.curriculum, session=args.session)
     except KeyboardInterrupt:

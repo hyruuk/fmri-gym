@@ -79,6 +79,30 @@ _BLOCKSIZE = 256                        # samples per callback
 _DELAY_STEP = 0.010                     # the audio delay is rounded up to this
 
 
+@dataclass(frozen=True, slots=True)
+class AudioBlockLog:
+    """One block's sound timing, for its log (:meth:`Audio.block_log`)."""
+
+    #: ``(chunk, time)``: when each queued chunk started playing, on the
+    #: ``perf_counter`` clock (the run's after :meth:`in_run_time`); a chunk
+    #: that never played has no entry
+    onsets: list[tuple[int, float]]
+    #: milliseconds from a frame's flip to its sound's first sample at the DAC
+    delay_ms: float
+    #: chunks placed at their onset rather than gaplessly, after a stall
+    resyncs: int
+    #: samples cut from chunks that were already late when placed
+    trimmed_samples: int
+
+    def in_run_time(self, from_perf: Callable[[float], float]) -> AudioBlockLog:
+        """The same log with every onset converted by ``from_perf`` (the run's clock)."""
+        return replace(self, onsets=[(chunk, from_perf(t)) for chunk, t in self.onsets])
+
+    def record(self) -> dict:
+        """The fields as ``audio.h5`` takes them (:meth:`~fmri_gym.logging.Logger.close_block`)."""
+        return asdict(self)
+
+
 def _resample(pcm: np.ndarray, n: int) -> np.ndarray:
     """Linearly resample ``pcm`` to ``n`` samples, keeping its dtype.
 
@@ -321,30 +345,6 @@ class SoundDeviceGameBlockStream:
         """Stop playback and release the PortAudio stream."""
         self.stop()
         self.output_stream.close()
-
-
-@dataclass(frozen=True, slots=True)
-class AudioBlockLog:
-    """One block's sound timing, for its log (:meth:`Audio.block_log`)."""
-
-    #: ``(chunk, time)``: when each queued chunk started playing, on the
-    #: ``perf_counter`` clock (the run's after :meth:`in_run_time`); a chunk
-    #: that never played has no entry
-    onsets: list[tuple[int, float]]
-    #: milliseconds from a frame's flip to its sound's first sample at the DAC
-    delay_ms: float
-    #: chunks placed at their onset rather than gaplessly, after a stall
-    resyncs: int
-    #: samples cut from chunks that were already late when placed
-    trimmed_samples: int
-
-    def in_run_time(self, from_perf: Callable[[float], float]) -> AudioBlockLog:
-        """The same log with every onset converted by ``from_perf`` (the run's clock)."""
-        return replace(self, onsets=[(chunk, from_perf(t)) for chunk, t in self.onsets])
-
-    def record(self) -> dict:
-        """The fields as ``audio.h5`` takes them (:meth:`~fmri_gym.logging.Logger.close_block`)."""
-        return asdict(self)
 
 
 class Audio:

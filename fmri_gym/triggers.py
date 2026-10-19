@@ -325,7 +325,7 @@ class Triggers:
 
     Built once per run, next to the :class:`~fmri_gym.display.Display` and
     the :class:`~fmri_gym.audio.Audio`, and passed to the
-    :class:`~fmri_gym.run.Run`; :meth:`from_config` on ``None`` gives
+    :class:`~fmri_gym.run.Run`; :meth:`from_dict` on ``None`` gives
     the ``null`` no-op, so the session loop calls these methods
     unconditionally. Events are stamped with ``perf_counter``;
     :meth:`describe` converts them to session time once given the clock.
@@ -354,8 +354,8 @@ class Triggers:
         self._n_sent = 0    # frame triggers sent in the current block
 
     @classmethod
-    def from_config(cls, section: dict | None) -> Triggers:
-        """Build from the ``triggers`` config section.
+    def from_dict(cls, section: dict | None) -> Triggers:
+        """Build from the curriculum's ``triggers`` section.
 
         :param section: the dict, or ``None`` for the defaults (``null``
             backend, wait for the scanner key).

@@ -100,9 +100,9 @@ RIG_FILE = os.environ.get("RIG", "rig.json")
 _PASS = Verdict("pass", None)
 
 
-def has_checks(config: dict) -> bool:
-    """Whether the config is a rig check: any of its phases is a check."""
-    return any(p["type"] in CHECK_TYPES for p in config["curriculum"])
+def has_checks(curriculum: dict) -> bool:
+    """Whether the curriculum is a rig check: any of its phases is a check."""
+    return any(p["type"] in CHECK_TYPES for p in curriculum["curriculum"])
 
 
 # ---------------------------------------------------------------------------
@@ -115,48 +115,48 @@ class RigSetup(NamedTuple):
 
     #: the rig file's fields (:func:`ensure_rig`)
     rig: dict[str, str]
-    #: why the config's trigger line did not open; ``None`` when it did
+    #: why the curriculum's trigger line did not open; ``None`` when it did
     trigger_error: str | None
 
 
-def prepare(config: dict, path: str) -> RigSetup:
+def prepare(curriculum: dict, path: str) -> RigSetup:
     """Before the window: the rig file, the trigger settings, and a line the run can open.
 
     The rig file is required (its form opens when it is missing, see
     :func:`ensure_rig`). A rig check as downloaded has
     ``"triggers": null``: no setup is anyone's default, so the first run asks
-    for one -- a preset, or one's own -- and saves it in the config
+    for one -- a preset, or one's own -- and saves it in the curriculum
     (:func:`_ask_triggers`). A trigger line that does not open
     would stop the run before any check; here it fails the triggers check
     instead, and the run goes on with no codes (said on the console and in
     the manifest), so the other checks still run.
 
-    :param config: the run's config; its ``triggers`` section is filled in when
-        it has none, and replaced when its line does not open.
-    :param path: the config's file, where a chosen section is saved.
-    :raises ValueError: when the config has no trigger settings and none is chosen.
+    :param curriculum: the run's curriculum; its ``triggers`` section is
+        filled in when it has none, and replaced when its line does not open.
+    :param path: the curriculum's file, where a chosen section is saved.
+    :raises ValueError: when the curriculum has no trigger settings and none is chosen.
     :return: the rig, and why the line did not open if it did not.
     """
     rig = ensure_rig(RIG_FILE)
-    if "triggers" in config and config["triggers"] is None:
-        _ask_triggers(config, path)
-    section = config.get("triggers") or {}
+    if "triggers" in curriculum and curriculum["triggers"] is None:
+        _ask_triggers(curriculum, path)
+    section = curriculum.get("triggers") or {}
     try:
-        Triggers.from_config(section).close()
+        Triggers.from_dict(section).close()
         return RigSetup(rig, None)
     except (TriggerError, OSError) as exc:
         error = f"{type(exc).__name__}: {exc}"
     sync = dict(section.get("sync", {}))
     if sync.get("mode") == "send":
         sync["mode"] = "none"  # send needs a line; waiting for the scanner does not
-    config["triggers"] = {**section, "backend": "null", "sync": sync}
+    curriculum["triggers"] = {**section, "backend": "null", "sync": sync}
     print(f"rig check: the trigger line did not open ({error}); the triggers check fails, "
           "the other checks run without codes", file=sys.stderr)
     return RigSetup(rig, error)
 
 
-def _ask_triggers(config: dict, path: str) -> None:
-    """Fill in a config's ``"triggers": null`` from the dialog, and save it.
+def _ask_triggers(curriculum: dict, path: str) -> None:
+    """Fill in a curriculum's ``"triggers": null`` from the dialog, and save it.
 
     :raises ValueError: with no screen for the dialog, or when it is cancelled.
     """
@@ -168,9 +168,9 @@ def _ask_triggers(config: dict, path: str) -> None:
     section = choose_triggers(path)
     if section is None:
         raise ValueError(f"rig check: {fix}; it was cancelled")
-    config["triggers"] = section
-    from .config import save_config
-    save_config(config, path)  # before the run folds its flags into it
+    curriculum["triggers"] = section
+    from .curriculum import save_curriculum
+    save_curriculum(curriculum, path)  # before the run folds its flags into it
     print(f"rig check: trigger settings saved in {path}", file=sys.stderr)
 
 
@@ -242,7 +242,7 @@ def run_check(run: Run, phase: dict, index: int) -> None:
              for t, v in tests.items()]
     run.display.draw_text("Rig check\n\n" + "\n".join(lines))
     _wait_for_duration(run.display, _VERDICT_S)
-    if index == max(i for i, p in enumerate(run.curriculum) if p["type"] in CHECK_TYPES):
+    if index == max(i for i, p in enumerate(run.phases) if p["type"] in CHECK_TYPES):
         _summary_screen(run)
 
 

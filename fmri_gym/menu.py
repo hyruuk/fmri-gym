@@ -71,7 +71,7 @@ class MenuSettings:
 
 
 def menu_problems(spec: object) -> list[str]:
-    """What is wrong with a phase's ``menu`` dict, for :func:`config.validate_config`.
+    """What is wrong with a phase's ``menu`` dict, for :func:`curriculum.validate_curriculum`.
 
     :param spec: the phase's ``"menu"`` value.
     :return: human-readable problems, empty when the menu is usable.

@@ -63,19 +63,19 @@ FLUSH_INTERVAL = 1.0
 class Logger:
     """Writes one run's ``manifest.json`` and its per-block logs."""
 
-    def __init__(self, outdir: str, subject: str, curriculum: list[dict], clock: Clock) -> None:
+    def __init__(self, outdir: str, subject: str, phases: list[dict], clock: Clock) -> None:
         """Create the run's output directory, an empty manifest and the writer process.
 
         :param outdir: the run's folder.
         :param subject: subject identifier stored in the manifest and each block.
-        :param curriculum: full curriculum list stored in the manifest.
+        :param phases: the curriculum's phases, stored whole in the manifest (``curriculum``).
         :param clock: the run's clock (used for trigger epoch / perf times).
         """
         self.outdir = outdir
         self.clock = clock
         os.makedirs(outdir, exist_ok=True)
         self.manifest: dict = {
-            "subject": subject, "curriculum": curriculum, "start_epoch": None, "phases": [],
+            "subject": subject, "curriculum": phases, "start_epoch": None, "phases": [],
         }
         self._block: str | None = None
         #: frames recorded in the open block so far.
