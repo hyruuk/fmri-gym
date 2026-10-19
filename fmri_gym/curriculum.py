@@ -499,7 +499,6 @@ def _phase_problems(phase: dict, index: int) -> list[str]:
         out.append("game: missing env id")
     if phase.get("mode", "duration") not in [mode.value for mode in BlockMode]:
         out.append(f"mode: expected 'duration' or 'episode', got {phase.get('mode')!r}")
-    out.extend(_renamed_problems(phase))
     out.extend(_fps_problems(phase))
     out.extend(_keys_problems(phase))
     # advance_on gates n_episodes, so it means nothing to a block that ends
@@ -527,19 +526,6 @@ def _phase_problems(phase: dict, index: int) -> list[str]:
         except ValueError as exc:
             out.append(str(exc))
     return out
-
-
-#: Keys a game phase might be written with that :class:`GamePhase` reads by
-#: another name. The adapter would pass them over in silence, so a phase that
-#: sets one would play as if it did not.
-MISNAMED = {"turn_based": "is_turn_based", "latched_keys": "has_latched_keys",
-            "live_hud": "has_live_hud", "audio": "has_audio", "max_duration": "duration",
-            "advancing_outcomes": "advance_on", "outcome_duration": "show_outcome_duration"}
-
-
-def _renamed_problems(phase: dict) -> list[str]:
-    """A game phase key :class:`GamePhase` reads under another name."""
-    return [f"{key}: the field is {MISNAMED[key]}" for key in phase if key in MISNAMED]
 
 
 #: Outcomes a block may rewind on: the game's own endings. Not `truncated`,
