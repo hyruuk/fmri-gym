@@ -17,7 +17,8 @@ config the loop behaves as the fMRI default and sends nothing.
 
 A run is the scanner's and a curriculum the subject's, so a run can stop
 part-way through one: given a duration, the run stops whatever phase is on
-screen :data:`END_FIXATION_S` before its end and closes on a fixation cross,
+screen the closing fixation's length before its end (``--end-fixation``,
+default :data:`END_FIXATION_S`) and closes on a fixation cross,
 for the haemodynamic response to the last thing played. A later run started
 with ``--resume`` carries on from there (:func:`~fmri_gym.bids.last_position`).
 """
@@ -58,7 +59,7 @@ _SAME_SPEED = 2e-3
 #: The HUD's coarsest field is a whole second, so this only has to be fast
 #: enough that the number is never seen a second behind.
 HUD_REPAINT_S = 0.2
-#: Seconds of fixation that close a run given a duration.
+#: Seconds of fixation that close a run given a duration, unless it is given another.
 END_FIXATION_S = 10.0
 
 
@@ -362,6 +363,7 @@ class Run:
         triggers: Triggers | None = None,
         dummy_trigger: bool = False,
         duration: float | None = None,
+        end_fixation: float = END_FIXATION_S,
         resume: RunProgress | None = None,
     ) -> None:
         """Set up clock, logger, and phase dispatch for one subject.
@@ -379,6 +381,7 @@ class Run:
         :param dummy_trigger: if ``True``, skip real experimenter/scanner waits.
         :param duration: the run's seconds from the trigger, the closing
             fixation included; ``None`` plays the curriculum to its end.
+        :param end_fixation: seconds of the fixation a run with a duration closes on.
         :param resume: where to start in the curriculum, and what the block
             there has left (:func:`~fmri_gym.bids.last_position`); ``None``
             starts at its beginning.
@@ -397,6 +400,7 @@ class Run:
         self.triggers = triggers or Triggers.from_dict(None)
         self.sync = self.triggers.sync
         self.duration = duration
+        self.end_fixation = end_fixation
         self.resume = resume
         #: ``perf_counter`` at which the phases stop for the closing fixation.
         self._run_end = math.inf
@@ -422,9 +426,12 @@ class Run:
             curriculum cannot carry on (see :func:`_run_progress`).
         """
         phases = curriculum["curriculum"]
-        if config.duration is not None and config.duration <= END_FIXATION_S:
+        if config.end_fixation < 0:
+            raise ValueError(f"--end-fixation {config.end_fixation:g}: expected seconds >= 0")
+        if config.duration is not None and config.duration <= config.end_fixation:
             raise ValueError(f"--duration {config.duration:g}: a run closes on "
-                             f"{END_FIXATION_S:g} s of fixation, so it must be longer than that")
+                             f"{config.end_fixation:g} s of fixation (--end-fixation), so it "
+                             "must be longer than that")
         out = bids.run_output(config.data_root, config.subject, config.curriculum_path,
                               config.ses, config.run)
         if out.attempt > 1:
@@ -452,7 +459,7 @@ class Run:
                           vsync=config.has_vsync, monitor=config.monitor)
         run = cls(config.subject, phases, display, out.folder, audio=audio,
                   triggers=triggers, dummy_trigger=config.dummy_trigger,
-                  duration=config.duration, resume=resume)
+                  duration=config.duration, end_fixation=config.end_fixation, resume=resume)
         run.logger.set_extra("run", {"label": out.label, "attempt": out.attempt})
         run.logger.set_extra("seeds", seeds)
         run.logger.set_extra("pad", pad_status)   # which controller answered, and as what
@@ -967,7 +974,7 @@ class Run:
         A resumed run skips the phases an earlier run played, except the
         ``include_on_resume`` opening ones, and hands the block it carries on
         what that run left of it. A run with a duration stops its phases
-        :data:`END_FIXATION_S` before the end and closes on a fixation cross.
+        ``end_fixation`` seconds before the end and closes on a fixation cross.
         Always writes the run's manifest in ``finally``, including after an
         interrupt (partial data).
 
@@ -987,7 +994,7 @@ class Run:
         try:
             self._trigger()
             if self.duration is not None:
-                self._run_end = self.clock.t0_perf + self.duration - END_FIXATION_S
+                self._run_end = self.clock.t0_perf + self.duration - self.end_fixation
 
             reached_end = True
             for index, phase in enumerate(self.phases):
@@ -1026,8 +1033,8 @@ class Run:
         return time.perf_counter() >= self._run_end
 
     def _end_fixation(self) -> None:
-        """Close the run on :data:`END_FIXATION_S` seconds of fixation."""
+        """Close the run on ``end_fixation`` seconds of fixation."""
         onset = self.clock.from_perf(self.display.draw_fixation())
-        _wait_for_duration(self.display, END_FIXATION_S)
+        _wait_for_duration(self.display, self.end_fixation)
         self.logger.log_phase({"index": None, "type": "fixation", "end_of_run": True,
                                "onset": onset, "offset": self.clock.run_time()})

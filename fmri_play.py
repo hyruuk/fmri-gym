@@ -30,6 +30,7 @@ from fmri_gym import Run, checks
 from fmri_gym.config import RunConfig
 from fmri_gym.curriculum import EXIT_QUIT, load_curriculum, validate_curriculum
 from fmri_gym.display import quit_like_esc
+from fmri_gym.run import END_FIXATION_S
 
 
 class _Parser(argparse.ArgumentParser):
@@ -61,8 +62,11 @@ def _parser() -> argparse.ArgumentParser:
                    "already has data is re-acquired beside it, never overwritten")
     p.add_argument("--duration", type=float, default=None,
                    help="the run's length in seconds from the scanner trigger: the phases stop "
-                   "10 s before it, whatever is playing, and the run closes on a fixation "
-                   "cross. Default: play the curriculum to its end")
+                   "--end-fixation seconds before it, whatever is playing, and the run closes "
+                   "on a fixation cross. Default: play the curriculum to its end")
+    p.add_argument("--end-fixation", type=float, default=END_FIXATION_S, metavar="SECONDS",
+                   help="seconds of the fixation a run with --duration closes on, for the "
+                   f"haemodynamic response to the last thing played (default {END_FIXATION_S:g})")
     p.add_argument("--resume", action="store_true",
                    help="carry on from where this subject's latest run of this config (any "
                    "session) stopped, mid-block included. Default: start at the beginning")

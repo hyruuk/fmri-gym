@@ -219,6 +219,7 @@ def test_headless_run(smoke_config, plan, tmp_path):
     manifest = json.loads(manifests[0].read_text())
     games = [p for p in manifest["phases"] if p.get("type") == "game"]
     assert len(games) == 1, f"the game phase did not finish logging: {manifest['phases']}"
+    assert any(p.get("end_of_run") for p in manifest["phases"]), "no closing fixation was logged"
     assert games[0]["n_frames"] > 0, "the game block logged no frame: were the keys read?"
     block = manifests[0].parent / games[0]["data_dir"].split("/")[-1]
     assert (block / EVENTS_FILENAME).exists() and (block / FRAMES_FILENAME).exists()
