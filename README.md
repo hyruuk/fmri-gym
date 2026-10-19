@@ -468,6 +468,20 @@ They assume `sub-01` and a 1024x768 window, and play into the session their fold
  "show_score": false}           // crafter: draw the achievement count beside the frame
 ```
 
+### Shared phases (the `include` field)
+
+The levels of one game repeat most of their game phase: the keys, the instructions, the mode, the env's settings. A phase can instead start from a shared one and write only what differs:
+
+```jsonc
+// configs/curricula/vizdoom/freedoom1_e2m5.json
+{"include": "common/freedoom1.json", "game": "VizdoomFreedoom1E2M5-S2-v0",
+ "instructions": {"title": "Freedoom: Underground Hub"}}
+```
+
+`include` names a file relative to the curriculum's own folder, which holds one phase object (`configs/curricula/vizdoom/common/freedoom1.json`: type, backend, instructions, `env_kwargs`, keys, mode, fps, and the notes that explain them). The phase's own keys are laid over it: an object in both merges key by key, so the line above changes the title and keeps the instructions' text; anything else (a list, a number, a string) replaces the shared value whole. A key cannot be taken away, so a shared phase holds only what every phase that includes it keeps. A shared phase may include another, relative to its own folder. Shared phases live in folders named `common`, which hold no curricula: neither `fmri-edit`'s lists nor the tests treat them as runs.
+
+Includes are resolved when the file is read, so everything after that sees each phase in full: `fmri-play`, the editor and the manifest, which keeps the run's curriculum as it was played. Saving a curriculum from `fmri-edit` writes it that way too, its includes written out.
+
 ### Keys (the `keys` field)
 
 Every game phase states its whole keyboard map. **There is no default**: which key does what differs between sites (a keyboard at the desk, a gamepad that types keys in the scanner), so the file says it, and a phase without `keys` is refused before the window opens. `keys` is a dict of `"<key(s)>": <action>`:

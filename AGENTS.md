@@ -21,7 +21,7 @@ fmri_gym/menu.py                 CORE  hold-a-key pause menu: reset / forfeit / 
 fmri_gym/adapters/base.py        CORE  EnvAdapter + FrameState: the seam
 fmri_gym/adapters/keymap.py      CORE  the phase's keys, one Keymap per action space
 fmri_gym/adapters/<BACKEND>.py   YOU   one small wrapper per game engine
-configs/curricula/<BACKEND>/     YOU   the game's curricula: one per level, or a sequence
+configs/curricula/<BACKEND>/     YOU   the game's curricula: one per level, or a sequence; common/ the phase they share
 gym/<GAME>/                      YOU   a Gymnasium env for a game that ships none, or a rough one
 gym/replay_state/                      ReplayState: a savestate by replay, for any env
 external/<BACKEND>/              a game's own repo, a submodule at the commit the README pins

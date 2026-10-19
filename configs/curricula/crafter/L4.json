@@ -1,6 +1,5 @@
 {
   "_game": "Crafter (level 4: survival, eight buttons)",
-  "_note": "uv sync --extra crafter (crafter-gym, gym/crafter/, pulls crafter), then pip install --force-reinstall 'crafter @ git+https://github.com/chengfanbrain/crafter.git@deterministic' -- a fork of 1.8.3 whose single change is that a seed plus an action list replays exactly (see _state_note). Plain PyPI crafter runs this config fine and plays identically to a subject, but its blocks cannot be replayed, so a model cannot be given the same episode. This is the paradigm's level 4 (survival): hostiles on, health/food/drink/energy decay, death ends the episode, nothing hidden from the HUD. It is stock crafter, rule for rule: what is written down below is the interface it is played through and the pacing, not the game. Levels 1-3 freeze or remove parts of the game and belong in a gymnasium.Wrapper shipped with the env, as the menu is (gym/crafter/crafter_gym/menu.py): a level an adapter applied would stop humans and models from playing the same game.",
   "_level_note": "Level 4 of the paradigm's four (crafter_gym.levels.LEVELS, the rig's own table): stock crafter, with no task chain, except that health cannot regenerate from 0 and the view is tinted red while the player is dead, as on every level. Levels 1-3 are crafter__crafter_L1/L2/L3.json.",
   "_why_one_config": "There is one crafter interface and it is this one, in four configs that differ only by level, because the scanner has a button box and not a keyboard: the eight buttons here are the ones the rig's own frontend uses (crafter-for-brain-scan v0.33, core.py:ButtonMapper, frontend_pygame.py:KEYMAP), so a subject who practised in the rig keeps their fingers. A seventeen-key config existed until it was clear nobody would ever run it in a scanner; the env it used (Crafter-v0, no menu) is still registered and still what agents/ can be pointed at, and CrafterMenu-v0 is that same env under gym/crafter/crafter_gym/menu.py.",
   "_menu_note": "The wrapper's action space is Discrete(19): crafter's own 17, then cycle (17) and confirm (18). W advances the cursor and steps the env with noop, A performs the action the cursor is on; both draw the cursor over the player for that one frame. The cost of a look is a turn, as it is in the rig: a free cycle would make all ten menu actions reachable for one press. The npz records the button in 'actions' and the engine's action in 'env_action', plus 'menu_idx' and 'menu_sel' read after the press, and action_names covers all 19 so the button column decodes. Two deviations from the rig, both deliberate: the cursor shows while the last press was cycle or confirm rather than for 3 wall-clock seconds (--menu-s), because a turn-based block repaints only on a press and has no clock to fade against, and this version is reconstructible from the logged actions alone; and the cursor sits at 3.5/9 of the frame height, the centre of the played area above crafter's own two HUD rows, which is where the rig puts it too.",
@@ -16,9 +15,9 @@
   "curriculum": [
     {"type": "fixation", "duration": 1.0, "include_on_resume": true},
     {
-      "type": "game", "backend": "crafter", "game": "CrafterMenu-v0",
+      "include": "common/crafter.json",
       "instructions": {
-        "title": "Crafter", "align": "left", "keys_to_dismiss": ["SPACE"],
+        "title": "Crafter",
         "text": [
           "Open-world survival. Gather materials, craft",
           "tools, eat, drink, sleep, and stay alive.",
@@ -42,15 +41,7 @@
           "(press SPACE to start)"
         ]
       },
-      "env_kwargs": {"size": [384, 384], "length": 0, "level": "L4_survival"},
-      "keys": {
-        "LEFT": 1, "RIGHT": 2, "UP": 3, "DOWN": 4, "D": 5, "S": 6,
-        "W": 17, "A": 18
-      },
-      "mode": "duration", "duration": 300.0, "fps": 15,
-      "turn_based": true, "latched_keys": false, "live_hud": true,
-      "state_stride": 25, "show_score": true,
-      "cues": true, "cue_overlay": false, "seed": 0
+      "env_kwargs": {"level": "L4_survival"}
     },
     {"type": "fixation", "duration": 2.0}
   ]

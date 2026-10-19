@@ -3,19 +3,19 @@
   "curriculum": [
     {"type": "message", "text": "FrozenLake (arrows move; get to the goal)", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
-    {"type": "game", "backend": "gym", "game": "FrozenLake-v1", "env_kwargs": {"is_slippery": false}, "mode": "episode", "fps": 5, "n_episodes": 2, "max_duration": 15.0, "keys": {"LEFT": 0, "DOWN": 1, "RIGHT": 2, "UP": 3}, "turn_based": true},
+    {"include": "common/frozenlake.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
     {"type": "message", "text": "FrozenLake 8x8 (arrows move)", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
-    {"type": "game", "backend": "gym", "game": "FrozenLake8x8-v1", "env_kwargs": {"is_slippery": false}, "mode": "episode", "fps": 5, "n_episodes": 2, "max_duration": 15.0, "keys": {"LEFT": 0, "DOWN": 1, "RIGHT": 2, "UP": 3}, "turn_based": true},
+    {"include": "common/frozenlake8x8.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
     {"type": "message", "text": "CliffWalking (arrows move; avoid the cliff)", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
-    {"type": "game", "backend": "gym", "game": "CliffWalking-v1", "mode": "episode", "fps": 5, "n_episodes": 2, "max_duration": 15.0, "keys": {"UP": 0, "RIGHT": 1, "DOWN": 2, "LEFT": 3}, "turn_based": true},
+    {"include": "common/cliffwalking.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
     {"type": "message", "text": "Taxi (arrows move, SPACE pickup, RETURN dropoff)", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
-    {"type": "game", "backend": "gym", "game": "Taxi-v3", "mode": "episode", "fps": 5, "n_episodes": 2, "max_duration": 15.0, "keys": {"DOWN": 0, "UP": 1, "RIGHT": 2, "LEFT": 3, "SPACE": 4, "RETURN": 5}, "turn_based": true},
+    {"include": "common/taxi.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
     {"type": "message", "text": "Blackjack (LEFT=stick, RIGHT=hit)", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
-    {"type": "game", "backend": "gym", "game": "Blackjack-v1", "mode": "episode", "fps": 5, "n_episodes": 2, "max_duration": 15.0, "keys": {"LEFT": 0, "RIGHT": 1}, "turn_based": true},
+    {"include": "common/blackjack.json", "mode": "episode", "n_episodes": 2, "max_duration": 15.0},
     {"type": "fixation", "duration": 3.0}
   ]
 }

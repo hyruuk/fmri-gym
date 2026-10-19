@@ -1,0 +1,4 @@
+{
+  "type": "game", "backend": "ale", "game": "ALE/Pong-v5",
+  "mode": "duration", "fps": 30
+}

@@ -1,0 +1,19 @@
+{
+  "type": "game", "backend": "aigamestore",
+  "instructions": {
+    "align": "left", "keys_to_dismiss": ["SPACE"],
+    "text": [
+      "Sort colored water into matching tubes.",
+      "Pour until every tube is uniform (or empty).",
+      "",
+      "Controls:",
+      "   LEFT / RIGHT   highlight a tube",
+      "   SPACE          select / pour",
+      "   Z              undo",
+      "",
+      "(press SPACE to start)"
+    ]
+  },
+  "keys": {"LEFT": 0, "RIGHT": 1, "SPACE": 2, "Z": 3},
+  "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 120.0, "fps": 10
+}

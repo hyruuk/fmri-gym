@@ -1,0 +1,7 @@
+{
+  "_curriculum_note": "Blocking: the block is the whole game played until won (mode 'episode', n_episodes 1, advancing_outcomes ['won']); a GAME_OVER restarts it from level 1.",
+  "type": "game", "backend": "arc3",
+  "instructions": {"title": "Puzzle game", "align": "left", "keys_to_dismiss": ["SPACE"]},
+  "menu": {"key": "X", "hold": 5.0, "after": 15.0, "options": ["reset", "forfeit", "resume"], "move": ["UP", "DOWN"], "confirm": "SPACE"},
+  "mode": "episode", "n_episodes": 1, "advancing_outcomes": ["won"], "max_duration": 600.0, "fps": 15, "turn_based": true
+}

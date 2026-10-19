@@ -1,0 +1,4 @@
+{
+  "type": "game", "backend": "gym", "game": "MountainCar-v0",
+  "fps": 30, "keys": {"": 1, "LEFT": 0, "RIGHT": 2}
+}

@@ -12,7 +12,7 @@ folder, window and the test switches are the run config
 There is one shape. A bare list, an unknown top-level key or an unknown phase
 type is refused at start-up, with the reason.
 
-A phase may start from a shared one: ``"include": "common/freedoom1.json"``
+A phase may start from a shared one: ``"include": "common/<game>.json"``
 names a file (relative to the curriculum's own) holding one phase object, and
 the phase's other keys are laid over it (:func:`overlay`). Curricula of one
 game then write the setup once and only what differs per level. Shared
