@@ -1,12 +1,17 @@
 """MiniHack adapter (facebookresearch/minihack, NetHack Learning Environment).
 
 MiniHack's default observation is ASCII/tty and env.render() returns None, so we
-request a pixel observation and display that. By default we show `pixel_crop` --
-a 144x144 square window centered on the agent -- because the full `pixel`
-observation is the entire 80-column NetHack terminal (336x1264, ~3.8:1) in which
-a small room fills only a few percent of the frame, so aspect-fitting it makes
-the game look tiny. Set the phase field "full_screen": true to display the whole
-`pixel` frame instead. Actions are 8 compass directions (N,E,S,W,NE,SE,SW,NW ->
+request the ``pixel_crop`` observation and display that. What it shows is the
+env id's to say, so that an agent trained on the id sees what the participant
+sees: MiniHack's own ids crop a 9x9-tile window centred on the agent (the agent
+holds still, the level slides), and ``minihack_levels`` (gym/minihack) registers
+for each an ``-Allocentric-v0`` twin whose ``pixel_crop`` is the level's map,
+fixed (the level holds still, the agent moves), alongside its own layouts:
+``minihack_levels:MiniHack-Room-5x5-Allocentric-v0``. The whole-terminal
+``pixel`` observation is never shown: the 80-column terminal (336x1264, ~3.8:1)
+makes a small room a few percent of the picture.
+
+Actions are 8 compass directions (N,E,S,W,NE,SE,SW,NW ->
 Discrete(8), indices 0..7), which a phase's ``keys`` index; some tasks append
 more (Eat: 29 = eat). Play ``turn_based``: there is no no-op (0 is "move N").
 
@@ -38,13 +43,9 @@ class MiniHackAdapter(EnvAdapter):
         import minihack  # noqa: F401  (registers MiniHack-* env ids)
         from minihack_levels import NLESeeding
         from replay_state_gym import ReplayState
-        # Prefer the agent-centered square crop for display; the full terminal
-        # ("pixel") only looks good with "full_screen": true.
-        self._pixel_key = "pixel" if spec.get("full_screen") else "pixel_crop"
-        keys = tuple(spec.get("observation_keys",
-                              (self._pixel_key, "glyphs", "blstats", "message")))
-        if self._pixel_key not in keys:
-            keys = (self._pixel_key,) + keys
+        keys = tuple(spec.get("observation_keys", ("pixel_crop", "glyphs", "blstats", "message")))
+        if "pixel_crop" not in keys:
+            keys = ("pixel_crop",) + keys
         env = gym.make(spec["game"], observation_keys=keys, fix_moon_phase=True)
         self._last = None
         return ReplayState(NLESeeding(env))
@@ -56,7 +57,7 @@ class MiniHackAdapter(EnvAdapter):
 
     def render(self) -> np.ndarray:
         # Display the pixel observation (env.render() is None for MiniHack).
-        return np.asarray(self._last[self._pixel_key])
+        return np.asarray(self._last["pixel_crop"])
 
     def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
         # NLE's end_status: TASK_SUCCESSFUL, DEATH, or ABORTED at the step limit.

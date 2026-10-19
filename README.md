@@ -103,7 +103,7 @@ Each is a minimal `message → fixation → game (300 s) → fixation` curriculu
 |---|---|---|
 | `atari__` | 10 | pong, breakout, spaceinvaders, mspacman, seaquest, qbert, asterix, beamrider, enduro, boxing |
 | `vgdl__` | 10 | aliens, beesAndBirds, … (needs the VGDL fork checkout) |
-| `minihack__` | 6 | room5x5/15x15, mazewalk9x9, river, corridor, eat |
+| `minihack__` | 12 | room5x5/15x15, mazewalk9x9, river, corridor, eat: the `-Allocentric-v0` twin from `minihack_levels` (view fixed on the map), each with an `_egocentric` sibling on MiniHack's own id (view centred on the agent) |
 | `nethack__` | 1 | score (base NetHack; TTY rendered to a pixel frame) |
 | `aigamestore__` | 10 | game1…game10 (p5.js; needs playwright) |
 | `classic__` | 5 | cartpole, mountaincar, acrobot, pendulum, mountaincarcontinuous |
@@ -314,7 +314,7 @@ fmri_gym/
     default.py      # ANY gym env: rgb frames, seed+replay, obs-as-state
     vgdl.py         # VGDL via vgdl-gym: get_state/set_state savestate, symbolic grid + events
     crafter.py      # Crafter via crafter-gym: obs is the frame; achievements
-    minihack.py     # pixel obs + compass keymap; blstats/glyphs/message
+    minihack.py     # pixel_crop as the env id defines it (minihack_levels: -Allocentric-v0 twins fixed on the map) + compass keymap; blstats/glyphs/message
     nethack.py      # base NLE: TTY grid -> RGB; vi-key movement; blstats
     aigamestore.py  # AI GameStore via aigamestore-gym: held keys as the env's action, state_* from getGameState
     coom.py         # COOM via coom-gym: Discrete(12) actions, game variables and PCM logged
