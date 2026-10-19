@@ -1,6 +1,6 @@
 """Every config in the repo is one ``fmri-play`` would start, and the suite's table covers every backend.
 
-Engine-free: nothing is built. ``validate_config`` is the check ``fmri_play``
+Engine-free: nothing is built. ``validate_curriculum`` is the check ``fmri_play``
 runs before the window opens, so a config that fails here fails at the desk.
 """
 
@@ -10,7 +10,7 @@ import re
 
 import pytest
 
-from fmri_gym.config import load_config, validate_config
+from fmri_gym.curriculum import load_curriculum, validate_curriculum
 from tests.backends import BACKENDS, REPO, all_configs, game_phases, phase_backend
 
 CONFIGS = all_configs()
@@ -18,7 +18,7 @@ CONFIGS = all_configs()
 
 @pytest.mark.parametrize("path", CONFIGS, ids=[str(p.relative_to(REPO)) for p in CONFIGS])
 def test_config_validates(path):
-    problems = validate_config(load_config(str(path)))
+    problems = validate_curriculum(load_curriculum(str(path)))
     assert not problems, "\n".join(problems)
 
 
