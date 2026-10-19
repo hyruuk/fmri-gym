@@ -40,7 +40,7 @@ from .adapters import get_adapter
 from .audio import Audio
 from .bids import BlockProgress, RunProgress
 from .config import RunConfig
-from .curriculum import BlockMode, GamePhase, fold_cli_options
+from .curriculum import BlockMode, GamePhase, fold_cli_options, game_changes
 from .display import Display, check_monitor
 from .keys import get_events, held_key_names, key_name
 from .menu import Menu
@@ -54,18 +54,12 @@ EXPERIMENTER_KEY = " "
 #: How far ``fps`` may sit from the engine's own rate and still count as real
 #: speed: what the audio output absorbs by resampling.
 _SAME_SPEED = 2e-3
-#: Seconds between the redraws a ``live_hud`` phase asks for while it waits.
+#: Seconds between the redraws a ``has_live_hud`` phase asks for while it waits.
 #: The HUD's coarsest field is a whole second, so this only has to be fast
 #: enough that the number is never seen a second behind.
 HUD_REPAINT_S = 0.2
 #: Seconds of fixation that close a run given a duration.
 END_FIXATION_S = 10.0
-#: Game-phase fields a curriculum may change between runs and still carry a
-#: block on; any other change makes it a different game. ``seed`` and ``audio``
-#: are the run's own (folded in from the run label and the run config).
-RESUMABLE_CHANGES = frozenset({"duration", "max_duration", "n_episodes", "advancing_outcomes",
-                               "outcome_duration", "instructions", "keys", "menu", "seed",
-                               "audio", "rewind_on", "rewind_frames"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,7 +169,7 @@ def _poll_keys_until(
         seen, instead of ending the wait at the first.
     :param repaint: called every :data:`HUD_REPAINT_S` while waiting, for a
         wait long enough that the screen would otherwise go stale (see
-        ``live_hud``). It redraws; it must not step, log or trigger.
+        ``has_live_hud``). It redraws; it must not step, log or trigger.
     :return: ``(action_or_None, user_quit)``; ``action`` is set only when
         ``key_to_action`` is given, ``user_quit`` on window close / ESC.
     """
@@ -329,8 +323,8 @@ def _run_progress(
     :return: :func:`~fmri_gym.bids.last_position`, or ``None`` (said on stderr)
         when no earlier run of this curriculum got past its opening phases.
     :raises ValueError: if that run played the curriculum to its end, or its
-        last game phase differs in this curriculum by more than
-        :data:`RESUMABLE_CHANGES`.
+        last game phase is another game in this curriculum
+        (:func:`~fmri_gym.curriculum.game_changes`).
     """
     progress = bids.last_position(data_root, subject, curriculum_path)
     if progress is None:
@@ -344,8 +338,7 @@ def _run_progress(
     if last_game is not None:
         then = last_game.phase
         now = phases[last_game.phase_index] if last_game.phase_index < len(phases) else {}
-        changed = sorted(k for k in then.keys() | now.keys() if then.get(k) != now.get(k)
-                         and k not in RESUMABLE_CHANGES and not k.startswith("_"))
+        changed = game_changes(then, now)
         if changed:
             raise ValueError(f"--resume: phase {last_game.phase_index}, the last game "
                              f"{run_label} played, is not the same game in this curriculum "
@@ -935,7 +928,7 @@ class Run:
             "index": index, "type": "game", "backend": game_phase.backend,
             "game": game_phase.game, "mode": game_phase.mode.value,
             "onset": onset, "offset": self.clock.run_time(), **summary,
-            **({"advancing_outcomes": list(game_phase.advance_on)}
+            **({"advance_on": list(game_phase.advance_on)}
                if game_phase.advance_on is not None else {}),
             "data_dir": data_dir, **speed,
             **({"menu": menu.describe()} if menu else {}),

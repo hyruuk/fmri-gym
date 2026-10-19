@@ -1,9 +1,8 @@
 {
-  "_game": "Classic control: Acrobot-v1",
   "curriculum": [
     {"type": "message", "text": "Classic control: Acrobot-v1", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
-    {"backend": "gym", "game": "Acrobot-v1", "fps": 30, "keys": {"": 1, "LEFT": 0, "RIGHT": 2}, "type": "game", "mode": "duration", "duration": 300.0},
+    {"__include": "common/acrobot.json", "mode": "duration", "duration": 300.0},
     {"type": "fixation", "duration": 2.0}
   ]
 }

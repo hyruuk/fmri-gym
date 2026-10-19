@@ -336,7 +336,7 @@ class _Editor(QtWidgets.QMainWindow):
         # not on disk until Save, which asks where they go.
         self.new: set[str] = set()
         self.phases: list[dict] = []    # the selected run's curriculum
-        self.notes: dict = {}           # top-level keys the editor does not own (e.g. "_note")
+        self.notes: dict = {}           # top-level keys the editor does not own (its "##" comments)
         self.edit_index: int | None = None
         self.ctl_index: int | None = None
         self.phase_form: _Form | None = None
@@ -584,7 +584,7 @@ class _Editor(QtWidgets.QMainWindow):
             self._add_config(path)
             return
         try:
-            self.open_config(curriculum.load_curriculum(path), path)
+            self.open_config(curriculum.load_curriculum(path, keep_includes=True), path)
         except (OSError, ValueError) as exc:
             self._error(f"cannot open {path}: {exc}")
 
@@ -783,7 +783,7 @@ class _Editor(QtWidgets.QMainWindow):
         if not steps:
             raise ValueError(f"{path}: no run in it")
         # Every config now, so a missing one is named here and not at some later click.
-        configs = {s["config"]: curriculum.load_curriculum(s["config"])
+        configs = {s["config"]: curriculum.load_curriculum(s["config"], keep_includes=True)
                    for s in steps if "config" in s}
         self.session_path, self.steps = path, steps
         self.configs, self.opened, self.new = configs, set(), set()
@@ -874,8 +874,8 @@ class _Editor(QtWidgets.QMainWindow):
         if not steps:
             raise ValueError("script: no line to play")
         try:  # configs shown here keep their unsaved edits; the others are read now
-            new = {s["config"]: curriculum.load_curriculum(s["config"]) for s in steps
-                   if "config" in s and s["config"] not in self.configs}
+            new = {s["config"]: curriculum.load_curriculum(s["config"], keep_includes=True)
+                   for s in steps if "config" in s and s["config"] not in self.configs}
         except OSError as exc:
             raise ValueError(f"script: {exc}") from exc
         self.configs.update(new)
@@ -1046,7 +1046,7 @@ class _Editor(QtWidgets.QMainWindow):
     def _add_config(self, path: str) -> None:
         if path not in self.configs:
             try:
-                self.configs[path] = curriculum.load_curriculum(path)
+                self.configs[path] = curriculum.load_curriculum(path, keep_includes=True)
             except (OSError, ValueError) as exc:
                 self._error(f"cannot add {path}: {exc}")
                 return
@@ -1331,6 +1331,8 @@ class _Editor(QtWidgets.QMainWindow):
         new = {"type": old["type"], **self.phase_form.get()}
         if "keys" in old:
             new["keys"] = old["keys"]
+        if self.extra_text is None and curriculum.INCLUDE_KEY in old:  # else it is in extra
+            new[curriculum.INCLUDE_KEY] = old[curriculum.INCLUDE_KEY]
         if self.extra_text is not None:
             try:
                 extra = json.loads(self.extra_text.toPlainText() or "{}")
@@ -1579,7 +1581,7 @@ class _Editor(QtWidgets.QMainWindow):
             if path.endswith(".sh"):
                 self.open_session(path)
             else:
-                self.open_config(curriculum.load_curriculum(path), path)
+                self.open_config(curriculum.load_curriculum(path, keep_includes=True), path)
         except (OSError, ValueError) as exc:
             self._error(f"cannot open {path}: {exc}")
 
@@ -1631,6 +1633,8 @@ class _Editor(QtWidgets.QMainWindow):
         if script is not None and self.session_path is None and not self._ask_session_path():
             return False
         paths = sorted({s["config"] for s in self.steps if "config" in s} & self.opened)
+        if not self._confirm_shared_overrides(paths):
+            return False
         try:
             for path in paths:
                 curriculum.save_curriculum(self.configs[path], path)
@@ -1645,6 +1649,25 @@ class _Editor(QtWidgets.QMainWindow):
         self._refresh_views()
         self._set_status("saved " + ", ".join(paths + [self.session_path] * (script is not None)))
         return True
+
+    def _confirm_shared_overrides(self, paths: list[str]) -> bool:
+        """Whether to save, when phases change what their shared phase in ``common/`` gives."""
+        try:
+            lines = [f"{path}, {line}" for path in paths
+                     for line in curriculum.shared_overrides(self.configs[path])]
+        except (OSError, ValueError) as exc:
+            self._error(str(exc))
+            return False
+        if not lines:
+            return True
+        answer = QtWidgets.QMessageBox.question(
+            self, "fmri-gym config",
+            "These phases change what their shared phase in common/ gives them:\n\n"
+            + "\n".join(lines) + "\n\nThe change is this curriculum's alone: the other curricula "
+            "that include the same shared phase keep it as it is. If it should hold for all of "
+            "them, edit the file in common/ instead, and look at every phase that includes it."
+            "\n\nSave anyway?")
+        return answer == QtWidgets.QMessageBox.StandardButton.Yes
 
     def _session_text(self) -> str:
         """:raises ValueError: if the launch flags every line carries are incomplete."""

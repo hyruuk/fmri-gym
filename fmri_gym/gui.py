@@ -186,20 +186,20 @@ _GAME_FIELDS = [
               "set up for this backend; any other id can be typed."),
     Field("mode", "mode", "choice", ("duration", "episode"),
           tip="duration = play (and replay) until the time is up; episode = play n_episodes."),
-    Field("duration", "duration (s)", "float", tip="duration mode: block length in seconds."),
+    Field("duration", "duration (s)", "float",
+          tip="duration mode: block length in seconds (default 30); episode mode: the cap on "
+              "the block, wall-clock seconds (default 300)."),
     Field("n_episodes", "n_episodes", "int", tip="episode mode: how many episodes."),
-    Field("advancing_outcomes", "advancing_outcomes", "list",
+    Field("advance_on", "advance_on", "list",
           tip="episode mode: the outcomes that count toward n_episodes, e.g. won. Any other "
-              "replays the same instance, so the block ends on one of these, at max_duration, "
+              "replays the same instance, so the block ends on one of these, at duration, "
               "or from the menu. Names: won, lost, terminated, truncated, playing. Blank = all."),
-    Field("max_duration", "max_duration (s)", "float",
-          tip="episode mode: hard wall-clock cap for the block."),
     Field("fps", "fps", "float",
           tip="Steps per second. Required: every block states its own rate. The engine's own "
               "rate plays the game at its real speed and fits its sound (60 for consoles and "
               "Atari, 35 / frame_skip for Doom); Controls > Check with the engine shows what "
               "this engine runs at. Pick one that divides the monitor's refresh."),
-    Field("turn_based", "turn_based", "bool", default=False,
+    Field("is_turn_based", "is_turn_based", "bool", default=False,
           tip="Step only on a key press instead of every frame (grid / text games)."),
     Field("seed", "seed", "int",
           tip="The phase's base seed: episode 1 plays with it, episode 2 with seed+1, and so "
@@ -212,10 +212,10 @@ _GAME_FIELDS = [
     Field("frame_stride", "frame_stride", "int",
           tip="Save the rendered frame every K frames (1 = every frame, 0 = none)."),
     Field("text", "text", tip="Optional label shown on the loading screen instead of the env id."),
-    Field("audio", "audio", "bool", default=True,
+    Field("has_audio", "has_audio", "bool", default=True,
           tip="Play the game's sound in this block. Off mutes the speakers; audio the env "
               "returns is still logged."),
-    Field("outcome_duration", "outcome_duration (s)", "float",
+    Field("show_outcome_duration", "show_outcome_duration (s)", "float",
           tip="Seconds the final score and outcome (won / lost / time is up ...) are shown after "
               "each episode (default 2; 0 = none)."),
 ]
@@ -380,6 +380,8 @@ def curated_games(root: str = CURRICULA_DIR) -> tuple[dict[str, dict[str, tuple[
     games: dict[str, dict[str, tuple[str, dict]]] = {}
     unreadable: list[str] = []
     for path in sorted(glob.glob(os.path.join(root, "**", "*.json"), recursive=True)):
+        if curriculum.is_common_file(path):
+            continue
         try:
             config = curriculum.load_curriculum(path)
         except (OSError, ValueError):
@@ -395,14 +397,15 @@ def listed_files(ext: str) -> list[str]:
     """The files the editor's drop-downs list: session scripts in ``configs/``, or curricula.
 
     Sessions (``sh``) and runs (``json``) are picked from here rather than found
-    through a file dialog, so the repo's examples are one click away.
+    through a file dialog, so the repo's examples are one click away. Shared phases
+    (:func:`fmri_gym.curriculum.is_common_file`) are not runs; they are left out.
 
     :param ext: ``"sh"`` for session scripts, ``"json"`` for run configs.
     :return: paths relative to the working directory, in path order.
     """
     root = CURRICULA_DIR if ext == "json" else CONFIGS_DIR
     paths = sorted(glob.glob(os.path.join(root, "**", f"*.{ext}"), recursive=True))
-    return [os.path.relpath(p) for p in paths]
+    return [os.path.relpath(p) for p in paths if not curriculum.is_common_file(p)]
 
 
 def suggest_name(stem: str, taken: set[str]) -> str:
@@ -836,7 +839,7 @@ def main() -> None:
     args = p.parse_args()
     if args.session and args.curriculum:
         p.error("--session and --curriculum: the session already names its configs")
-    config = (curriculum.load_curriculum(args.curriculum) if args.curriculum
+    config = (curriculum.load_curriculum(args.curriculum, keep_includes=True) if args.curriculum
               else curriculum.new_curriculum())
     try:
         command = edit_config(config, args.curriculum, session=args.session)

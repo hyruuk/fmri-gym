@@ -13,7 +13,7 @@ makes a small room a few percent of the picture.
 
 Actions are 8 compass directions (N,E,S,W,NE,SE,SW,NW ->
 Discrete(8), indices 0..7), which a phase's ``keys`` index; some tasks append
-more (Eat: 29 = eat). Play ``turn_based``: there is no no-op (0 is "move N").
+more (Eat: 29 = eat). Play ``is_turn_based``: there is no no-op (0 is "move N").
 
 NLE has no savestate API and its game lives in a NetHack library loaded per
 env, out of Python's reach, so the savestate is ``replay_state_gym.ReplayState``'s:

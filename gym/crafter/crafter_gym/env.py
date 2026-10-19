@@ -112,7 +112,7 @@ class CrafterEnv(gym.Env):
         Gymnasium separates them: ``terminated`` is the game ending, dying,
         and ``truncated`` is the step limit stopping an episode that had not
         ended. Which one it was decides what the subject is told at the end of
-        the episode and what a block's ``advancing_outcomes`` reads, so it is
+        the episode and what a block's ``advance_on`` reads, so it is
         split here from the health the game reports anyway.
 
         ``info`` gains ``sleeping``, which crafter keeps on the player and

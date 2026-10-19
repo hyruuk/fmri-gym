@@ -1,22 +1,32 @@
 """The curriculum: what one run plays. Load, save, check, and the trigger presets.
 
 A curriculum is one JSON file: a ``curriculum`` list of phases (see README)
-and an optional ``triggers`` section (:mod:`fmri_gym.triggers`);
-``_``-prefixed keys are notes. Several runs make a session, which is a shell
+and an optional ``triggers`` section (:mod:`fmri_gym.triggers`); a key
+that starts with ``##`` is a comment, anywhere. Several runs make a session, which is a shell
 script (:func:`fmri_gym.gui.write_session`), not a curriculum.
 
 The file says what is played, not who plays it or where: subject, output
 folder, window and the test switches are the run config
 (:mod:`fmri_gym.config`), so one file serves every participant at every site.
 
-There is one shape. A bare list, an unknown top-level key or an unknown phase
-type is refused at start-up, with the reason.
+There is one shape. A bare list, an unknown top-level key, an unknown phase
+type or a phase key starting with ``_`` (the one prefix the loader keeps for
+itself) is refused at start-up, with the reason.
+
+A phase may start from a shared one: ``"__include": "common/<game>.json"``
+names a file (relative to the curriculum's own) holding one phase object, and
+the phase's other keys are laid over it (:func:`overlay`). Curricula of one
+game then write the setup once and only what differs per level. Shared
+phases live in folders named ``common`` (:data:`COMMON_DIRNAME`), which hold no
+curricula. Includes are resolved when the file is loaded, so everything
+downstream, the manifest included, sees each phase written out in full.
 """
 
 from __future__ import annotations
 
 import copy
 import json
+import os
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -29,6 +39,18 @@ from .triggers import TriggerError, TriggerSettings
 PHASE_TYPES = ("fixation", "message", "game", "survey", "check_display", "check_frames",
                "check_triggers", "check_controls", "check_photodiode")
 SECTIONS = ("curriculum", "triggers")
+#: A key that starts with this is a comment: nothing reads it.
+COMMENT_PREFIX = "##"
+#: A phase's key naming the file of the shared phase it starts from.
+INCLUDE_KEY = "__include"
+#: Folders of this name hold shared phases, which are included, not played.
+COMMON_DIRNAME = "common"
+#: Game-phase fields a curriculum may change between runs and still carry a
+#: block on; any other change makes it a different game. ``seed`` and ``audio``
+#: are the run's own (folded in from the run label and the run config).
+RESUMABLE_CHANGES = frozenset({"duration", "n_episodes", "advance_on", "show_outcome_duration",
+                               "instructions", "keys", "menu", "seed", "has_audio",
+                               "rewind_on", "rewind_frames"})
 #: Exit status of ``fmri_play`` when the run was quit (ESC) before its end; a
 #: session script (``set -e``) stops on it instead of starting the next run.
 EXIT_QUIT = 3
@@ -65,19 +87,20 @@ class BlockMode(str, Enum):
 class GamePhase:
     """A game phase's settings as the loop plays them, read off its dict once.
 
-    The dict itself stays what the adapter is built from and what the block's
-    log keeps, since its backend-specific keys are the adapter's business;
-    this is the part the loop reads, every field with its default, so the
-    defaults are stated in one place and a wrong value is refused before the
-    block starts (:func:`validate_curriculum` builds one per game phase).
+    Each field is the phase's key of the same name. The dict itself stays
+    what the adapter is built from and what the block's log keeps, since its
+    backend-specific keys are the adapter's business; this is the part the
+    loop reads, every field with its default, so the defaults are stated in
+    one place and a wrong value is refused before the block starts
+    (:func:`validate_curriculum` builds one per game phase).
     """
 
     backend: str
     #: the env id, as the backend reads it
     game: str
     mode: BlockMode
-    #: seconds the block lasts (``mode`` ``duration``) or lasts at most
-    #: (``mode`` ``episode``, where the dict's key is ``max_duration``)
+    #: seconds the block lasts (``mode`` ``duration``, default 30) or lasts
+    #: at most (``mode`` ``episode``, default 300)
     duration: float
     #: episodes an ``episode`` block lasts
     n_episodes: int
@@ -85,8 +108,7 @@ class GamePhase:
     #: ``["won"]``) counts toward ``n_episodes``; any other replays the same
     #: instance (the seed follows the count), so the subject stays on a level
     #: until they clear it, ``duration`` runs out, or they forfeit from the
-    #: menu. ``None``: every episode counts, whatever its outcome. The dict's
-    #: key is ``advancing_outcomes``.
+    #: menu. ``None``: every episode counts, whatever its outcome.
     advance_on: tuple[str, ...] | None
     #: An episode ending in one of these outcomes sends the world back
     #: ``rewind_frames`` frames and play goes on, as a new episode from that
@@ -96,7 +118,6 @@ class GamePhase:
     #: how far back a rewound episode goes; ``None`` when nothing is rewound
     rewind_frames: int | None
     #: seconds the final score and outcome stay on screen after an episode
-    #: (the dict's ``outcome_duration``)
     show_outcome_duration: float
     #: the block's base seed: its episode ``e`` plays ``seed + e``
     seed: int
@@ -111,14 +132,14 @@ class GamePhase:
     is_turn_based: bool
     #: Real-time blocks poll HELD keys, so a press that starts and ends
     #: between two frames is never seen -- at a grid world's few frames per
-    #: second that loses most taps. ``latched_keys`` lets a fresh keydown win
+    #: second that loses most taps. ``has_latched_keys`` lets a fresh keydown win
     #: instead, falling back to the held-key poll (so holding a key still
     #: repeats). Off by default: backends whose actions are key COMBINATIONS
     #: must keep polling.
     has_latched_keys: bool
     #: A turn-based block draws a frame only when the subject presses, so
     #: the seconds its HUD shows stop between presses while the clock the
-    #: block actually ends on does not. ``live_hud`` redraws the standing
+    #: block actually ends on does not. ``has_live_hud`` redraws the standing
     #: frame a few times a second through the wait, which changes nothing
     #: but the pixels: no step, no log row, no trigger, no sound. Off by
     #: default, so a block that has run this way keeps running this way.
@@ -142,32 +163,31 @@ class GamePhase:
         :param phase: the phase, of type ``game``, with the fields
             :func:`validate_curriculum` insists on (``game``, ``fps``, ``keys``).
         :param index: its index in the curriculum, which the default seed is from.
-        :raises ValueError: ``live_hud`` on a real-time block, or an ``audio``
-            that is not true or false.
+        :raises ValueError: ``has_live_hud`` on a real-time block, or a
+            ``has_audio`` that is not true or false.
         """
-        is_turn_based = bool(phase.get("turn_based", False))
-        has_live_hud = bool(phase.get("live_hud", False))
+        is_turn_based = bool(phase.get("is_turn_based", False))
+        has_live_hud = bool(phase.get("has_live_hud", False))
         if has_live_hud and not is_turn_based:
-            raise ValueError('"live_hud" is for turn_based blocks, whose wait is unbounded; '
-                             "a real-time block already redraws every frame")
-        has_audio = phase.get("audio", True)
+            raise ValueError('"has_live_hud" is for is_turn_based blocks, whose wait is '
+                             "unbounded; a real-time block already redraws every frame")
+        has_audio = phase.get("has_audio", True)
         if not isinstance(has_audio, bool):
-            raise ValueError(f'"audio" must be true or false, got {has_audio!r}')
+            raise ValueError(f'"has_audio" must be true or false, got {has_audio!r}')
         mode = BlockMode(phase.get("mode", "duration"))
-        advancing_outcomes = phase.get("advancing_outcomes")
+        advance_on = phase.get("advance_on")
         return cls(
             backend=phase.get("backend", "gym"), game=phase["game"], mode=mode,
-            duration=(phase.get("duration", 30.0) if mode is BlockMode.DURATION
-                      else phase.get("max_duration", 300.0)),
+            duration=phase.get("duration", 30.0 if mode is BlockMode.DURATION else 300.0),
             n_episodes=phase.get("n_episodes", 1),
-            advance_on=None if advancing_outcomes is None else tuple(advancing_outcomes),
+            advance_on=None if advance_on is None else tuple(advance_on),
             rewind_on=tuple(phase.get("rewind_on", ())),
             rewind_frames=phase.get("rewind_frames"),
-            show_outcome_duration=float(phase.get("outcome_duration", 2.0)),
+            show_outcome_duration=float(phase.get("show_outcome_duration", 2.0)),
             seed=phase.get("seed", 1000 + index),
             state_stride=max(1, int(phase.get("state_stride", 1))),
             is_turn_based=is_turn_based,
-            has_latched_keys=bool(phase.get("latched_keys", False)),
+            has_latched_keys=bool(phase.get("has_latched_keys", False)),
             has_live_hud=has_live_hud, has_audio=has_audio, fps=phase["fps"])
 
 
@@ -178,42 +198,197 @@ def check_shape(curriculum: Any, where: str) -> dict:
     :param where: file path (or another name for the source), for the message.
     :return: ``curriculum``, unchanged.
     :raises ValueError: if it is not an object with a ``curriculum`` list of
-        typed phases, or has a top-level key that is neither a section nor a
-        ``_`` note.
+        typed phases, has a top-level key that is neither a section nor a
+        comment, or a phase key that starts with ``_``.
     """
     if not isinstance(curriculum, dict) or not isinstance(curriculum.get("curriculum"), list):
         raise ValueError(f'{where}: expected a JSON object with a "curriculum" list')
-    unknown = [k for k in curriculum if k not in SECTIONS and not k.startswith("_")]
+    unknown = [k for k in curriculum if k not in SECTIONS and not is_comment(k)]
     if unknown:
         raise ValueError(f"{where}: unknown top-level key(s) {unknown}; the sections are "
-                         f'{SECTIONS}, and a note must start with "_"')
+                         f'{SECTIONS}, and a comment starts with "{COMMENT_PREFIX}"')
     for i, phase in enumerate(curriculum["curriculum"]):
         if not isinstance(phase, dict) or phase.get("type") not in PHASE_TYPES:
             raise ValueError(f'{where}: phase {i} must be an object whose "type" is one of '
                              f"{PHASE_TYPES}")
+        underscored = [k for k in phase if k.startswith("_") and k != INCLUDE_KEY]
+        if underscored:
+            raise ValueError(f"{where}: phase {i} has {underscored}; a comment starts with "
+                             f'"{COMMENT_PREFIX}", and "{INCLUDE_KEY}" names a file of '
+                             f"{COMMON_DIRNAME}/")
     return curriculum
 
 
-def load_curriculum(path: str) -> dict:
-    """Load a curriculum file.
+def is_comment(key: str) -> bool:
+    """Whether ``key`` is a comment (it starts with :data:`COMMENT_PREFIX`)."""
+    return key.startswith(COMMENT_PREFIX)
+
+
+def game_changes(then: dict, now: dict) -> list[str]:
+    """The keys that make ``now`` another game than ``then``, sorted.
+
+    Comments and :data:`RESUMABLE_CHANGES` do not count: a block played under
+    ``then`` carries on under ``now`` when nothing else differs.
+
+    :param then: a game phase as a run played it (its manifest's copy).
+    :param now: the phase at the same place in the curriculum today.
+    """
+    return sorted(k for k in then.keys() | now.keys() if then.get(k) != now.get(k)
+                  and k not in RESUMABLE_CHANGES and not is_comment(k))
+
+
+def load_curriculum(path: str, keep_includes: bool = False) -> dict:
+    """Load a curriculum file, each phase's ``__include`` resolved.
 
     :param path: JSON file path.
-    :return: the curriculum dict.
+    :param keep_includes: a phase that includes a shared one also keeps its
+        ``__include``, as a path from the working directory, so that
+        :func:`save_curriculum` writes it as an include again.
+    :return: the curriculum dict, every phase in full.
     :raises ValueError: if the file does not have the curriculum shape
         (see :func:`check_shape`).
     """
     with open(path) as f:
-        return check_shape(json.load(f), path)
+        curriculum = json.load(f)
+    if isinstance(curriculum, dict) and isinstance(curriculum.get("curriculum"), list):
+        curriculum["curriculum"] = [_resolve(phase, path, frozenset(), keep_includes)
+                                    for phase in curriculum["curriculum"]]
+    return check_shape(curriculum, path)
+
+
+def is_common_file(path: str) -> bool:
+    """Whether ``path`` is a shared phase (in a :data:`COMMON_DIRNAME` folder), not a curriculum."""
+    return os.path.basename(os.path.dirname(os.path.abspath(path))) == COMMON_DIRNAME
+
+
+def overlay(base: dict, top: dict) -> dict:
+    """``top`` laid over ``base``: an object in both merges key by key, anything else replaces.
+
+    So a phase can change one line of its instructions, or add a key to its
+    ``keys``, and keep the rest; a list (the instructions' ``text``) is
+    replaced whole, and a key cannot be taken away.
+    """
+    merged = dict(base)
+    for key, value in top.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = overlay(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _resolve(phase: Any, path: str, seen: frozenset[str], keep: bool = False) -> Any:
+    """``phase`` laid over the phase its ``__include`` names, which may include another.
+
+    :param keep: the result keeps ``__include``, as a path from the working directory.
+    :raises ValueError: if the include is not a path to a JSON object, or comes back round.
+    """
+    if not isinstance(phase, dict) or INCLUDE_KEY not in phase:
+        return phase
+    name = phase[INCLUDE_KEY]
+    target = os.path.normpath(os.path.join(os.path.dirname(path), str(name)))
+    if not isinstance(name, str) or not os.path.isfile(target):
+        raise ValueError(f'{path}: "{INCLUDE_KEY}" must name a file next to it, got {name!r}')
+    if target in seen:
+        raise ValueError(f"{path}: {name} includes itself, through {sorted(seen)}")
+    own = overlay(_shared_phase(target, seen | {target}),
+                  {k: v for k, v in phase.items() if k != INCLUDE_KEY})
+    return {INCLUDE_KEY: os.path.relpath(target), **own} if keep else own
+
+
+def _shared_phase(path: str, seen: frozenset[str] = frozenset()) -> dict:
+    """The shared phase in ``path``, its own includes resolved.
+
+    :raises ValueError: if the file is not one JSON object.
+    """
+    with open(path) as f:
+        base = json.load(f)
+    if not isinstance(base, dict):
+        raise ValueError(f"{path}: a shared phase is one JSON object")
+    return _resolve(base, path, seen | {path})
+
+
+def shared_overrides(curriculum: dict) -> list[str]:
+    """What the phases that keep their ``__include`` change of the shared phase, one line each.
+
+    Laying a phase over its shared one only adds and replaces, so a changed
+    value is saved as this phase's own; a removed one cannot be, and the
+    phase is saved in full, without its include (:func:`save_curriculum`).
+    Either way the other curricula that include the shared phase keep it as
+    it is.
+
+    :param curriculum: as :func:`load_curriculum` with ``keep_includes`` gives it, edited.
+    """
+    lines = []
+    for i, phase in enumerate(curriculum["curriculum"]):
+        if INCLUDE_KEY not in phase:
+            continue
+        shared = phase[INCLUDE_KEY]
+        own = {k: v for k, v in phase.items() if k != INCLUDE_KEY}
+        changed, removed = _departures(_shared_phase(shared), own)
+        if changed:
+            lines.append(f"phase {i}: {', '.join(changed)} differ from {shared}; saved as "
+                         "this phase's own")
+        if removed:
+            lines.append(f"phase {i}: {', '.join(removed)} removed from what {shared} gives; "
+                         f'saved in full, without "{INCLUDE_KEY}"')
+    return lines
+
+
+def _departures(base: dict, phase: dict, at: str = "") -> tuple[list[str], list[str]]:
+    """The keys ``base`` sets that ``phase`` gives another value, and those it lacks."""
+    changed, removed = [], []
+    for key, value in base.items():
+        name = at + key
+        if key not in phase:
+            removed.append(name)
+        elif isinstance(value, dict) and isinstance(phase[key], dict):
+            more = _departures(value, phase[key], name + ".")
+            changed += more[0]
+            removed += more[1]
+        elif phase[key] != value:
+            changed.append(name)
+    return changed, removed
+
+
+def _difference(phase: dict, base: dict) -> dict:
+    """What ``phase`` lays over ``base`` to become itself (:func:`overlay`'s inverse)."""
+    out = {}
+    for key, value in phase.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            inner = _difference(value, base[key])
+            if inner:
+                out[key] = inner
+        elif key not in base or base[key] != value:
+            out[key] = value
+    return out
+
+
+def _compact(phase: dict, path: str) -> dict:
+    """``phase`` as the file at ``path`` writes it: its include and what it adds, if it can."""
+    if INCLUDE_KEY not in phase:
+        return phase
+    shared = _shared_phase(phase[INCLUDE_KEY])
+    own = {k: v for k, v in phase.items() if k != INCLUDE_KEY}
+    if _departures(shared, own)[1]:
+        return own
+    name = os.path.relpath(phase[INCLUDE_KEY], os.path.dirname(os.path.abspath(path)))
+    return {INCLUDE_KEY: name, **_difference(own, shared)}
 
 
 def save_curriculum(curriculum: dict, path: str) -> None:
     """Write ``curriculum`` as indented JSON.
 
+    A phase that keeps its ``__include`` (:func:`load_curriculum`) is written
+    as the include and what the phase adds to the shared one, or in full when
+    it lacks something the shared phase sets (:func:`shared_overrides`).
+
     :param curriculum: curriculum dict.
     :param path: destination file path.
     """
+    phases = [_compact(phase, path) for phase in curriculum["curriculum"]]
     with open(path, "w") as f:
-        json.dump(curriculum, f, indent=2)
+        json.dump({**curriculum, "curriculum": phases}, f, indent=2)
         f.write("\n")
 
 
@@ -244,7 +419,7 @@ def fold_cli_options(phases: list[dict], *, has_audio: bool) -> None:
         if phase.get("type") != "game":
             continue
         if not has_audio:
-            phase["audio"] = False
+            phase["has_audio"] = False
 
 
 def validate_curriculum(curriculum: dict) -> list[str]:
@@ -324,24 +499,23 @@ def _phase_problems(phase: dict, index: int) -> list[str]:
         out.append("game: missing env id")
     if phase.get("mode", "duration") not in [mode.value for mode in BlockMode]:
         out.append(f"mode: expected 'duration' or 'episode', got {phase.get('mode')!r}")
+    out.extend(_renamed_problems(phase))
     out.extend(_fps_problems(phase))
     out.extend(_keys_problems(phase))
-    # advancing_outcomes gates n_episodes, so it means nothing to a block that
-    # ends on the clock; the names are EnvAdapter.outcome's plus the menu's.
-    if "advancing_outcomes" in phase:
-        names = phase["advancing_outcomes"]
+    # advance_on gates n_episodes, so it means nothing to a block that ends
+    # on the clock; the names are EnvAdapter.outcome's plus the menu's.
+    if "advance_on" in phase:
+        names = phase["advance_on"]
         if not isinstance(names, list) or not names or not all(isinstance(n, str) for n in names):
-            out.append(f"advancing_outcomes: expected a list of outcome names, got {names!r}")
+            out.append(f"advance_on: expected a list of outcome names, got {names!r}")
         elif set(names) - OUTCOMES:
-            out.append(f"advancing_outcomes: unknown {sorted(set(names) - OUTCOMES)}; "
+            out.append(f"advance_on: unknown {sorted(set(names) - OUTCOMES)}; "
                        f"the names are {sorted(OUTCOMES)}")
         elif phase.get("mode", "duration") != "episode":
-            out.append("advancing_outcomes: only in mode 'episode' (a duration block ends on the "
-                       "clock)")
-    if "outcome_duration" in phase and not (
-            isinstance(phase["outcome_duration"], (int, float))
-            and phase["outcome_duration"] >= 0):
-        out.append(f"outcome_duration: expected seconds >= 0, got {phase['outcome_duration']!r}")
+            out.append("advance_on: only in mode 'episode' (a duration block ends on the clock)")
+    seconds = phase.get("show_outcome_duration", 0)
+    if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or seconds < 0:
+        out.append(f"show_outcome_duration: expected seconds >= 0, got {seconds!r}")
     if "menu" in phase:
         out.extend(menu_problems(phase["menu"]))
     if "instructions" in phase:
@@ -353,6 +527,19 @@ def _phase_problems(phase: dict, index: int) -> list[str]:
         except ValueError as exc:
             out.append(str(exc))
     return out
+
+
+#: Keys a game phase might be written with that :class:`GamePhase` reads by
+#: another name. The adapter would pass them over in silence, so a phase that
+#: sets one would play as if it did not.
+MISNAMED = {"turn_based": "is_turn_based", "latched_keys": "has_latched_keys",
+            "live_hud": "has_live_hud", "audio": "has_audio", "max_duration": "duration",
+            "advancing_outcomes": "advance_on", "outcome_duration": "show_outcome_duration"}
+
+
+def _renamed_problems(phase: dict) -> list[str]:
+    """A game phase key :class:`GamePhase` reads under another name."""
+    return [f"{key}: the field is {MISNAMED[key]}" for key in phase if key in MISNAMED]
 
 
 #: Outcomes a block may rewind on: the game's own endings. Not `truncated`,

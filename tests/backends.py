@@ -13,11 +13,12 @@ and why CI cannot run it, if it cannot.
 from __future__ import annotations
 
 import importlib.util
-import json
 import platform
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+
+from fmri_gym.curriculum import is_common_file, load_curriculum
 
 REPO = Path(__file__).resolve().parents[1]
 CURRICULA = REPO / "configs" / "curricula"
@@ -129,10 +130,8 @@ CI_BACKENDS = tuple(b.name for b in BACKENDS.values() if b.ci is None)
 
 
 def game_phases(config_path: Path) -> list[dict]:
-    """The game phases of a curriculum file, in order."""
-    with open(config_path) as f:
-        config = json.load(f)
-    return [p for p in config.get("curriculum", []) if p.get("type") == "game"]
+    """The game phases of a curriculum file, in order, includes resolved."""
+    return [p for p in load_curriculum(str(config_path))["curriculum"] if p["type"] == "game"]
 
 
 def phase_backend(phase: dict) -> str:
@@ -142,7 +141,7 @@ def phase_backend(phase: dict) -> str:
 
 def all_configs() -> list[Path]:
     """Every runnable curriculum file in the repo, sorted."""
-    return sorted(CURRICULA.rglob("*.json"))
+    return sorted(p for p in CURRICULA.rglob("*.json") if not is_common_file(str(p)))
 
 
 def configs_of(backend: str) -> list[Path]:

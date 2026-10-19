@@ -29,7 +29,7 @@ Other phase fields passed to the env: ``movable_only`` (default true) and
 ``binary``, an engine binary of your own (else ``$RUSHHOUR_ENV_BIN``, else the
 package's own lookup). A ``game`` other than ``RushHourHuman-v0`` (say
 ``RushHour-Easy-v0``, ``Discrete(32)``) has no keymap a participant can use
-and is refused. Use ``turn_based: true``: a move is a key press.
+and is refused. Use ``is_turn_based: true``: a move is a key press.
 
 The env's own trial pacing (``paced``: a ready screen and a blank interval
 timed on the wall clock, on by default with ``puzzle_indices``) is always off

@@ -1,21 +1,20 @@
 {
-  "_demo": "All classic-control games, up to 15s each.",
   "curriculum": [
     {"type": "message", "text": "CartPole", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},
-    {"type": "game", "backend": "gym", "game": "CartPole-v1", "mode": "episode", "fps": 30, "n_episodes": 1, "max_duration": 15.0, "keys": {"": 0, "LEFT": 0, "RIGHT": 1}},
+    {"__include": "common/cartpole.json", "mode": "episode", "n_episodes": 1, "duration": 15.0},
     {"type": "message", "text": "MountainCar", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},
-    {"type": "game", "backend": "gym", "game": "MountainCar-v0", "mode": "episode", "fps": 30, "n_episodes": 1, "max_duration": 15.0, "keys": {"": 1, "LEFT": 0, "RIGHT": 2}},
+    {"__include": "common/mountaincar.json", "mode": "episode", "n_episodes": 1, "duration": 15.0},
     {"type": "message", "text": "Acrobot", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},
-    {"type": "game", "backend": "gym", "game": "Acrobot-v1", "mode": "episode", "fps": 30, "n_episodes": 1, "max_duration": 15.0, "keys": {"": 1, "LEFT": 0, "RIGHT": 2}},
+    {"__include": "common/acrobot.json", "mode": "episode", "n_episodes": 1, "duration": 15.0},
     {"type": "message", "text": "MountainCarContinuous", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},
-    {"type": "game", "backend": "gym", "game": "MountainCarContinuous-v0", "keys": {"": [0.0], "RIGHT": [1.0], "LEFT": [-1.0]}, "mode": "episode", "fps": 30, "n_episodes": 1, "max_duration": 15.0},
+    {"__include": "common/mountaincarcontinuous.json", "mode": "episode", "n_episodes": 1, "duration": 15.0},
     {"type": "message", "text": "Pendulum", "duration": 1.5},
     {"type": "fixation", "duration": 1.0},
-    {"type": "game", "backend": "gym", "game": "Pendulum-v1", "keys": {"": [0.0], "RIGHT": [2.0], "LEFT": [-2.0]}, "mode": "episode", "fps": 30, "n_episodes": 1, "max_duration": 15.0},
+    {"__include": "common/pendulum.json", "mode": "episode", "n_episodes": 1, "duration": 15.0},
     {"type": "fixation", "duration": 3.0}
   ]
 }
