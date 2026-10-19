@@ -1,28 +1,28 @@
 # DBP games — fmri-gym integration status
 
-Status of every game in the DBP survey that exposes a **Gymnasium** API (15 games), after installing each in the `fmri-gym` env and actually running it through the framework. One demo curriculum per game lives in `configs/dbp_games/<name>.json`; each carries a matching `_status` / `_verified` / `_note`.
+Status of every game in the DBP survey that exposes a **Gymnasium** API (15 games), after installing each in the `fmri-gym` env and actually running it through the framework. A game that plays has its curricula in `configs/curricula/<backend>/`; one that does not has none, and the README's "Games without a curriculum" says why.
 
 Legend: ✅ verified · 🟡 runs, display-only · ⚠️ needs assets · ❌ doesn't fit · ⏸️ deferred
 
 ## Summary table
 
-| Game | config | backend | status | one-liner |
+| Game | curricula | backend | status | one-liner |
 |---|---|---|---|---|
-| Atari | `atari` | ale | ✅ verified | any `ALE/*` id; `keys` index its action meanings |
-| VGDL | `vgdl` | vgdl | ✅ verified | needs the gymnasium-ported fork checkout |
-| Crafter | `crafter`, `crafter_menu` | crafter | ✅ verified | new adapter over `gym/crafter`; obs is the frame; logs achievements; replays only on the determinism fork |
-| MiniHack | `minihack` | minihack | ✅ verified | new adapter; pixel obs + 8-way compass; logs blstats/glyphs/message |
-| Tile Match | `tile-match-gym` | gym | 🟡 display-only | runs & logs, but `Discrete(84)` swaps → no keyboard play |
-| Tobu Tobu Girl DX | `tobutobugirldx` | retro | ⚠️ needs ROM | backend proven (Airstriker); import ROM + confirm integration name |
-| Nomolos | `nomolos` | retro | ⚠️ needs ROM | ditto |
-| Anguna | `anguna` | retro | ⚠️ needs ROM | ditto |
-| 2048 | `2048` | gym | ❌ broken upstream | package's own `reset()` crashes (numpy bug); no render |
-| Pathery | `pathery` | gym | ❌ text-only | ANSI render + `MultiDiscrete` placement → not real-time visual |
-| Wordle | `wordle` | gym | ❌ text-only | `Text(5)` typed-word action + text render |
-| Mastermind | `mastermind` | gym | ❌ can't install | requires Python ≥3.13 (env is 3.11) |
-| Rush Hour | `rush-hour` | gym | ✅ `rushhour` backend | `pip install rushhour-gym`; engine auto-fetched; selection UI in the adapter |
-| COOM | `coom__*` (9 scenarios) | coom | ✅ verified | new adapter; drives vizdoom.DoomGame directly against COOM's own scenario assets, sidestepping COOM's gymnasium==0.28 pin entirely |
-| Craftium | `craftium` | gym | ⏸️ deferred | needs the Luanti/Minetest engine built |
+| Atari | `ale/` | ale | ✅ verified | any `ALE/*` id; `keys` index its action meanings |
+| VGDL | `vgdl/` | vgdl | ✅ verified | needs the gymnasium-ported fork checkout |
+| Crafter | `crafter/` | crafter | ✅ verified | new adapter over `gym/crafter`; obs is the frame; logs achievements; replays only on the determinism fork |
+| MiniHack | `minihack/` | minihack | ✅ verified | new adapter; pixel obs + 8-way compass; logs blstats/glyphs/message |
+| Tile Match | — | gym | 🟡 display-only | runs & logs, but `Discrete(84)` swaps → no keyboard play |
+| Tobu Tobu Girl DX | — | retro | ⚠️ needs an integration | backend proven (Airstriker); stable-retro has none for it |
+| Nomolos | — | retro | ⚠️ needs ROM | ditto |
+| Anguna | — | retro | ⚠️ needs ROM | ditto |
+| 2048 | — | gym | ❌ broken upstream | package's own `reset()` crashes (numpy bug); no render |
+| Pathery | — | gym | ❌ text-only | ANSI render + `MultiDiscrete` placement → not real-time visual |
+| Wordle | — | gym | ❌ text-only | `Text(5)` typed-word action + text render |
+| Mastermind | — | gym | ❌ can't install | requires Python ≥3.13 (env is 3.11) |
+| Rush Hour | `rushhour/` | rushhour | ✅ `rushhour` backend | `pip install rushhour-gym`; engine auto-fetched; selection UI in the adapter |
+| COOM | `coom/` (9 scenarios) | coom | ✅ verified | new adapter; drives vizdoom.DoomGame directly against COOM's own scenario assets, sidestepping COOM's gymnasium==0.28 pin entirely |
+| Craftium | — | gym | ⏸️ deferred | needs the Luanti/Minetest engine built |
 
 **Takeaway:** every game that is a **real-time visual game with a pixel frame** works (Atari, VGDL, Crafter, MiniHack, stable-retro, plus tile-match for display). The ones that don't fit are **turn-based / text / typed-input** games — a genre mismatch with a scanner game loop, not a framework limitation (the 2048 case is a separate upstream bug).
 
@@ -44,7 +44,7 @@ Runs from the gymnasium-ported fork <https://github.com/tomov/language_and_exper
 `pip install tile-match-gym` (pulls numba → numpy 1.26). Import the package to register `TileMatch-v0`; constructor needs board kwargs (via `env_kwargs`). 5-tuple, `render_mode="rgb_array"` → (324,273,3). Runs & logs fine, but `action_space = Discrete(84)` (choose a tile swap) has no natural arrow-key mapping — a human would need a pointer/selection input mode.
 
 ### ⚠️ tobutobugirldx / nomolos / anguna (retro)
-stable-retro homebrew integrations. The `retro` backend is proven end-to-end (Airstriker-Genesis). These need their specific ROMs imported (`python -m retro.import`) and the exact integration name confirmed; no ROMs were available here.
+stable-retro homebrew integrations. The `retro` backend is proven end-to-end (Airstriker-Genesis). stable-retro ships no integration for any of the three (none under its `stable`, `experimental` or `contrib` data), so each needs one written (README, "Running stable-retro games") before its ROM can be imported.
 
 ### ❌ 2048 (gym) — broken upstream
 `pip install --no-deps gym-2048` (it pins numpy~=1.14). Its own `_place_random_tiles` crashes on reset with a numpy shape-mismatch, under both gym and gymnasium. No `render()` either. Would need an upstream patch + a custom renderer; better to use a different 2048 env.
@@ -59,7 +59,7 @@ stable-retro homebrew integrations. The `retro` backend is proven end-to-end (Ai
 `MastermindGymnasiumEnvironment` requires **Python ≥3.13**; the env is 3.11, so pip refuses. Also turn-based (would need custom input). Revisit in a py3.13 env.
 
 ### ✅ rush-hour (gym) — `rushhour` backend
-`chrplr/Rush-Hour` ships `rushhour-gym` on PyPI; the Go engine is fetched from the matching GitHub release on first use. The adapter (`fmri_gym/adapters/ rushhour.py`) adds the button-selection UI of the experiment program (select a car, slide it), draws the legal slides, and `rushhour__complete.json` presents that program's whole self-paced session.
+`chrplr/Rush-Hour` ships `rushhour-gym` on PyPI; the Go engine is fetched from the matching GitHub release on first use. The adapter (`fmri_gym/adapters/ rushhour.py`) adds the button-selection UI of the experiment program (select a car, slide it), draws the legal slides, and `configs/curricula/rushhour/complete.json` presents that program's whole self-paced session.
 
 ### ✅ coom (coom) — new backend
 `TTomilin/COOM` pins `gymnasium==0.28.1` (conflicts with minihack's `1.2`), so the `coom` adapter never imports the COOM package — it drives `vizdoom.DoomGame` directly against COOM's own `conf.cfg`/`.wad` scenario files from the `external/coom` checkout at the README's pinned commit (like `vgdl`). Reaches all 9 of COOM's own scenarios (pitfall, chainsaw, hide_and_seek, health_gathering, arms_dealer, parkour, raise_the_roof, run_and_gun, floor_is_lava), distinct from `vizdoom`'s stock ones. Keymap auto-derived from each scenario's 4 buttons; `game_variables` logged as the analysis variable; savestate by replay (`ReplayState`). Verified through the real `get_adapter`/config pipeline across all 9 scenarios (reset/step/render/ capture/close, incl. episode-termination); interactively played (`pitfall`) through the actual pygame session.

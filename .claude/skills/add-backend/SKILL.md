@@ -12,7 +12,7 @@ Read AGENTS.md first: rule 1 (the game logic lives in the gym env, not the adapt
 0. Check that no existing backend already plays the game, possibly out of the box: `ale` takes any Atari ROM, `retro` any libretro core, `gym` any registered Gymnasium env, `vizdoom` any Doom scenario. If one does, all you need is a config.
 1. `fmri_gym/adapters/<BACKEND>.py`: module docstring (what the engine is, why it was chosen, what its observation/action spaces look like, what is not supported), then a subclass of `EnvAdapter` overriding only the hooks you actually need. Everything else is inherited; do not re-state the defaults. `adapters/vizdoom.py`, `baba.py` and `minihack.py` are the models; stay under about 150 lines, one file.
 2. `fmri_gym/adapters/__init__.py`: one `if backend == ...:` branch with a lazy import.
-3. `configs/dbp_games/<BACKEND>__<GAME>.json`: a runnable curriculum, with a `_note` field for any install step that is not a plain `pip install`, and a `_keys_note` that says what the action indices in its `keys` mean. Lay it out like the others: one `_field` per line, the message's `text` one screen line per line, fixations as one-liners, and the game block on a few lines with `keys` (and `menu`) inline, not one key per line.
+3. `configs/curricula/<BACKEND>/<GAME>.json`: a runnable curriculum, with a `_note` field for any install step that is not a plain `pip install`, and a `_keys_note` that says what the action indices in its `keys` mean. Lay it out like the others: one `_field` per line, the message's `text` one screen line per line, fixations as one-liners, and the game block on a few lines with `keys` (and `menu`) inline, not one key per line.
 4. `pyproject.toml`: one extra under `[project.optional-dependencies]` (and a mention in `dbp` / `all` if it belongs there), then `uv lock`. A game without a Gymnasium env gets one first, as its own small package under `gym/<GAME>/` (`pyproject.toml`, `README.md`, `<game>_gym/{__init__,env}.py`, a `gym.register` id), listed in `[tool.uv.sources]`; the extra installs that package. It wraps the game, it does not contain it.
 5. `tests/backends.py`: a `Backend` row (the extra, the module that proves it is installed, one or two short smoke configs, the `gym/` dirs it runs on, its `external/` checkout, a `ci` reason if a hosted Linux runner cannot play it), and a line in `.github/workflows/tests.yml`'s matrix unless it has one. `test_configs` fails until the row exists.
 6. `README.md`: only if the backend needs setup beyond `pip install` (a repo checkout, a binary, an env var).
@@ -22,7 +22,7 @@ Then play it, through the suite and by hand:
 ```bash
 uv run pytest --backend <BACKEND>
 uv run fmri-play --subject sub-test --dummy-trigger --ses 1 --run 1 \
-    --curriculum configs/dbp_games/<BACKEND>__<GAME>.json
+    --curriculum configs/curricula/<BACKEND>/<GAME>.json
 uv run ruff check fmri_gym fmri_play.py agents tests
 ```
 

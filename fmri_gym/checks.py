@@ -1,6 +1,6 @@
 """The rig check: measure the rig with the very window, trigger line and audio a run opens.
 
-A rig check is a run like any other (``configs/rig-check.json``): the editor
+A rig check is a run like any other (``configs/curricula/checks/rig-check.json``): the editor
 edits its triggers and its controls as it does any config's, ``fmri-play``
 plays it -- first in a session, or on its own -- and it writes a run folder.
 Its curriculum holds check phases where a game run holds games:

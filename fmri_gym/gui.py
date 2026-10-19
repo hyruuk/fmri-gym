@@ -182,7 +182,7 @@ _GAME_FIELDS = [
     Field("backend", "backend", "combo", BACKENDS,
           tip="Game engine adapter (fmri_gym/adapters). Type another name for a custom one."),
     Field("game", "game", "combo",
-          tip="Env id for that backend. The list holds the games the configs in configs/ already "
+          tip="Env id for that backend. The list holds the games the configs in configs/curricula/ already "
               "set up for this backend; any other id can be typed."),
     Field("mode", "mode", "choice", ("duration", "episode"),
           tip="duration = play (and replay) until the time is up; episode = play n_episodes."),
@@ -361,9 +361,11 @@ def field_values(fields: Sequence[Field], raw: dict[str, Any]) -> dict[str, Any]
 
 #: The repo's ``configs/`` folder (next to the package; absent from an installed wheel).
 CONFIGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "configs")
+#: Its curricula, one folder per backend; the rest of ``configs/`` is rigs and sessions.
+CURRICULA_DIR = os.path.join(CONFIGS_DIR, "curricula")
 
 
-def curated_games(root: str = CONFIGS_DIR) -> tuple[dict[str, dict[str, tuple[str, dict]]],
+def curated_games(root: str = CURRICULA_DIR) -> tuple[dict[str, dict[str, tuple[str, dict]]],
                                                     list[str]]:
     """The game phases the configs under ``root`` already hold, per backend.
 
@@ -389,20 +391,18 @@ def curated_games(root: str = CONFIGS_DIR) -> tuple[dict[str, dict[str, tuple[st
     return games, unreadable
 
 
-def listed_files(ext: str, root: str = CONFIGS_DIR) -> list[str]:
-    """The ``*.<ext>`` files under ``root``, as the editor's drop-downs list them.
+def listed_files(ext: str) -> list[str]:
+    """The files the editor's drop-downs list: session scripts in ``configs/``, or curricula.
 
     Sessions (``sh``) and runs (``json``) are picked from here rather than found
-    through a file dialog, so the repo's examples are one click away. A folder
-    named ``unsupported`` holds configs that do not play; it is left out.
+    through a file dialog, so the repo's examples are one click away.
 
     :param ext: ``"sh"`` for session scripts, ``"json"`` for run configs.
-    :param root: folder searched recursively.
     :return: paths relative to the working directory, in path order.
     """
+    root = CURRICULA_DIR if ext == "json" else CONFIGS_DIR
     paths = sorted(glob.glob(os.path.join(root, "**", f"*.{ext}"), recursive=True))
-    return [os.path.relpath(p) for p in paths
-            if "unsupported" not in os.path.relpath(p, root).split(os.sep)[:-1]]
+    return [os.path.relpath(p) for p in paths]
 
 
 def suggest_name(stem: str, taken: set[str]) -> str:

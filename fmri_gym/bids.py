@@ -123,11 +123,16 @@ def subject_label(subject: str) -> str:
 def task_label(curriculum_path: str) -> str:
     """A curriculum's task label: its file name, letters and digits only.
 
-    ``ale__pong.json`` gives ``alepong``.
+    A file in a folder of a ``curricula`` folder (one folder per backend) is
+    named by both, so the same level name under two backends is two tasks:
+    ``curricula/ale/pong.json`` gives ``alepong``; ``pong.json`` elsewhere, ``pong``.
 
     :raises ValueError: if nothing is left (a file named ``__.json``).
     """
     stem = os.path.splitext(os.path.basename(curriculum_path))[0]
+    folder = os.path.dirname(os.path.abspath(curriculum_path))
+    if os.path.basename(os.path.dirname(folder)) == "curricula":
+        stem = os.path.basename(folder) + stem
     label = "".join(re.findall(r"[A-Za-z0-9]", stem))
     if not label:
         raise ValueError(f"{curriculum_path}: no letter or digit in its name to make a BIDS "

@@ -40,7 +40,7 @@ prebuilt binary and a trimmed asset pack once, for its own version.
 Not supported: the pystk2 backend's ``num_kart`` spelling (it is ``num_karts``
 here, the game's), and a different track per episode (one process, one track):
 a curriculum that wants several tracks uses one game phase per track, as
-``configs/dbp_games/stk__<track>.json`` does (one per race track the asset pack
+``configs/curricula/stk/<track>.json`` does (one per race track the asset pack
 ships; its arenas and soccer fields need game modes this adapter never sets).
 """
 

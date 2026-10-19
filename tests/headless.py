@@ -15,7 +15,7 @@ output unless ``--no-audio`` is passed, which is what a machine without one
 (a CI runner) needs. ``--duration`` ends the run on the clock, as the scanner
 would, so a five-minute block plays for the seconds a test can afford.
 
-    python -m tests.headless --curriculum configs/dbp_games/minihack__room5x5.json \\
+    python -m tests.headless --curriculum configs/curricula/minihack/room5x5.json \\
         --data-root /tmp/headless --duration 25
 
 Run as a module from the repo root: the logger's writer process re-imports

@@ -20,9 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-CONFIGS = REPO / "configs"
-#: Configs that are not meant to run (no ``keys``: games the rig does not support).
-UNSUPPORTED = CONFIGS / "dbp_games" / "unsupported"
+CURRICULA = REPO / "configs" / "curricula"
 
 
 @dataclass(frozen=True)
@@ -92,37 +90,37 @@ def _stk() -> str | None:
 
 _RUNTIME_NEEDS = {"aigamestore": _chrome, "arc3": _arc3_files, "stk": _stk}
 
-_DBP = "configs/dbp_games/"
+_C = "configs/curricula/"
 BACKENDS: dict[str, Backend] = {b.name: b for b in (
-    Backend("gym", None, "gymnasium", ("configs/demo_classic.json",)),
-    Backend("ale", "ale", "ale_py", ("configs/demo_atari.json",)),
-    Backend("retro", "retro", "retro", ("configs/demo_retro_audio.json",),
+    Backend("gym", None, "gymnasium", (_C + "gym/classic_control.json",)),
+    Backend("ale", "ale", "ale_py", (_C + "ale/all.json",)),
+    Backend("retro", "retro", "retro", (_C + "retro/airstriker.json",),
             ci="game ROMs have to be imported by hand (README 'Running stable-retro games')"),
     Backend("crafter", "crafter", "crafter_gym",
-            (_DBP + "crafter__crafter_L1.json", _DBP + "crafter__crafter_L4.json"),
+            (_C + "crafter/L1.json", _C + "crafter/L4.json"),
             gym_dirs=("crafter",)),
     Backend("minihack", "minihack", "minihack",
-            (_DBP + "minihack__room5x5.json", _DBP + "minihack__river_reposition.json"),
+            (_C + "minihack/room5x5.json", _C + "minihack/river_reposition.json"),
             gym_dirs=("minihack", "replay_state")),
-    Backend("nethack", "nethack", "nle", (_DBP + "archive/nethack__score.json",),
+    Backend("nethack", "nethack", "nle", (_C + "nethack/score.json",),
             gym_dirs=("minihack", "replay_state")),
-    Backend("vizdoom", "vizdoom", "vizdoom_gym", (_DBP + "vizdoom__basic.json",),
+    Backend("vizdoom", "vizdoom", "vizdoom_gym", (_C + "vizdoom/basic.json",),
             gym_dirs=("vizdoom", "replay_state")),
-    Backend("coom", "coom", "coom_gym", (_DBP + "coom__pitfall.json",),
+    Backend("coom", "coom", "coom_gym", (_C + "coom/pitfall.json",),
             gym_dirs=("coom", "replay_state"), external="coom",
             marker="COOM/env/scenarios/pitfall/conf.cfg"),
-    Backend("vgdl", "vgdl", "vgdl_gym", ("configs/demo_vgdl.json",),
+    Backend("vgdl", "vgdl", "vgdl_gym", (_C + "vgdl/aliens.json",),
             gym_dirs=("vgdl",), external="vgdl", marker="games/aliens_v0/aliens.txt"),
-    Backend("baba", "baba", "baba_gym", (_DBP + "baba__make_win.json",), gym_dirs=("baba",)),
-    Backend("baba_auto", "baba_auto", "baba_auto_gym", (_DBP + "baba_auto__baba_is_you.json",),
+    Backend("baba", "baba", "baba_gym", (_C + "baba/make_win.json",), gym_dirs=("baba",)),
+    Backend("baba_auto", "baba_auto", "baba_auto_gym", (_C + "baba_auto/baba_is_you.json",),
             gym_dirs=("baba_auto", "replay_state"), external="baba_auto",
             marker="CMakeLists.txt"),
-    Backend("rushhour", "rushhour", "rushhour_gym", (_DBP + "rushhour__easy.json",),
+    Backend("rushhour", "rushhour", "rushhour_gym", (_C + "rushhour/easy.json",),
             gym_dirs=("replay_state",)),
-    Backend("aigamestore", "aigamestore", "aigamestore_gym", (_DBP + "aigamestore__game1.json",),
+    Backend("aigamestore", "aigamestore", "aigamestore_gym", (_C + "aigamestore/game1.json",),
             gym_dirs=("aigamestore", "replay_state")),
-    Backend("arc3", "arc3", "arc3_gym", (_DBP + "arc3__ls20.json",), gym_dirs=("arc3",)),
-    Backend("stk", "stk", "stk_gym", (_DBP + "stk__hacienda.json",), gym_dirs=("replay_state",),
+    Backend("arc3", "arc3", "arc3_gym", (_C + "arc3/ls20.json",), gym_dirs=("arc3",)),
+    Backend("stk", "stk", "stk_gym", (_C + "stk/hacienda.json",), gym_dirs=("replay_state",),
             ci="the game pack is Linux x86_64 only and renders through a real GL display"),
 )}
 
@@ -144,7 +142,7 @@ def phase_backend(phase: dict) -> str:
 
 def all_configs() -> list[Path]:
     """Every runnable curriculum file in the repo, sorted."""
-    return sorted(p for p in CONFIGS.rglob("*.json") if UNSUPPORTED not in p.parents)
+    return sorted(CURRICULA.rglob("*.json"))
 
 
 def configs_of(backend: str) -> list[Path]:

@@ -485,8 +485,8 @@ class _Editor(QtWidgets.QMainWindow):
         self.run_views.currentChanged.connect(self._on_run_view)
         self.run_title = QtWidgets.QLabel()
         self.run_title.setObjectName("hint")
-        self.run_pick = self._file_pick("json", "the run configs in configs/: open one, or in a "
-                                                "session add it after the selected line",
+        self.run_pick = self._file_pick("json", "the run configs in configs/curricula/: open one, "
+                                                "or in a session add it after the selected line",
                                         self._pick_run)
         design = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(design)
@@ -1061,12 +1061,14 @@ class _Editor(QtWidgets.QMainWindow):
         self._insert_step({"config": path, "skip": False})
 
     def _provisional_path(self, config: dict, own: str | None = None) -> str:
-        """``configs/<backend>.json``, counting up past the files there and this session's
-        (but not ``own``, the name it has now, so it can keep it)."""
+        """``configs/curricula/<backend>/<backend>.json``, counting up past the files there and
+        this session's (but not ``own``, the name it has now, so it can keep it)."""
+        backend = gui.first_backend(config)
+        folder = os.path.join("configs", "curricula", backend)
         taken = {os.path.splitext(os.path.basename(p))[0] for p in self.configs if p != own}
-        if os.path.isdir("configs"):
-            taken |= {os.path.splitext(name)[0] for name in os.listdir("configs")}
-        return os.path.join("configs", gui.suggest_name(gui.first_backend(config), taken) + ".json")
+        if os.path.isdir(folder):
+            taken |= {os.path.splitext(name)[0] for name in os.listdir(folder)}
+        return os.path.join(folder, gui.suggest_name(backend, taken) + ".json")
 
     def _ask_config_path(self, suggested: str) -> str:
         """Where to save a config (``""`` if cancelled); the dialog starts at ``suggested``."""

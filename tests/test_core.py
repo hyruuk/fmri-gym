@@ -15,6 +15,7 @@ from gymnasium import spaces
 
 from fmri_gym.adapters.base import Sound
 from fmri_gym.audio import AudioBlockLog
+from fmri_gym.bids import task_label
 from fmri_gym.adapters.keymap import make_keymap
 from fmri_gym.curriculum import validate_curriculum
 from fmri_gym.logging import (
@@ -133,6 +134,17 @@ def test_validate_config_accepts_a_plain_game_phase():
     assert validate_curriculum({"curriculum": [PHASE]}) == []
 
 
+@pytest.mark.parametrize("path, label", [
+    ("configs/curricula/minihack/room5x5.json", "minihackroom5x5"),
+    ("configs/curricula/crafter/L4.json", "crafterL4"),
+    ("/elsewhere/curricula/ale/pong.json", "alepong"),
+    ("configs/pong_v2.json", "pongv2"),
+    ("configs/curricula/top_level.json", "toplevel"),
+])
+def test_task_label_names_the_backend_folder_under_curricula(path, label):
+    assert task_label(path) == label
+
+
 @pytest.mark.parametrize("paths, direct, core", [
     (["fmri_gym/adapters/crafter.py"], {"crafter"}, False),
     (["fmri_gym/adapters/default.py"], {"gym"}, False),
@@ -144,8 +156,8 @@ def test_validate_config_accepts_a_plain_game_phase():
      False),
     (["gym/crafter/pyproject.toml"], {"crafter"}, False),
     (["external/coom"], {"coom"}, False),
-    (["configs/dbp_games/vizdoom__basic.json"], {"vizdoom"}, False),
-    (["configs/demo_classic.json"], {"gym"}, False),
+    (["configs/curricula/vizdoom/basic.json"], {"vizdoom"}, False),
+    (["configs/curricula/gym/classic_control.json"], {"gym"}, False),
     (["README.md", "docs/SAVESTATES.md", "tests/README.md"], set(), False),
     (["tests/test_core.py"], set(), True),
 ])
