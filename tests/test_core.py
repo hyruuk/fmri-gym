@@ -302,3 +302,11 @@ def test_a_curriculum_loads_once_into_typed_phases(tmp_path):
     assert seeded.record()[3]["seed"] == 103 and loaded.record()[3] == PHASE
     with pytest.raises(ValueError, match="fps"):
         Curriculum.from_dict({"curriculum": [{**PHASE, "fps": 0}]}, "bad.json")
+
+
+def test_every_phase_type_is_a_phase():
+    from fmri_gym.config.phases import CHECK_PHASES, PHASE_CLASSES, CheckPhase, Phase
+    assert all(issubclass(cls, Phase) and cls.type == name for name, cls in PHASE_CLASSES.items())
+    assert set(CHECK_PHASES) == {c for c in PHASE_CLASSES.values() if issubclass(c, CheckPhase)}
+    with pytest.raises(TypeError):
+        Phase(spec={}, include_on_resume=False)  # abstract: only a phase type is read
