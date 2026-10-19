@@ -2,9 +2,11 @@
 
 ``fmri_play.main()`` runs in this process, so the trigger wait, the
 instructions screen, the window, the key queue, the pacing and the logger are
-the ones a subject gets. Two things stand in for the rig: SDL's dummy video
-driver (a window that is never shown; ``--window`` opens a real one) and a key
-script registered with :mod:`fmri_gym.keys` the way the gamepad is (:func:`~fmri_gym.keys
+the ones a subject gets. Three things stand in for the rig: a rig file of
+its own (:mod:`fmri_gym.config.rig`, in a temporary ``$FMRI_GYM_RIGS``: a small
+window, no pad, vsync off), SDL's dummy video driver (a window that is never
+shown; ``--window`` opens a real one) and a key script registered with
+:mod:`fmri_gym.keys` the way the gamepad is (:func:`~fmri_gym.keys
 .register_event_source` for the presses, :func:`~fmri_gym.keys
 .register_held_source` for what counts as held), so every press travels the
 route a real key does. The script presses the phase's own keys at random,
@@ -30,6 +32,7 @@ import argparse
 import os
 import random
 import sys
+import tempfile
 import time
 
 # Before pygame is imported anywhere: the driver is read when the display opens.
@@ -40,7 +43,8 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame  # noqa: E402
 
 from fmri_gym import keys  # noqa: E402
-from fmri_gym.curriculum import load_curriculum  # noqa: E402
+from fmri_gym.config import rig  # noqa: E402
+from fmri_gym.config.curriculum import load_curriculum  # noqa: E402
 
 #: Seconds a scripted press is held: long enough for a real-time poll to see it,
 #: short enough never to open a hold-to-pause menu.
@@ -99,6 +103,20 @@ def script_for(curriculum_path: str, rate: float, seed: int) -> KeyScript:
     return KeyScript(names, dismiss or ["SPACE"], rate, seed)
 
 
+def use_rig(data_root: str, has_audio: bool) -> str:
+    """Write a rig file for this process alone, in a temporary rigs folder.
+
+    :return: the rig's name.
+    """
+    os.environ["FMRI_GYM_RIGS"] = tempfile.mkdtemp(prefix="headless-rigs-")
+    rig.save({**{k: "headless" for k in rig.FIELDS}, "site": "test", "rig": "headless",
+              "pi": "TT", "modality": "behav", "notes": "",
+              "screen": {"size": "640x480", "is_fullscreen": False, "monitor": 0,
+                         "has_vsync": False},
+              "has_pad": False, "has_audio": has_audio, "data_root": data_root})
+    return "test/headless"
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--curriculum", required=True)
@@ -117,11 +135,10 @@ def main() -> None:
     script = script_for(args.curriculum, args.rate, args.seed)
     keys.register_event_source(script.pump)
     keys.register_held_source(script.held)
+    name = use_rig(args.data_root, has_audio=not args.no_audio)
     sys.argv = ["fmri-play", "--curriculum", args.curriculum, "--subject", "sub-test",
-                "--ses", "1", "--run", "1", "--data-root", args.data_root,
-                "--dummy-trigger", "--no-pad", "--no-vsync", "--size", "640x480",
-                "--duration", str(args.duration), "--end-fixation", str(args.end_fixation)
-                ] + (["--no-audio"] if args.no_audio else [])
+                "--ses", "1", "--run", "1", "--rig", name, "--dummy-trigger",
+                "--duration", str(args.duration), "--end-fixation", str(args.end_fixation)]
     import fmri_play
     try:
         fmri_play.main()

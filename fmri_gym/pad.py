@@ -15,7 +15,7 @@ which rests off centre, travels further one way than the other, and moves its
 centre between sessions; that is measured per rig by ``fmri-pad-calibrate``
 (below) into ``~/.config/fmri-gym/pad.json``, and checked in ``fmri-pad-scope``.
 
-It turns itself on when a pad is plugged in, and ``--no-pad`` leaves it off.
+It turns itself on when a pad is plugged in, and a rig file's ``"has_pad": false`` leaves it off.
 """
 
 from __future__ import annotations
@@ -98,7 +98,7 @@ _settled: set[int] = set()              # axes whose centre has been taken
 _joysticks: list = []
 _unmapped: set[int] = set()
 _warmed = False
-_status = "off (--no-pad)"
+_status = 'off (the rig\'s "has_pad": false)'
 
 
 def config_path() -> Path:
@@ -111,14 +111,14 @@ def config_path() -> Path:
 
 
 def init(enabled: bool = True) -> str:
-    """Open whatever pad is plugged in, unless ``--no-pad`` said not to.
+    """Open whatever pad is plugged in, unless the rig file said not to.
 
     :param enabled: ``False`` to leave the pad off for this run.
     :return: a one-line status for the run's stderr banner.
     """
     global _status, _enabled
     if not enabled:
-        _status = "off (--no-pad)"
+        _status = 'off (the rig\'s "has_pad": false)'
         return _status
     _enabled = True
     _load_calibration()

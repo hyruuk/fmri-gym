@@ -71,18 +71,18 @@ uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula
 uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/ale/pong.json --ses 1 --run 1
 ```
 
-A run is a JSON file and a session is a `.sh` script (below). Write them by hand, or design them in `fmri-edit` -- either way `fmri-play` reads the same files, and refuses one it cannot play. `fmri-play` plays one run and nothing else; the editor is a command of its own, which opens on a run, a session, or a new run. **Play** there saves what it shows and starts it: an `fmri-play` command for a run, the script itself for a session. Its Launch tab holds the flags of that launch (subject, session, monitor, window, the test switches), which belong to the launch, not to the files. The editor is the `gui` extra:
+A run is a JSON file and a session is a `.sh` script (below). Write them by hand, or design them in `fmri-edit` -- either way `fmri-play` reads the same files, and refuses one it cannot play. `fmri-play` plays one run and nothing else; the editor is a command of its own, which opens on a run, a session, or a new run. **Play** there saves what it shows and starts it: an `fmri-play` command for a run, the script itself for a session. Its Launch tab holds the flags of that launch (subject, session, rig, the test switch), which belong to the launch, not to the files; its **Edit rig...** opens the rig file (see *Rigs* below). The editor is the `gui` extra:
 
 ```bash
 uv sync --extra dbp --extra gui
-uv run fmri-edit --curriculum configs/curricula/demos/meg.json
+uv run fmri-edit --curriculum configs/curricula/ale/pong.json
 uv run fmri-edit --session configs/subjects/boston-college/sub-01/ses-001/dbp_mix.sh
 uv run fmri-edit                                    # start from a new run
 ```
 
 Drop `--dummy-trigger` for a real session (then press SPACE, then wait for the `=` scanner trigger). For VGDL setup see [Running VGDL games](#running-vgdl-games).
 
-stable-retro games play their native audio; ViZDoom and COOM do when their config sets `env_kwargs.audio_buffer_enabled`. Use `--no-audio` or a game phase's `"has_audio": false` to mute playback; logged audio is unchanged. Each frame's sound starts a constant delay after the flip that shows it, measured from the system's default output at start-up and logged. A game with sound must run at its engine's own frame rate (ViZDoom: `fps * frame_skip == 35`; Genesis cores: 59.92), or the block stops and names the fps that fits.
+stable-retro games play their native audio; ViZDoom and COOM do when their config sets `env_kwargs.audio_buffer_enabled`. Use the rig file's `"has_audio": false` (every run on that rig) or a game phase's `"has_audio": false` to mute playback; logged audio is unchanged. Each frame's sound starts a constant delay after the flip that shows it, measured from the system's default output at start-up and logged. A game with sound must run at its engine's own frame rate (ViZDoom: `fps * frame_skip == 35`; Genesis cores: 59.92), or the block stops and names the fps that fits.
 
 Note: **Pendulum, MountainCarContinuous and BipedalWalker use continuous (`Box`) action spaces** — their configs write list actions that push the first dims to their limits (`"LEFT": [-1.0, 0.0, ...]`), so they render and log fine but aren't really human-playable without a per-game control scheme. Everything else in these families is keyboard-playable.
 
@@ -138,7 +138,20 @@ These were tried and do not play here, so nothing in `configs/` names them:
 - **Tile Match**: `Discrete(84)` swaps, no keyboard play.
 - **2048** (its own `reset()` crashes), **Pathery** and **Wordle** (text or placement actions, no real-time frame), **Mastermind** (needs Python ≥ 3.13).
 
-Runtime flow: experimenter screen (**SPACE**) → "Waiting for scanner..." → scanner **trigger `=`** (anchors the session clock) → curriculum phases → done. `ESC` quits early but still saves. Flags: `--size 1280x1024`, `--fullscreen`, `--monitor 1` (which screen, when there are several), `--no-vsync` (see [Timing](#timing-what-is-stamped-when)). The editor opens on its Launch tab, fullscreen ticked and the monitor picked there.
+Runtime flow: experimenter screen (**SPACE**) → "Waiting for scanner..." → scanner **trigger `=`** (anchors the session clock) → curriculum phases → done. `ESC` quits early but still saves.
+
+**Rigs: how a run is played.** A curriculum says what is played, and plays the same on every rig. How it is played is the rig's: a **rig** is one setup -- a monitor, a scanner, a response device, a trigger line -- and a site can have several. Each has its own **rig file** in the repo, `configs/rigs/<site>/<rig>.json` (see `configs/rigs/README.md`; `$FMRI_GYM_RIGS` points at another folder of them), which every run played on that rig reads:
+
+| key | what it says | when left out |
+|---|---|---|
+| `site`, `rig`, `pi`, `modality`, `monitor`, `photodiode`, `audio_path`, `trigger_hardware`, `notes` | what the rig is, filed with every run and rig check; `site` and `rig` are the file's folder and name | required |
+| `"screen"` | the window: `{"size": "1024x768", "is_fullscreen": true, "monitor": 1, "has_vsync": true}`; `monitor` by index, 0 the first, and fullscreen takes the monitor's resolution (see [Timing](#timing-what-is-stamped-when)) | 1024x768 windowed on monitor 0, vsync on |
+| `"has_pad"` | read a plugged-in game controller | `true` |
+| `"has_audio"` | play game audio; a block plays sound when this and its game phase's `has_audio` are both true | `true` |
+| `"data_root"` | where the BIDS tree goes | `data` |
+| `"triggers"` | how a run starts and what codes the recording gets, over which line (see [Triggers](#triggers-fmri-vs-megeeg)) | wait for `=`, no codes, reported as NOT SET |
+
+`fmri-play --rig <site>/<rig>` picks the rig. With one rig file there is nothing to pick; with none, or with several and no `--rig`, `fmri-play` does not start and says how to pick or make one. Each rig gets one long rig check, which makes its file: its form asks for each field the first time (`fmri-play --curriculum configs/curricula/checks/rig-check-long.json --subject sub-rig --ses 1 --run 1 --rig <site>/<rig>`; `python -m fmri_gym.checks rig --rig <site>/<rig>` opens the form alone, or edits it later); commit the file it writes. In the editor, the Launch tab picks the rig and its **Edit rig...** opens the same form. The console says which rig file a run read and what it settles, and every run's manifest keeps it (`"rig"`, defaults written out).
 
 **A response device that is not a keyboard.** Some button boxes and gamepads (a Current Designs interface with a controller on it, say) report HID *joystick* buttons rather than keystrokes: nothing a phase's `keys` names is ever pressed, the game does not move, and the run records no responses with nothing on screen to say why. A plugged-in controller is therefore read directly, and its controls press the keys a phase's `keys` can already map:
 
@@ -146,7 +159,7 @@ Runtime flow: experimenter screen (**SPACE**) → "Waiting for scanner..." → s
 |---|---|---|---|---|---|---|---|
 | presses | `W` | `D` | `A` | `S` | `Q` | `E` | `UP` / `DOWN` / `LEFT` / `RIGHT` |
 
-The map is fixed (`fmri_gym/pad.py`), so every site with this controller expects the same keys and one curriculum plays at all of them; a curriculum keeps saying which *key* does what, and nothing else in the run can tell a pad from a keyboard. Press a button no key is mapped to and its number is printed on stderr; run `python -m fmri_gym.pad` to press each control and see the key it sends. `--no-pad` ignores the controller.
+The map is fixed (`fmri_gym/pad.py`), so every site with this controller expects the same keys and one curriculum plays at all of them; a curriculum keeps saying which *key* does what, and nothing else in the run can tell a pad from a keyboard. Press a button no key is mapped to and its number is printed on stderr; run `python -m fmri_gym.pad` to press each control and see the key it sends. The rig file's `"has_pad": false` ignores the controller.
 
 **Calibrate the stick once per rig.** A stick neither rests at 0 nor reaches 1 both ways -- one pad measured -0.03 at rest and travelled about twice as far right as left -- so a single symmetric threshold asks for twice the movement one way as the other. `fmri-pad-calibrate` measures this machine's pad (roll the stick around its edge, hands off, then ~60 cued presses) and writes `~/.config/fmri-gym/pad.json`, which every run then reads: each axis' rest and its two extremes, so a reading becomes a fraction of the travel *available in that direction*, plus the thresholds fitted from how hard the stick was actually pushed. It lives outside the checkout because it describes the hardware here, not the task; `FMRI_GYM_PAD_CONFIG` points elsewhere, and the raw samples are saved beside it. Without one the raw readings are used as-is and the run's banner says `UNCALIBRATED`. It cues one control at a time in a fixed order, announced before each run of trials, so a press aimed at the wrong button never has to be measured. `fmri-pad-scope` opens on its own when it finishes -- push each control and watch the thresholds it just wrote act on it -- and can be run any time after; its arrow keys move `axis_on`/`axis_off` live and `S` saves them back into the calibration.
 
@@ -158,7 +171,7 @@ Those four directions are the obvious ones -- 0, 90, 180, 270 -- and the calibra
 
 **The centre is not a constant, so it is measured as one movement, not stored as one place.** Cold, this pad read -0.003 one session and -0.019 the next; after it had been deflected once it sat at -0.10 in the first and -0.165 in the second and stayed there. The gimbal does not return where it started. So the calibration measures *how far* the centre moves -- where the stick sits before it has been touched against where it settles after the sweep -- and a run takes its centre once, the first time the stick is used and then let go still for a second, allowed to move only as far as that measurement says it can. It never re-centres while a direction is pressed, which would release the key under a subject leaning on the stick, and a stick that settles further out than the measured movement is refused with a message rather than believed: that is a stick that has drifted past its calibration, and the stops have not moved with it, so one side really has lost travel. With a 0.20 drift injected into a recorded session, a fixed centre held a key down on 43% of the frames where nobody was pushing; taking it once, 16%.
 
-**The rig check measures it.** `check_controls` looks for a controller first. If one is plugged in it runs the calibration there and then, on the window the check already has open, and writes this rig's `pad.json` -- so the measurement is part of setting the rig up rather than a separate thing to remember, and every later run on the machine reads what it wrote. The check then asks for its keys as usual, now through the calibration it just made, and fails if the fit is not usable: a cued trial with no push, a cue read as another control, or under 10 degrees between a push and the next direction. With no controller plugged in there is nothing to measure and whatever device is in use is expected to send the keys itself, which is what the key prompts test. `"pad": false` in the phase skips the measurement and leaves any existing calibration alone; `"pad_reps"` sets how many times each control is cued (3, so 30 trials).
+**The rig check measures it.** `check_controls` looks for a controller first. If one is plugged in it runs the calibration there and then, on the window the check already has open, and writes this rig's `pad.json` -- so the measurement is part of setting the rig up rather than a separate thing to remember, and every later run on the machine reads what it wrote. The check then asks for its keys as usual, now through the calibration it just made, and fails if the fit is not usable: a cued trial with no push, a cue read as another control, or under 10 degrees between a push and the next direction. With no controller plugged in there is nothing to measure and whatever device is in use is expected to send the keys itself, which is what the key prompts test. `"has_pad": false` in the phase skips the measurement and leaves any existing calibration alone; `"pad_reps"` sets how many times each control is cued (3, so 30 trials).
 
 ## Running stable-retro games
 
@@ -228,7 +241,7 @@ uv run fmri-play --subject sub-01 --curriculum configs/curricula/coom/pitfall.js
 
 The env reads `<repo>/COOM/env/scenarios/<scenario>/conf.cfg` and `<task>.wad` (`env_kwargs.task`, default `"default"`; `run_and_gun` also ships `blue`, `red`, `hard`, ...). Without the checkout the run stops at start-up.
 
-Every scenario always exposes exactly 4 buttons (`TURN_LEFT`, `TURN_RIGHT`, `MOVE_FORWARD`, plus one of `JUMP`/`ATTACK`/`SPEED`/`USE`), driven through COOM's own 12-action table (turn x move x execute), so a phase's `keys` are indices into it -- 8 = turn left, 4 = turn right, 2 = forward, 1 = the 4th button, sums for combos, `"": 0` for no key; each `coom__*.json` spells its map out. COOM blocks log the raw ViZDoom `game_variables` (health, ammo, position, ...) as an analysis variable; the savestate is the seed and the actions since (`ReplayState`, see "Savestates by replay" below), restored by replay. The nine COOM curricula enable audio via `env_kwargs.audio_buffer_enabled`. On Ubuntu, install OpenAL with `sudo apt install libopenal1`. Keep `fps: 35` for one Doom tic of 44.1 kHz stereo PCM per step. `--no-audio` mutes playback but preserves recorded PCM; terminal frames are marked `audio_valid=false`. `audio_efx: false` disables reverb to avoid an older OpenAL crash. MIDI music requires a working engine MIDI renderer; check the startup console for errors. Queued sounds can be cut at episode end. Logged `audio_onset` estimates DAC timing, not physical speaker latency.
+Every scenario always exposes exactly 4 buttons (`TURN_LEFT`, `TURN_RIGHT`, `MOVE_FORWARD`, plus one of `JUMP`/`ATTACK`/`SPEED`/`USE`), driven through COOM's own 12-action table (turn x move x execute), so a phase's `keys` are indices into it -- 8 = turn left, 4 = turn right, 2 = forward, 1 = the 4th button, sums for combos, `"": 0` for no key; each `coom__*.json` spells its map out. COOM blocks log the raw ViZDoom `game_variables` (health, ammo, position, ...) as an analysis variable; the savestate is the seed and the actions since (`ReplayState`, see "Savestates by replay" below), restored by replay. The nine COOM curricula enable audio via `env_kwargs.audio_buffer_enabled`. On Ubuntu, install OpenAL with `sudo apt install libopenal1`. Keep `fps: 35` for one Doom tic of 44.1 kHz stereo PCM per step. The rig file's `"has_audio": false` mutes playback but preserves recorded PCM; terminal frames are marked `audio_valid=false`. `audio_efx: false` disables reverb to avoid an older OpenAL crash. MIDI music requires a working engine MIDI renderer; check the startup console for errors. Queued sounds can be cut at episode end. Logged `audio_onset` estimates DAC timing, not physical speaker latency.
 
 ## Running AI GameStore games
 
@@ -313,13 +326,18 @@ Most games need only the last: a pip package already provides the env. Nothing a
 ```
 fmri_gym/
   run.py        # trigger, clock, curriculum loop, phases  — 100% engine-agnostic
+  config/
+    curriculum.py   # Curriculum: the curriculum file, loaded once into typed phases; load, save, includes
+    phases.py       # one dataclass per phase type (Fixation, Message, Survey, GamePhase, Check*), its checks
+    rig.py          # the rig files (configs/rigs/<site>/<rig>.json): what it is, screen, pad, audio, data root
+    run.py          # RunConfig: one run's command line and the rig it is played on
   display.py        # pygame: fixed window, aspect-fit frame, fixation, text; vsync-locked flip + call_on_flip
   logging.py        # manifest.json + one crash-safe JSONL/HDF5 log per game block
   replay.py         # replay an episode from a block's log; its frame fields as arrays
   menu.py           # the hold-a-key pause menu (reset / forfeit / resume), opt-in per game phase
   triggers.py       # run-start sync (wait/send/none) + MEG/EEG trigger codes over lsl/serial/parallel
   photodiode.py     # `python -m fmri_gym.photodiode`: flash a patch to measure the flip-to-photon offset
-  checks.py         # the rig check: its phases, the rig file, report.html/.md, rigchecks.tsv, `pool`
+  checks.py         # the rig check: its phases, report.html/.md, rigchecks.tsv, `pool`
   adapters/
     base.py         # EnvAdapter + FrameState (the seam)
     keymap.py       # the phase's keys -> actions, one Keymap per action space
@@ -382,9 +400,9 @@ One config is one run. A whole scanning session is a plain shell script with one
 # fmri-gym session: one line per run, in order.
 set -e
 SES=${1:-$(uv run fmri-ses --subject sub-01)}
-uv run fmri-play --curriculum configs/pong.json --subject sub-01 --ses "$SES" --run 1 --size 1024x768
+uv run fmri-play --curriculum configs/pong.json --subject sub-01 --ses "$SES" --run 1
 ./scripts/localizer.sh "$SES"
-# uv run fmri-play --curriculum configs/mario.json --subject sub-01 --ses "$SES" --run 1 --size 1024x768
+# uv run fmri-play --curriculum configs/mario.json --subject sub-01 --ses "$SES" --run 1
 ```
 
 **The numbers come from the script, not from the disk.** The `SES=` line picks the session once, so every run lands in it: the script's own argument if it was given one (`sh ses1.sh 003` resumes session 3), else the subject's next free session. Each run states its `--run`, which is its place among the lines that play that task -- so it is the same run number however the session went, and skipping a line renumbers nothing after it. Both flags are required of `fmri-play`: it never picks a number itself.
@@ -536,7 +554,7 @@ A resumed episode starts from that savestate rather than from its seed alone, so
 
 ## Triggers: fMRI vs MEG/EEG
 
-The `"triggers"` section next to `"curriculum"` says how a run starts and what the recording gets (full example: `configs/curricula/demos/meg.json`):
+The rig file's `"triggers"` section (see *Rigs*) says how a run starts and what the recording gets, for every curriculum played on the rig (a full example is in `configs/rigs/README.md`):
 
 ```jsonc
 "triggers": {
@@ -553,7 +571,7 @@ The `"triggers"` section next to `"curriculum"` says how a run starts and what t
 
 `backend`: `null`, `lsl`, `serial` or `parallel` — `uv sync --extra triggers` (pylsl / pyserial / pyparallel); `port` for serial/parallel, `lsl_stream_name` for LSL.
 
-Which of these a rig needs varies: the scanner may type a key at every volume, or start its recording when the stimulus PC sends a code, or neither. So the config says what happens rather than naming a modality, and the editor offers a template per common setup:
+Which of these a rig needs varies: the scanner may type a key at every volume, or start its recording when the stimulus PC sends a code, or neither. So the rig file says what happens rather than naming a modality, and the editor's Triggers tab offers a template per common setup:
 
 | setup | `sync.mode` | `backend` |
 |---|---|---|
@@ -562,7 +580,7 @@ Which of these a rig needs varies: the scanner may type a key at every volume, o
 | the recording is started by hand, the PC gets the scanner's key | `wait` | `serial` / `parallel` / `lsl` |
 | bench test, nothing connected | `none` | `null` |
 
-Leaving `sync.mode` or `backend` out defaults to `wait` / `null`, and says so: the experimenter screen, the console and the manifest all report it (`NOT SET in config: sync.mode, backend`), as they do for `--dummy-trigger`.
+Leaving `sync.mode` or `backend` out defaults to `wait` / `null`, and says so: the experimenter screen, the console and the manifest all report it (`NOT SET in the rig file: sync.mode, backend`), as they do for `--dummy-trigger`.
 
 What is sent: `task_start` when the clock anchors, `episode_start` at each reset, one code per frame (`"frame_every": N` to thin, `"on_frame": false` to drop), `task_stop` at the end. Codes never share bits, so two triggers on the same sample still decode: frames cycle 1–7 in the low 3 bits, `task_start`=8, `task_stop`=16, `episode_start`=32, `scanner_start`=64, and a lifecycle code is OR'd with the current frame code (all under `"codes"`; overlaps are refused). Every value sent is logged: per frame as `trigger` on the block's `frame` lines, lifecycle events with their `run_time` under `triggers` in `manifest.json`.
 
@@ -571,17 +589,17 @@ What is sent: `task_start` when the clock anchors, `episode_start` at each reset
 Frames are shown with a vsync-locked flip and each frame's onset is logged as `flip_time`; message/fixation onsets in the manifest are flip times too. Key presses and releases are logged as they arrive (`key_time`, `key_name`, `key_down`), independent of the frame grid. The manifest records the display actually obtained (`vsync`, measured at start-up; `refresh_rate`).
 
 - A frame is shown at the next refresh after its step, so an `fps` that divides the refresh rate (30 or 60 on a 60 Hz screen) shows every frame for the same number of refreshes; otherwise frames alternate between one and two and each onset can be up to one refresh late. `flip_time` records what happened either way. Some cores' own rate is 59.92: close enough to 60 Hz that one frame in ~800 is shown twice.
-- Check that the rig locks to the refresh before a session: `python -m fmri_gym.display --fullscreen` (verdict LOCKED / NOT locked; if not, use fullscreen and disable the desktop compositor). `--no-vsync` turns the request off. Pass the session's `--monitor` here and to the photodiode: refresh, vsync and the photon offset belong to the monitor.
+- Check that the rig locks to the refresh before a session: `python -m fmri_gym.display --fullscreen` (verdict LOCKED / NOT locked; if not, use fullscreen and disable the desktop compositor). `--no-vsync` turns the request off. Pass the rig's monitor (its `"screen"` `"monitor"`) here and to the photodiode as `--monitor`: refresh, vsync and the photon offset belong to the monitor.
 - Once per rig, measure the constant flip-to-photon offset with a photodiode on the screen, then subtract it from `flip_time` and the frame triggers:
 
   ```bash
-  python -m fmri_gym.photodiode --fullscreen --config configs/curricula/demos/meg.json   # diode into the MEG/EEG amp
+  python -m fmri_gym.photodiode --fullscreen --rig <site>/<rig>     # diode into the MEG/EEG amp, codes on the rig's line
   python -m fmri_gym.photodiode --fullscreen --audio                          # diode into this PC's sound card
   python -m fmri_gym.photodiode --fullscreen --audio --audio-click --mic       # + mic on input 1: when sound is heard
   ```
 
   The first flashes a patch with the frame trigger on each white flip; match the triggers to the diode edges in your recording with `fmri_gym.photodiode.match_edges(trigger_times, edge_times)`. The second records the diode on the sound-card input and prints the offsets itself (`--list-audio-devices` to pick the input). `--audio-click` also plays a tone burst on each white flip through the session's audio output and reports when it reaches the DAC; with `--mic`, when a microphone on input channel 1 hears it.
-- **The rig check** runs all of these as one run: `configs/curricula/checks/rig-check.json`, whose curriculum holds check phases instead of games, played by `fmri-play` with the window, trigger line and audio output a session opens. So the editor edits it like any config -- its **Triggers** tab sets the line it tests (make it the session's), its **Controls** tab the buttons it asks for (Use a device layout to fill them in) -- and it can stand first in any session: add `configs/curricula/checks/rig-check.json` as its first run. A failed test does not stop the check or the session: it is listed, with why, on screen, on the console and in the report. On its own, the session `configs/rigs/rig-check.sh` plays the long check (filed under `sub-rig`, as MEG-BIDS files empty-room recordings under `sub-emptyroom`; its first line, the quick check, is skipped: un-skip it to play that one): open it in the editor, `fmri-edit --session configs/rigs/rig-check.sh`, and press Play, or run `sh configs/rigs/rig-check.sh`.
+- **The rig check** runs all of these as one run: `configs/curricula/checks/rig-check.json`, whose curriculum holds check phases instead of games, played by `fmri-play` with the window, trigger line and audio output a session opens. So the editor edits it like any config -- the line it tests is the rig's (its **Triggers** tab edits the rig's triggers), its **Controls** tab the buttons it asks for (Use a device layout to fill them in) -- and it can stand first in any session: add `configs/curricula/checks/rig-check.json` as its first run. A failed test does not stop the check or the session: it is listed, with why, on screen, on the console and in the report. On its own, the session `configs/rigs/rig-check.sh` plays the long check (filed under `sub-rig`, as MEG-BIDS files empty-room recordings under `sub-emptyroom`; its first line, the quick check, is skipped: un-skip it to play that one): open it in the editor, `fmri-edit --session configs/rigs/rig-check.sh`, and press Play, or run `sh configs/rigs/rig-check.sh`.
 
   | phase | test | fails when |
   |---|---|---|
@@ -590,13 +608,13 @@ Frames are shown with a vsync-locked flip and each frame's onset is logged as `f
   | `check_triggers` | triggers | the line does not open, LSL does not read back what was sent, or the scanner's pulses do not come or come irregularly (counted when the run waits for the scanner). This PC's ports and LSL are listed first, with a warning when none is usable. Codes sent over serial/parallel are printed: check them in the recording |
   | `check_controls` | controls | a key is not read back through the event queue as itself (automatic), or is not pressed when asked for on screen (the input devices plugged in are listed) |
   | `check_photodiode` | photodiode | the diode misses a flash, or sees only the flashes with a click (it hears sound). `"readout": "recording"`: matched offline to the frame triggers |
-  | | audio | a tone burst (every other flash, through the session's output) never reaches the DAC, or with `"mic": true` a microphone at the ear on input 1 misses one |
+  | | audio | a tone burst (every other flash, through the session's output) never reaches the DAC, or with `"has_mic": true` a microphone at the ear on input 1 misses one |
 
   The rig-check configs ship with `"triggers": null`: no setup is anyone's default. The first rig check asks for one -- a preset (fMRI, MEG, EEG, behavioural) or your own -- and saves it in the config; the Triggers tab changes it later. With no screen for the dialog it stops and says so.
 
   Every check runs whichever fails, and each test gets its verdict. The screen says what each check is doing -- which code goes out on which line, which flash (and whether it carries a click), which rate under which load -- and then its verdict. A session's runs must share one triggers section: the editor's Check says so when they differ (each run keeps its own, so a change on the Triggers tab applies to the selected run only). `configs/curricula/checks/rig-check.json` is the **quick** check, before every session: under a minute, most of it pressing the buttons -- enough to show today's rig is the one that was measured. `configs/curricula/checks/rig-check-long.json` **measures** the rig, once per rig and after any hardware, driver or OS change (about 25 min; the frame test alone plays 60, 30, 20 and 50 fps for a minute each, idle and under CPU load): offsets to a fraction of a ms, their drift in ms/min (a sound card's clock runs apart from the PC's), missed refreshes and pulses, the TR on this PC's clock. With `sync.mode` `wait`, the check waits for the scanner like any run: start a sequence, or the trigger box's test mode.
 
-  Each machine needs a **rig file**, `rig.json` (not in git): site, rig, PI's initials, modality, and what software cannot see -- monitor or projector, photodiode, sound path to the ear, trigger hardware. When it is missing or invalid, the check opens a form to fill it in (the `gui` extra; Save stays disabled until every field is valid) before the window; cancelled, or with no screen, it stops. `python -m fmri_gym.checks rig` reopens the form when the hardware changes; `RIG=<path>` points elsewhere.
+  Each rig needs a **rig file**, `configs/rigs/<site>/<rig>.json` (see *Rigs* under [Quick start](#quick-start)): site, rig, PI's initials, modality, and what software cannot see -- monitor or projector, photodiode, sound path to the ear, trigger hardware -- with what every run on the rig uses (screen, has_pad, has_audio, data_root). When it is missing or invalid -- a machine with no rig yet, or a `--rig` it has no file for -- the check opens a form to fill it in (the `gui` extra; Save stays disabled until every field is valid) before the window; cancelled, or with no screen, it stops. `python -m fmri_gym.checks rig --rig <site>/<rig>` reopens the form when the hardware changes.
 
   The check's run folder holds, beside the run's own `manifest.json` (with the rig, each check's numbers and each test's verdict) and one `block-NN_check_<name>.npz` per check:
 
@@ -622,7 +640,7 @@ data/sub-01/ses-001/beh/sub-01_ses-001_task-pong_run-002_02/     ... re-acquired
 data/sub-01/ses-001/beh/sub-01_ses-001_task-crafter_run-001/
 ```
 
-The task is the config's file name (letters and digits); `--subject` must be `sub-<letters/digits>`. `--ses` and `--run` are **required**: the numbers come from the session design (the script's `SES=` line and each run's place in it), never from what is on disk, so they survive a session that was interrupted, resumed or re-acquired. `--data-root` moves the tree (default `data`).
+The task is the config's file name (letters and digits); `--subject` must be `sub-<letters/digits>`. `--ses` and `--run` are **required**: the numbers come from the session design (the script's `SES=` line and each run's place in it), never from what is on disk, so they survive a session that was interrupted, resumed or re-acquired. The rig file's `"data_root"` moves the tree (default `data`).
 
 Data is never overwritten. A run whose folder is already there writes to `..._02`, then `_03`; the attempt that stopped stays where it is. That suffix names the folder only — the run's label, which the manifest records with the `attempt` number and which keys the seeds, stays canonical, so every attempt at a run plays the same episodes.
 

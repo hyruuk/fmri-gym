@@ -9,11 +9,15 @@ opens an editor or writes a config. A session of several runs is a shell
 script with one of these commands per line (README, "Runs and sessions"),
 which ``fmri-edit`` writes and any shell plays.
 
+How it is played -- the window, the controller, the audio, where the data
+goes -- is the rig's, not the command's: each rig has a file
+(:mod:`fmri_gym.config.rig`), and ``--rig`` names it when there are several.
+
 Usage (--ses and --run say which run of which session this is; a session
 script passes the same --ses to all of its runs, each with its own --run):
     python fmri_play.py --subject sub-01 --curriculum my.json --ses 1 --run 1
+    python fmri_play.py ... --rig bc/prisma    # configs/rigs/bc/prisma.json
     python fmri_play.py ... --dummy-trigger    # testing: no experimenter/scanner wait
-    python fmri_play.py ... --no-audio         # mute all games
     python fmri_play.py ... --duration 600 --resume  # a 10-min run of a longer curriculum
 
 See configs/curricula/demos/mixed.json for a curriculum that mixes all three backends,
@@ -27,10 +31,12 @@ import signal
 import sys
 
 from fmri_gym import Run, checks
-from fmri_gym.config import RunConfig
-from fmri_gym.curriculum import EXIT_QUIT, load_curriculum, validate_curriculum
+from fmri_gym.config.curriculum import EXIT_QUIT, Curriculum
 from fmri_gym.display import quit_like_esc
+from fmri_gym.config.rig import RigConfig
+from fmri_gym.config.run import RunConfig
 from fmri_gym.run import END_FIXATION_S
+
 
 
 class _Parser(argparse.ArgumentParser):
@@ -46,13 +52,11 @@ class _Parser(argparse.ArgumentParser):
 
 
 def _parser() -> argparse.ArgumentParser:
-    """The command line: one run, and how this machine plays it."""
+    """The command line: one run, and the rig that plays it."""
     p = _Parser(description="Run any gym game as an fMRI task.")
     p.add_argument("--subject", default="sub-test", help="BIDS subject: sub-<letters/digits>")
     p.add_argument("--curriculum", required=True, help="the run's curriculum JSON (see "
                    "README); fmri-edit writes one without the JSON")
-    p.add_argument("--data-root", default="data",
-                   help="where the BIDS tree goes: <root>/sub-XX/ses-NNN/beh/<run>/")
     p.add_argument("--ses", type=int, required=True,
                    help="BIDS session number, from 1: which scanning session this run belongs "
                    "to. A session script takes it once and passes it to every run (fmri-ses)")
@@ -70,39 +74,31 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--resume", action="store_true",
                    help="carry on from where this subject's latest run of this config (any "
                    "session) stopped, mid-block included. Default: start at the beginning")
-    p.add_argument("--size", default="1024x768")
-    p.add_argument("--fullscreen", action="store_true")
-    p.add_argument("--monitor", type=int, default=0,
-                   help="which monitor to open on, by index (0: the first); a wrong one stops "
-                   "the run and lists this machine's")
-    p.add_argument("--no-vsync", action="store_true",
-                   help="do not lock flips to the monitor refresh (default: try to)")
+    p.add_argument("--rig", help="the rig it is played on, <site>/<rig>: its file "
+                   "configs/rigs/<site>/<rig>.json says the window, controller, audio and "
+                   "data root. Default: the only rig file there is; a rig check makes one")
     p.add_argument("--dummy-trigger", action="store_true")
-    p.add_argument("--no-pad", action="store_true",
-                   help="ignore a plugged-in game controller. By default one is read and its "
-                   "controls press the keys in fmri_gym/pad.py (face buttons WASD, shoulders "
-                   "Q/E, stick arrows), so a phase's `keys` map those as if they were typed")
-    p.add_argument("--no-audio", action="store_true", help="mute game audio in every block (the curriculum saved "
-                   "in the manifest shows \"audio\": false)")
     return p
 
 
 def main() -> None:
     args = _parser().parse_args()
-    run_config = RunConfig.from_args(args)
-    curriculum = load_curriculum(run_config.curriculum_path)
-    # The editor's Check, so a file edited by hand gets it too.
-    problems = validate_curriculum(curriculum)
+    # The editor's Check runs on load, so a file edited by hand gets it too.
+    curriculum = Curriculum.load(args.curriculum)
+    do_rig_check = curriculum.has_checks
+    # A rig check is how a rig gets its file: it opens the form when there is none.
+    rig = checks.ensure_rig(args.rig) if do_rig_check else RigConfig.open(args.rig)
+    trigger_error = None
+    if do_rig_check:  # its triggers, and a line that opens, first
+        rig, trigger_error = checks.prepare(rig)
+    print(f"rig: {rig.status()}", file=sys.stderr)
+    run_config = RunConfig.from_args(args, curriculum, rig)
+    problems = run_config.problems()
     if problems:
-        raise ValueError(f"{run_config.curriculum_path}: " + "; ".join(problems))
-
-    rig_check = None
-    if checks.has_checks(curriculum):  # a rig check: its rig file, and a line that opens, first
-        rig_check = checks.prepare(curriculum, run_config.curriculum_path)
-    run = Run.from_config_and_curriculum(run_config, curriculum)
-    if rig_check is not None:
-        run.logger.set_extra("rig", rig_check.rig)
-        run.logger.set_extra("trigger_error", rig_check.trigger_error)
+        raise ValueError(f"{args.curriculum} on {rig.name}: " + "; ".join(problems))
+    run = Run.from_config(run_config)
+    if do_rig_check:
+        run.logger.set_extra("trigger_error", trigger_error)
     previous = signal.signal(signal.SIGINT, quit_like_esc)
     try:
         completed = run.play()
@@ -110,9 +106,9 @@ def main() -> None:
         run.close()
         # Last: a terminal's Ctrl+C can come twice (to uv and to us), the second one late.
         signal.signal(signal.SIGINT, previous)
-    if rig_check is not None:
+    if do_rig_check:
         # A failed test is a finding, listed in the report: the session goes on.
-        checks.finish(run, run_config.ses, run_config.data_root)
+        checks.finish(run, run_config.ses)
     if not completed:
         # A session script (set -e) must not start the next run after an ESC.
         sys.exit(EXIT_QUIT)

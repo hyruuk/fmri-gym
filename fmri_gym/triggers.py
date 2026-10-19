@@ -5,8 +5,9 @@ volume (the ``=`` key from the trigger box) and anchor the session clock on
 it. MEG/EEG need the opposite direction: the stimulus PC *sends* trigger codes
 onto a trigger line -- often also to start the acquisition -- and the analyst
 realigns the recording to the frame log by those codes. Both live under one
-optional ``"triggers"`` section of the config so a single curriculum runs at
-either scanner; without the section, behaviour is the fMRI one as before.
+optional ``"triggers"`` section of the rig file (:mod:`fmri_gym.config.rig`),
+since they are the site's hardware, so a single curriculum runs at either
+scanner; without the section, a run waits for the fMRI ``=`` and sends no codes.
 
 One section, two concerns:
 
@@ -355,7 +356,7 @@ class Triggers:
 
     @classmethod
     def from_dict(cls, section: dict | None) -> Triggers:
-        """Build from the curriculum's ``triggers`` section.
+        """Build from a rig file's ``triggers`` section.
 
         :param section: the dict, or ``None`` for the defaults (``null``
             backend, wait for the scanner key).
@@ -444,7 +445,7 @@ class Triggers:
         with someone discovering the recording got no triggers.
 
         :return: e.g. ``"wait for scanner key '=' | no trigger codes sent
-            (backend null) | NOT SET in config: sync.mode, backend"``.
+            (backend null) | NOT SET in the rig file: sync.mode, backend"``.
         """
         sync = self.sync
         start = {"wait": f"wait for scanner key {sync.key!r}",
@@ -454,7 +455,7 @@ class Triggers:
                else "no trigger codes sent (backend null)")
         parts = [start, out]
         if self.settings.defaulted:
-            parts.append("NOT SET in config: " + ", ".join(self.settings.defaulted))
+            parts.append("NOT SET in the rig file: " + ", ".join(self.settings.defaulted))
         return " | ".join(parts)
 
     def describe(self, clock: Clock | None = None) -> dict[str, Any]:

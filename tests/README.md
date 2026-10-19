@@ -15,6 +15,7 @@ uv run pytest --backend none             # the engine-free tests only
 |---|---|---|
 | `test_configs.py` | nothing | every config under `configs/` validates as `fmri-play` would; every `get_adapter` backend has a row in `backends.py` |
 | `test_core.py` | nothing | the logger's round trip (lines, pixels, savestates, sound), the keymaps, `validate_curriculum`, the change-to-backend map |
+| `test_rig.py` | nothing | the rig file: which rig is picked, the defaults it leaves out, and the files it refuses |
 | `test_audio_stream.py` | nothing | the PortAudio callback splices queued chunks whole, once, in order, at the onset asked for |
 | `test_backends.py` | the backend | per selected backend, on its smoke configs: **playable** (the adapter builds, resets, steps its keys, renders RGB, captures JSON-able variables and a savestate, sounds PCM shaped `(samples, channels)`), **recorded** (a block by the random policy writes `events.jsonl`, `frames.h5`, `audio.h5` of the documented shape), **replays** (the block rebuilt in a second process under another `PYTHONHASHSEED` matches bit for bit), **runs** (the real `fmri-play` loop plays it headless with a key script and leaves a run folder) |
 | `test_crafter_cues.py` | crafter | the adapter's predicted sound cue against the engine's own outcome, press by press |

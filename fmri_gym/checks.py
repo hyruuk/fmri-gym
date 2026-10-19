@@ -25,20 +25,21 @@ Its curriculum holds check phases where a game run holds games:
   listed; then each key is asked for on screen and pressed on the real device.
 * ``check_photodiode`` -- the flip-to-photon offset, and on the same flashes
   the audio test: a tone burst on every other flash, timed at the DAC, and at
-  a microphone at the ear with ``"mic": true``.
+  a microphone at the ear with ``"has_mic": true``.
 
 The screen says what each check does while it does it, then its verdict. A
 check does not raise: it records a verdict for each of its tests (pass, fail,
 offline, not run, and why), so one failure hides none of the others, and a
 failed test ends nothing, neither the check nor the session.
 
-**The rig file** says what software cannot see: the site and rig, the PI, the
-monitor or projector, the photodiode, the sound path to the ear, the trigger
-hardware. One per machine (``rig.json``, not in git), filled in by a form
-(:func:`fmri_gym.gui_qt.fill_rig`) when it is missing or invalid; a check that
-says nothing of where it ran could not be pooled, so without it none starts.
-The rig-check configs ship with ``"triggers": null``, no setup being anyone's
-default: the first check asks for one and saves it.
+**The rig file** (:mod:`fmri_gym.config.rig`, one per rig) says what software cannot
+see: the site and rig, the PI, the monitor or projector, the photodiode, the
+sound path to the ear, the trigger hardware. A rig check is how a rig gets its
+file: when it is missing or invalid, the check opens a form to fill it in
+(:func:`ensure_rig`); a check that says nothing of where it ran could not be
+pooled, so without it none starts. A rig whose file says nothing of its
+triggers is asked for them on its first check, and the answer is saved in
+the rig file: no setup is anyone's default.
 
 **What is filed.** Beside the run's own ``manifest.json`` and one ``.npz`` per
 check: ``report.html`` for the people who run the rig (a verdict per test, the
@@ -48,7 +49,7 @@ numbers, charts, this rig's previous checks; one offline file),
 holds every check filed there, read from their manifests, so checks filed by
 an earlier version still line up::
 
-    python -m fmri_gym.checks rig                      # fill in / update rig.json
+    python -m fmri_gym.checks rig --rig <site>/<rig>   # fill in / update a rig file
     python -m fmri_gym.checks report <run folder>...   # re-file checks already run
     python -m fmri_gym.checks pool data/ /mnt/siteB/data/ --out rigchecks.tsv
 """
@@ -69,7 +70,7 @@ import subprocess
 import sys
 import time
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Iterator, NamedTuple, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Sequence
 
 import gymnasium as gym
 import numpy as np
@@ -77,9 +78,12 @@ import pygame
 from gymnasium import spaces
 
 from . import pad
+from .config import rig as rig_file
+from .config.phases import (CHECK_PHASES, CheckControls, CheckDisplay, CheckFrames,
+                            CheckPhotodiode, CheckTriggers, GamePhase)
 from .display import Display, is_locked
 from .keys import _PYGAME_KEY_NAMES, get_events, key_name
-from .photodiode import (CORNERS, AudioRecorder, Verdict, _clicker, _light_verdict,
+from .photodiode import (AudioRecorder, Verdict, _clicker, _light_verdict,
                          _log_clicks, _readout, _sound_verdict, run_flashes)
 from .run import _wait_for_duration
 from .triggers import LIFECYCLE_EVENTS, Codes, TriggerError, Triggers
@@ -88,21 +92,13 @@ if TYPE_CHECKING:
     from .run import Run
 
 
-CHECK_TYPES = ("check_display", "check_triggers", "check_controls", "check_photodiode",
-               "check_frames")
-LOADS = ("none", "cpu")
+#: The check phases' types, as a manifest's phase entries name them.
+CHECK_TYPES = tuple(c.type for c in CHECK_PHASES)
 #: Seconds each check's verdict stays on screen.
 _VERDICT_S = 1.5
 #: Seconds the list of every test's verdict stays up at the end.
 _SUMMARY_S = 5.0
-#: The rig file, per machine; ``RIG`` in the environment points elsewhere.
-RIG_FILE = os.environ.get("RIG", "rig.json")
 _PASS = Verdict("pass", None)
-
-
-def has_checks(curriculum: dict) -> bool:
-    """Whether the curriculum is a rig check: any of its phases is a check."""
-    return any(p["type"] in CHECK_TYPES for p in curriculum["curriculum"])
 
 
 # ---------------------------------------------------------------------------
@@ -110,76 +106,57 @@ def has_checks(curriculum: dict) -> bool:
 # ---------------------------------------------------------------------------
 
 
-class RigSetup(NamedTuple):
-    """What :func:`prepare` settles before the window opens, for the manifest."""
+def prepare(rig: rig_file.RigConfig) -> tuple[rig_file.RigConfig, str | None]:
+    """Before the window: the rig's trigger settings, and a line the run can open.
 
-    #: the rig file's fields (:func:`ensure_rig`)
-    rig: dict[str, str]
-    #: why the curriculum's trigger line did not open; ``None`` when it did
-    trigger_error: str | None
+    A rig whose file says nothing of its triggers is asked for them -- a
+    preset, or one's own -- and the answer is saved in its file
+    (:func:`_ask_triggers`). A trigger line that does not open would stop the
+    run before any check; here it fails the triggers check instead, and the
+    run plays on the rig without its line (said on the console and in the
+    manifest), so the other checks still run.
 
-
-def prepare(curriculum: dict, path: str) -> RigSetup:
-    """Before the window: the rig file, the trigger settings, and a line the run can open.
-
-    The rig file is required (its form opens when it is missing, see
-    :func:`ensure_rig`). A rig check as downloaded has
-    ``"triggers": null``: no setup is anyone's default, so the first run asks
-    for one -- a preset, or one's own -- and saves it in the curriculum
-    (:func:`_ask_triggers`). A trigger line that does not open
-    would stop the run before any check; here it fails the triggers check
-    instead, and the run goes on with no codes (said on the console and in
-    the manifest), so the other checks still run.
-
-    :param curriculum: the run's curriculum; its ``triggers`` section is
-        filled in when it has none, and replaced when its line does not open.
-    :param path: the curriculum's file, where a chosen section is saved.
-    :raises ValueError: when the curriculum has no trigger settings and none is chosen.
-    :return: the rig, and why the line did not open if it did not.
+    :param rig: the rig the check plays on.
+    :raises ValueError: when the rig has no trigger settings and none is chosen.
+    :return: the rig to play on, and why its line did not open (``None`` when it did).
     """
-    rig = ensure_rig(RIG_FILE)
-    if "triggers" in curriculum and curriculum["triggers"] is None:
-        _ask_triggers(curriculum, path)
-    section = curriculum.get("triggers") or {}
+    if not rig.has_trigger_setup:
+        rig = _ask_triggers(rig)
     try:
-        Triggers.from_dict(section).close()
-        return RigSetup(rig, None)
+        Triggers(rig.triggers).close()
+        return rig, None
     except (TriggerError, OSError) as exc:
         error = f"{type(exc).__name__}: {exc}"
-    sync = dict(section.get("sync", {}))
-    if sync.get("mode") == "send":
-        sync["mode"] = "none"  # send needs a line; waiting for the scanner does not
-    curriculum["triggers"] = {**section, "backend": "null", "sync": sync}
     print(f"rig check: the trigger line did not open ({error}); the triggers check fails, "
           "the other checks run without codes", file=sys.stderr)
-    return RigSetup(rig, error)
+    return rig.without_trigger_line(), error
 
 
-def _ask_triggers(curriculum: dict, path: str) -> None:
-    """Fill in a curriculum's ``"triggers": null`` from the dialog, and save it.
+def _ask_triggers(rig: rig_file.RigConfig) -> rig_file.RigConfig:
+    """The rig with the trigger settings the dialog gives, saved in its file.
 
     :raises ValueError: with no screen for the dialog, or when it is cancelled.
     """
-    fix = (f"{path} has no trigger settings (\"triggers\": null): set them on the editor's "
-           "Triggers tab (fmri-edit), or answer the dialog a rig check opens")
+    where = rig_file.path(rig.name)
+    fix = (f'{where} has no "triggers": set them on the editor\'s Triggers tab (fmri-edit) '
+           "or in the file, or answer the dialog a rig check opens")
     if not can_show_form():
         raise ValueError(f"rig check: {fix}; there is no screen here for the dialog")
     from .gui_qt import choose_triggers
-    section = choose_triggers(path)
+    section = choose_triggers(str(where))
     if section is None:
         raise ValueError(f"rig check: {fix}; it was cancelled")
-    curriculum["triggers"] = section
-    from .curriculum import save_curriculum
-    save_curriculum(curriculum, path)  # before the run folds its flags into it
-    print(f"rig check: trigger settings saved in {path}", file=sys.stderr)
+    rig_file.save({**rig_file.load(rig.name), "triggers": section})
+    print(f"rig check: trigger settings saved in {where}", file=sys.stderr)
+    return rig_file.RigConfig.open(rig.name)
 
 
-def finish(run: Run, session: int, data_root: str) -> bool:
-    """File the rig check: the tests in the manifest, the report, the pooling row.
+def finish(run: Run, session: int) -> bool:
+    """File the rig check: the tests in the manifest, the report, the pooling row, and
+    the rig's data root's ``rigchecks.tsv``, rebuilt.
 
     :param run: the run, played (its manifest saved).
     :param session: its BIDS session.
-    :param data_root: the BIDS tree it was filed in (its ``rigchecks.tsv`` is rebuilt).
     :return: ``True`` if a test failed or did not finish (the report lists them; the
         session goes on).
     """
@@ -200,6 +177,7 @@ def finish(run: Run, session: int, data_root: str) -> bool:
              .isoformat(timespec="seconds"),
              versions={**m.get("versions", {}), **versions()},
              platform=platform_info())
+    data_root = run.config.rig.data_root
     write_outputs(run.outdir, m, data_root)
     print(f"rig check {'PASS' if m['status'] == 'pass' else 'FAIL (' + m['failed_tests'] + ')'}"
           f": {os.path.join(run.outdir, 'report.html')} "
@@ -212,19 +190,20 @@ def finish(run: Run, session: int, data_root: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def run_check(run: Run, phase: dict, index: int) -> None:
+def run_check(run: Run, phase: CheckDisplay | CheckFrames | CheckTriggers | CheckControls
+              | CheckPhotodiode, index: int) -> None:
     """Play one check phase: measure, record its tests' verdicts, save its arrays.
 
     :raises KeyboardInterrupt: on ESC or window close (the run is quit); the
         phase is logged first, with what it measured.
     """
-    kind = phase["type"]
+    kind = phase.type
     onset = run.clock.run_time()
     summary: dict[str, Any] = {}
     arrays: dict[str, np.ndarray] = {}
     tests: dict[str, Verdict] = {}
     try:
-        _CHECKS[kind](run, phase, summary, arrays, tests, index)
+        _CHECKS[type(phase)](run, phase, summary, arrays, tests, index)
     except Exception as exc:  # noqa: BLE001 -- a check that breaks fails its tests; the rest run
         for test in (t for t, k in TESTS.items() if k == kind):
             tests.setdefault(test, Verdict("fail", f"{type(exc).__name__}: {exc}"))
@@ -242,7 +221,8 @@ def run_check(run: Run, phase: dict, index: int) -> None:
              for t, v in tests.items()]
     run.display.draw_text("Rig check\n\n" + "\n".join(lines))
     _wait_for_duration(run.display, _VERDICT_S)
-    if index == max(i for i, p in enumerate(run.phases) if p["type"] in CHECK_TYPES):
+    if index == max(i for i, p in enumerate(run.config.curriculum.phases)
+                    if isinstance(p, CHECK_PHASES)):
         _summary_screen(run)
 
 
@@ -263,12 +243,12 @@ def _title(run: Run, text: str) -> None:
     run.display.draw_text(f"Rig check: {text}")
 
 
-def _check_display(run: Run, phase: dict, summary: dict, arrays: dict, tests: dict,
+def _check_display(run: Run, phase: CheckDisplay, summary: dict, arrays: dict, tests: dict,
                    index: int) -> None:
     info = run.display.describe()
-    n = phase.get("n", 60)
-    if "seconds" in phase:
-        n = int(phase["seconds"] * (info["refresh_rate"] or 60))
+    n = phase.n
+    if phase.seconds is not None:
+        n = int(phase.seconds * (info["refresh_rate"] or 60))
     _title(run, f"display\n\n{info['refresh_rate']} Hz, vsync {info['vsync']}: timing {n} "
                 f"flips (about {n / (info['refresh_rate'] or 60):.0f} s)\nthe screen flickers "
                 "grey meanwhile")
@@ -282,7 +262,7 @@ def _check_display(run: Run, phase: dict, summary: dict, arrays: dict, tests: di
                 f"mean {stats['mean_ms']:.2f} ms, SD {stats['sd_ms']:.2f})")
 
 
-def _check_triggers(run: Run, phase: dict, summary: dict, arrays: dict, tests: dict,
+def _check_triggers(run: Run, phase: CheckTriggers, summary: dict, arrays: dict, tests: dict,
                     index: int) -> None:
     _title(run, "triggers")
     summary["outputs"] = discover()
@@ -292,7 +272,7 @@ def _check_triggers(run: Run, phase: dict, summary: dict, arrays: dict, tests: d
         tests["triggers"] = Verdict("fail", f"the trigger line did not open: {error}")
         return
     t = run.triggers
-    pulses = t.sync.mode == "wait" and not run.dummy_trigger
+    pulses = t.sync.mode == "wait" and not run.config.dummy_trigger
     if not (t.enabled or pulses):
         tests["triggers"] = Verdict("not run", "this config neither sends codes nor waits "
                                                "for the scanner")
@@ -302,8 +282,8 @@ def _check_triggers(run: Run, phase: dict, summary: dict, arrays: dict, tests: d
             _title(run, f"triggers\n\nsending {label} = {value}   ({number} of {total})\n"
                         f"on {t.active}")
 
-        send_and_check(t, phase.get("repeat", 1), phase.get("hold_ms", 40) / 1000,
-                                     phase.get("gap_ms", 40) / 1000, summary, arrays, on_send)
+        send_and_check(t, phase.repeat, phase.hold_ms / 1000, phase.gap_ms / 1000, summary,
+                       arrays, on_send)
         readback = summary["sent"]["lsl_readback"] == "ok"
         _title(run, f"triggers\n\nsent {summary['sent']['n']} codes on {t.active}\n"
                     + ("all read back from the network" if readback
@@ -314,14 +294,13 @@ def _check_triggers(run: Run, phase: dict, summary: dict, arrays: dict, tests: d
     tests["triggers"] = _PASS
 
 
-def _count_pulses(run: Run, phase: dict, summary: dict, arrays: dict) -> None:
+def _count_pulses(run: Run, phase: CheckTriggers, summary: dict, arrays: dict) -> None:
     """Count the scanner's pulses (the run already waited for the first).
 
     :raises TriggerError: when none comes in time, or the train is irregular.
     """
-    times = receive_pulses(run.display, run.triggers.sync.key,
-                                         phase.get("pulses", 3), phase.get("timeout_s", 60.0),
-                                         phase.get("seconds"))
+    times = receive_pulses(run.display, run.triggers.sync.key, phase.pulses, phase.timeout_s,
+                           phase.seconds)
     arrays["pulse_time"] = times - times[0]
     if len(times) < 3:
         raise TriggerError(f"only {len(times)} scanner pulses; need 3 for intervals")
@@ -379,9 +358,9 @@ def _round_trip(name: str) -> bool:
     return any(key_name(e.key) == name for e in pygame.event.get(pygame.KEYDOWN))
 
 
-def _check_controls(run: Run, phase: dict, summary: dict, arrays: dict, tests: dict,
+def _check_controls(run: Run, phase: CheckControls, summary: dict, arrays: dict, tests: dict,
                     index: int) -> None:
-    keys: dict[str, str] = phase["keys"]
+    keys = phase.keys
     summary["devices"] = input_devices()
     summary["pad"] = _check_pad(run, phase)
     summary["automatic"] = {name: _round_trip(name) for name in keys}
@@ -389,8 +368,7 @@ def _check_controls(run: Run, phase: dict, summary: dict, arrays: dict, tests: d
     results: dict[str, dict] = {}
     try:
         for name, label in keys.items():
-            results[name] = _prompt(run, name, label, keys, results,
-                                    phase.get("timeout_s", 10.0), ignore)
+            results[name] = _prompt(run, name, label, keys, results, phase.timeout_s, ignore)
     except _Skipped:
         pass
     summary["prompted"] = results
@@ -413,7 +391,7 @@ def _check_controls(run: Run, phase: dict, summary: dict, arrays: dict, tests: d
 PAD_MARGIN_DEG = 10.0
 
 
-def _check_pad(run: Run, phase: dict) -> dict[str, Any]:
+def _check_pad(run: Run, phase: CheckControls) -> dict[str, Any]:
     """Measure the controller, if there is one, before asking for any keys.
 
     A pad on an fMRI interface sends joystick buttons, not keystrokes, and its
@@ -422,24 +400,19 @@ def _check_pad(run: Run, phase: dict) -> dict[str, Any]:
     inside the check, and writes the site's ``pad.json`` that every later run on
     this rig reads. With no pad there is nothing to measure: whatever device is
     plugged in is expected to send the keys itself, which the prompts below are
-    what tests. ``"pad": false`` in the phase skips the measurement and leaves
+    what tests. ``"has_pad": false`` in the phase skips the measurement and leaves
     any existing calibration alone.
     """
     device = pad.detect()
     if not device:
         return {"present": False}
-    if not phase.get("pad", True):
+    if not phase.has_pad:
         return {"present": True, "device": device, "measured": False,
-                "why": "", "note": 'skipped ("pad": false)'}
-    rig = {}
-    try:
-        with open(RIG_FILE) as fh:
-            rig = {k: json.load(fh)[k] for k in ("site", "rig")}
-    except (OSError, ValueError, KeyError):
-        pass
+                "why": "", "note": 'skipped ("has_pad": false)'}
+    rig = {k: run.config.rig.fields[k] for k in ("site", "rig")}  # filed with the pad's
     _title(run, f"measuring {device}")
     try:
-        out = pad.calibrate(int(phase.get("pad_reps", 3)), screen=run.display.screen,
+        out = pad.calibrate(int(phase.pad_reps), screen=run.display.screen,
                             extra=rig)
     except SystemExit as exc:                 # no pad by the time it looked
         return {"present": True, "device": device, "measured": False, "why": str(exc)}
@@ -532,16 +505,16 @@ def _held(name: str, pressed: float, pending: list[tuple[bool, str]],
 # -- photodiode and audio --------------------------------------------------------
 
 
-def _check_photodiode(run: Run, phase: dict, summary: dict, arrays: dict, tests: dict,
-                      index: int) -> None:
-    readout = phase.get("readout", "soundcard")
-    clicks = phase.get("audio", True) and run.audio.enabled
-    if phase.get("audio", True) and not run.audio.enabled:
-        tests["audio"] = Verdict("not run", "the audio output is off (--no-audio)")
-    summary.update(display=run.display.describe(), readout=readout, mic=phase.get("mic", False),
-                   n=phase.get("n", 10), on_ms=phase.get("on_ms", 50.0),
-                   gap_ms=[phase.get("gap_min_ms", 150.0), phase.get("gap_max_ms", 250.0)],
-                   corner=phase.get("corner", "br"), patch_px=phase.get("patch_px", 120))
+def _check_photodiode(run: Run, phase: CheckPhotodiode, summary: dict, arrays: dict,
+                      tests: dict, index: int) -> None:
+    readout = phase.readout
+    clicks = phase.has_audio and run.audio.enabled
+    if phase.has_audio and not run.audio.enabled:
+        tests["audio"] = Verdict("not run",
+                                 "the audio output is off (the rig's \"has_audio\": false)")
+    summary.update(display=run.display.describe(), readout=readout, mic=phase.has_mic,
+                   n=phase.n, on_ms=phase.on_ms, gap_ms=[phase.gap_min_ms, phase.gap_max_ms],
+                   corner=phase.corner, patch_px=phase.patch_px)
     recorder = _recorder(phase, tests) if readout == "soundcard" else None
     click, chunks, clicked = _clicker(run.audio) if clicks else (None, [], [])
     what = "photodiode + audio" if clicks else "photodiode"
@@ -553,8 +526,8 @@ def _check_photodiode(run: Run, phase: dict, summary: dict, arrays: dict, tests:
     try:
         arrays.update(run_flashes(
             run.display, run.triggers, summary["n"], summary["on_ms"], tuple(summary["gap_ms"]),
-            random.Random(phase.get("seed", 0)), summary["corner"], summary["patch_px"], click,
-            phase.get("settle_ms", 300.0) / 1000, bracket=False, caption=caption))
+            random.Random(phase.seed), summary["corner"], summary["patch_px"], click,
+            phase.settle_ms / 1000, bracket=False, caption=caption))
     finally:
         if recorder is not None:
             recorder.stop()
@@ -568,19 +541,16 @@ def _check_photodiode(run: Run, phase: dict, summary: dict, arrays: dict, tests:
         tests["audio"] = _sound_verdict(arrays, clicks, None)
 
 
-def _recorder(phase: dict, tests: dict) -> AudioRecorder | None:
+def _recorder(phase: CheckPhotodiode, tests: dict) -> AudioRecorder | None:
     """The sound-card input, started; ``None`` (and the photodiode failed) if it will not open."""
-    device = phase.get("input_device") or None
-    if isinstance(device, str) and device.isdigit():
-        device = int(device)
     try:
-        recorder = AudioRecorder(device, phase.get("samplerate", 48000),
-                                 channels=2 if phase.get("mic") else 1)
+        recorder = AudioRecorder(phase.input_device, phase.samplerate,
+                                 channels=2 if phase.has_mic else 1)
         recorder.start()
         return recorder
     except Exception as exc:  # noqa: BLE001 -- any device error fails the photodiode, not the rest
         tests["photodiode"] = Verdict("fail", f"the sound-card input did not open: {exc}")
-        if phase.get("mic"):
+        if phase.has_mic:
             tests["audio"] = Verdict("fail", f"the microphone's input did not open: {exc}")
         return None
 
@@ -588,18 +558,18 @@ def _recorder(phase: dict, tests: dict) -> AudioRecorder | None:
 # -- frames: the game loop at each rate, under each load -----------------------------
 
 
-def _check_frames(run: Run, phase: dict, summary: dict, arrays: dict, tests: dict,
+def _check_frames(run: Run, phase: CheckFrames, summary: dict, arrays: dict, tests: dict,
                   index: int) -> None:
     blocks = []
-    for load in phase.get("loads", ["none"]):
-        for fps in phase.get("rates", [60]):
+    for load in phase.loads:
+        for fps in phase.rates:
             with _load(load):
                 blocks.append(_play_pattern(run, fps, load, phase, index))
     summary["blocks"] = blocks
     summary["played"] = [f"{b['fps']:g}/{b['load']}" for b in blocks]
     summary["refresh_rate"] = run.display.refresh_rate
     summary["vsync"] = run.display.vsync
-    summary["recording_hz"] = phase.get("recording_hz")
+    summary["recording_hz"] = phase.recording_hz
     for key in ("late", "lost", "pacing_resets"):
         summary[f"{key}_total"] = sum(b[key] for b in blocks)
     summary["triggers_ok"] = all(b["triggers"]["ok"] for b in blocks if b["triggers"])
@@ -624,23 +594,24 @@ def _load(kind: str) -> Iterator[None]:
             p.wait()
 
 
-def _play_pattern(run: Run, fps: float, load: str, phase: dict, index: int) -> dict[str, Any]:
+def _play_pattern(run: Run, fps: float, load: str, phase: CheckFrames,
+                  index: int) -> dict[str, Any]:
     """Play the test pattern at ``fps`` as a game block of this run, and judge its frames."""
     rate = f"{fps:g}".replace(".", "p")
     env_id = _register_pattern(f"Frames{rate}fps{'' if load == 'none' else load.upper()}")
     caption = f"Rig check: frames at {fps:g} fps" + ("" if load == "none" else f", {load} load")
     game = {"type": "game", "backend": "gym", "game": env_id, "mode": "duration",
-            "duration": phase.get("seconds", 2.0), "fps": fps, "has_audio": False,
+            "duration": phase.seconds, "fps": fps, "has_audio": False, "seed": 1000 + index,
             "env_kwargs": {"caption": caption}}
     # The run's own game loop, not a copy: its pacing and triggers are what is measured.
-    run._game(game, index)
+    run._game(GamePhase.from_dict(game, index), index)
     entry = run.logger.manifest["phases"][-1]
     with np.load(os.path.join(run.outdir, entry["data_file"]), allow_pickle=True) as d:
         flips, codes = d["flip_time"], (d["trigger"] if "trigger" in d else None)
     return _judge_frames(run, fps, load, phase, flips, codes, entry)
 
 
-def _judge_frames(run: Run, fps: float, load: str, phase: dict, flips: np.ndarray,
+def _judge_frames(run: Run, fps: float, load: str, phase: CheckFrames, flips: np.ndarray,
                   codes: np.ndarray | None, entry: dict) -> dict[str, Any]:
     """Frames lost, frames a refresh late, pacing resets, and the frame triggers."""
     dt = 1.0 / fps
@@ -674,7 +645,7 @@ def _judge_frames(run: Run, fps: float, load: str, phase: dict, flips: np.ndarra
 
 
 def _frame_marks(run: Run, codes: np.ndarray | None, dt: float,
-                 phase: dict) -> dict[str, Any] | None:
+                 phase: CheckFrames) -> dict[str, Any] | None:
     """Did the frame triggers mark every frame they should, in their cycle?
 
     ``frame_every`` thins them: every k-th frame gets the next code of the
@@ -696,81 +667,17 @@ def _frame_marks(run: Run, codes: np.ndarray | None, dt: float,
     if not (np.array_equal(sent, should) and np.array_equal(codes[sent], cycle)):
         out.update(ok=False, why=f"frame triggers marked {len(sent)} of {len(should)} frames "
                                  "or broke their cycle")
-    hz = phase.get("recording_hz")
+    hz = phase.recording_hz
     if hz and hold_ms * hz / 1000 < 2:
         out.update(ok=False, why=f"a frame code lasts {hold_ms:.1f} ms, under 2 samples at "
                                  f"{hz:g} Hz: raise frame_every")
     return out
 
 
-_CHECKS: dict[str, Callable[..., None]] = {
-    "check_display": _check_display, "check_triggers": _check_triggers,
-    "check_controls": _check_controls, "check_photodiode": _check_photodiode,
-    "check_frames": _check_frames}
-
-
-# ---------------------------------------------------------------------------
-# Config checks (the editor's Check and fmri_play's start-up)
-# ---------------------------------------------------------------------------
-
-
-def phase_problems(phase: dict) -> list[str]:
-    """What is wrong with a check phase's fields, as text."""
-    out = [f"{k}: expected a positive number, got {phase[k]!r}"
-           for k in ("n", "seconds", "on_ms", "hold_ms", "gap_ms", "gap_min_ms", "gap_max_ms",
-                     "repeat", "pulses", "timeout_s", "patch_px", "recording_hz",
-                     "pad_reps")
-           if k in phase and not _positive(phase[k])]
-    if phase["type"] == "check_controls":
-        out += _controls_problems(phase.get("keys"))
-        if "pad" in phase and not isinstance(phase["pad"], bool):
-            out.append(f"pad: expected true or false, got {phase['pad']!r}")
-    if phase["type"] == "check_photodiode":
-        out += _photodiode_problems(phase)
-    if phase["type"] == "check_frames":
-        out += _frames_problems(phase)
-    return out
-
-
-def _frames_problems(phase: dict) -> list[str]:
-    rates, loads = phase.get("rates", [60]), phase.get("loads", ["none"])
-    out = []
-    if not (isinstance(rates, list) and rates and all(_positive(r) for r in rates)):
-        out.append(f"rates: expected frames per second, e.g. [60, 30], got {rates!r}")
-    if not (isinstance(loads, list) and loads and all(x in LOADS for x in loads)):
-        out.append(f"loads: expected a list of {LOADS}, got {loads!r}")
-    if "recording_hz" in phase and not _positive(phase["recording_hz"]):
-        out.append(f"recording_hz: expected the recording's sampling rate, got "
-                   f"{phase['recording_hz']!r}")
-    return out
-
-
-def _positive(v: Any) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0
-
-
-def _controls_problems(keys: Any) -> list[str]:
-    if not isinstance(keys, dict) or not keys:
-        return ["keys: expected the keys to test, as {key: what it stands for} "
-                '(e.g. {"1": "LEFT"}); the Controls tab adds a device\'s']
-    known = set(_PYGAME_KEY_NAMES.values())
-    return [f"keys: {k!r} is not a key the games can read (one key, a name such as "
-            "1, A, LEFT or SPACE)" for k in keys if k not in known]
-
-
-def _photodiode_problems(phase: dict) -> list[str]:
-    out = []
-    if phase.get("readout", "soundcard") not in ("soundcard", "recording"):
-        out.append(f"readout: expected soundcard or recording, got {phase['readout']!r}")
-    if phase.get("mic") and phase.get("readout", "soundcard") != "soundcard":
-        out.append("mic: the microphone is read on the sound card, next to the diode: "
-                   "readout must be soundcard (on the recording, record it there)")
-    low, high = phase.get("gap_min_ms", 150), phase.get("gap_max_ms", 250)
-    if _positive(low) and _positive(high) and low > high:
-        out.append(f"gap_min_ms ({low}) is above gap_max_ms ({high})")
-    if phase.get("corner", "br") not in CORNERS:
-        out.append(f"corner: expected one of {CORNERS}, got {phase['corner']!r}")
-    return out
+_CHECKS: dict[type, Callable[..., None]] = {
+    CheckDisplay: _check_display, CheckTriggers: _check_triggers,
+    CheckControls: _check_controls, CheckPhotodiode: _check_photodiode,
+    CheckFrames: _check_frames}
 
 
 # ---------------------------------------------------------------------------
@@ -1077,31 +984,6 @@ def _register_pattern(name: str) -> str:
 TESTS = {"display": "check_display", "triggers": "check_triggers",
          "controls": "check_controls", "photodiode": "check_photodiode",
          "audio": "check_photodiode", "frames": "check_frames"}
-MODALITIES = ("fmri", "meg", "eeg", "behav")
-#: The rig file: every key required (``notes`` may be empty), no other key.
-RIG_FIELDS = {
-    "site": "the site: letters, digits, _ and -",
-    "rig": "this rig at the site: letters, digits, _ and -",
-    "pi": "the PI's initials, in capitals (Momchil Tomov: MT)",
-    "modality": f"one of {', '.join(MODALITIES)}",
-    "monitor": "monitor or projector, make and model, and its settings that matter",
-    "photodiode": "photodiode make/model and where it is plugged in",
-    "audio_path": "from the sound card to the ear: amplifier, tubes, headphones",
-    "trigger_hardware": "trigger box / port / scanner interface",
-    "notes": "anything else (may be empty)",
-}
-#: Site and rig: values in the TSV, never in a file name, so BIDS's letters-and-digits
-#: rule does not bind them; still no spaces, as rows are grouped by them when pooled.
-_LABEL = re.compile(r"[A-Za-z0-9_-]+")
-_INITIALS = re.compile(r"[A-Z]{2,4}")
-#: What each field of the rig file looks like, for the form's placeholders.
-RIG_EXAMPLES = {
-    "site": "mri_3T", "rig": "stimpc1", "pi": "MT", "modality": "fmri",
-    "monitor": "BOLDscreen 32 LCD, 120 Hz, 1920x1080",
-    "photodiode": "BioSemi photodiode on sound card input 0",
-    "audio_path": "RME Babyface -> Sensimetrics S14 insert earphones",
-    "trigger_hardware": "fORP 932 USB, '=' at each volume",
-}
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 #: The pooled table: ``(column, path into the manifest, description, units)``.
@@ -1224,67 +1106,32 @@ NAMES = tuple(c[0] for c in COLUMNS)
 # ---------------------------------------------------------------------------
 
 
-def rig_problems(rig: dict) -> list[str]:
-    """What keeps ``rig`` from being a rig file: every field of :data:`RIG_FIELDS`, no other.
+def ensure_rig(name: str | None) -> rig_file.RigConfig:
+    """The rig a rig check plays on; when its file is missing or invalid, the form to
+    fill it in first (:func:`fmri_gym.gui_qt.fill_rig`), then the file.
 
-    :return: one line per problem; empty when it is valid.
+    The form needs the ``gui`` extra and a screen; without them, or when it is
+    cancelled, the rig file's own error is raised. Several rigs and no ``name``
+    is the experimenter's to settle: that raises with no form.
+
+    :param name: ``--rig``, ``<site>/<rig>``; ``None`` for the only rig, or a new one when
+        there is none.
+    :raises ValueError: when there is still no valid rig file, saying how to make one.
     """
-    problems = [f"missing {k!r} ({what})" for k, what in RIG_FIELDS.items() if k not in rig]
-    problems += [f"unknown key {k!r}" for k in rig if k not in RIG_FIELDS]
-    problems += [f"{k!r} must be a string" for k, v in rig.items() if not isinstance(v, str)]
-    problems += [f"{k!r} is empty" for k, v in rig.items() if k != "notes" and v == ""]
-    for k in ("site", "rig"):
-        if isinstance(rig.get(k), str) and rig[k] and not _LABEL.fullmatch(rig[k]):
-            problems.append(f"{k!r} must be letters, digits, _ or -, got {rig[k]!r}")
-    if isinstance(rig.get("pi"), str) and rig["pi"] and not _INITIALS.fullmatch(rig["pi"]):
-        problems.append(f"'pi' must be 2 to 4 capital letters (initials), got {rig['pi']!r}")
-    if rig.get("modality") not in (*MODALITIES, "", None):
-        problems.append(f"'modality' must be one of {MODALITIES}, got {rig['modality']!r}")
-    return problems
-
-
-def load_rig(path: str) -> dict[str, str]:
-    """The rig file, checked (:func:`rig_problems`).
-
-    :raises FileNotFoundError: if there is none, with how to make one.
-    :raises ValueError: naming each field that is missing, unknown or invalid.
-    """
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"rig check: no rig file {path!r}. Run python -m "
-                                f"fmri_gym.checks rig --rig {path} to fill it in: the check "
-                                "will not start without it, since its results could not be "
-                                "pooled")
-    with open(path) as f:
-        rig = json.load(f)
-    problems = rig_problems(rig)
-    if problems:
-        raise ValueError(f"rig check: {path}: " + "; ".join(problems))
-    return rig
-
-
-def ensure_rig(path: str) -> dict[str, str]:
-    """The rig file; when it is missing or invalid, the form to fill it in, then it.
-
-    The form (:func:`fmri_gym.gui_qt.fill_rig`) needs the ``gui`` extra and a screen;
-    without them, or when the form is cancelled, the rig file's own error is raised.
-
-    :raises FileNotFoundError: if there is still no rig file.
-    :raises ValueError: if it is still invalid.
-    """
+    if (name is None and len(rig_file.names()) > 1) or (name is not None and name.count("/") != 1):
+        return rig_file.RigConfig.open(name)  # raises: which rig is the experimenter's to say
     try:
-        return load_rig(path)
-    except (FileNotFoundError, ValueError) as error:
+        return rig_file.RigConfig.open(name)
+    except ValueError as error:
         if not can_show_form():
             raise
-        from .gui_qt import fill_rig
-        values = {}
-        if os.path.exists(path):
-            with open(path) as f:
-                values = json.load(f)
         print(f"{error}\nrig check: opening the rig form", file=sys.stderr)
-        if fill_rig(path, values) is None:
+        from .gui_qt import fill_rig
+        only = rig_file.names()[0] if rig_file.names() else None
+        saved = fill_rig(rig_file.draft(name if name is not None else only))
+        if saved is None:
             raise
-    return load_rig(path)
+    return rig_file.RigConfig.open(rig_file.name_of(saved))
 
 
 def can_show_form() -> bool:
@@ -1573,8 +1420,9 @@ def _md_offsets(p: dict, keys: tuple[tuple[str, str], ...]) -> list[str]:
 def main() -> None:
     p = argparse.ArgumentParser(description="The rig file, and pooling rig checks.")
     sub = p.add_subparsers(dest="command", required=True)
-    r = sub.add_parser("rig", help="fill in or update the rig file, in a form")
-    r.add_argument("--rig", default=os.environ.get("RIG", "rig.json"))
+    r = sub.add_parser("rig", help="fill in or update a rig file, in a form")
+    r.add_argument("--rig", help="the rig, <site>/<rig>; default: the only rig file there "
+                                 "is, or a new one when there is none")
     f = sub.add_parser("report", help="re-file checks already run: their reports and the "
                                       "data root's rigchecks.tsv, with this version")
     f.add_argument("folders", nargs="+", help="rig-check run folders")
@@ -1606,20 +1454,19 @@ def main() -> None:
         sys.stdout.write(text)
 
 
-def _edit_rig(path: str) -> None:
-    """Open the form on the rig file (empty if there is none), and save it."""
+def _edit_rig(name: str | None) -> None:
+    """Open the form on a rig file (a new one if there is none), and save it."""
     if not can_show_form():
         raise RuntimeError("rig check: the rig form needs PySide6 (pip install "
                            "'fmri-gym[gui]') and a screen; or edit the file by hand")
+    if name is None and rig_file.names():
+        name = rig_file.choose(None)
     from .gui_qt import fill_rig
-    values = {}
-    if os.path.exists(path):
-        with open(path) as f:
-            values = json.load(f)
-    if fill_rig(path, values) is None:
+    saved = fill_rig(rig_file.draft(name))
+    if saved is None:
         print("rig check: cancelled, the rig file is unchanged", file=sys.stderr)
         return
-    print(f"saved: {path}")
+    print(f"saved: {rig_file.path(rig_file.name_of(saved))}")
 
 
 # ---------------------------------------------------------------------------

@@ -3,14 +3,16 @@
 Session manager has two panels. Session design is the session's lines
 (:func:`write_session`) -- each a run, a config file, or an external
 command; add, repeat, remove, reorder, skip -- as a list or as the script
-itself. Run design is the selected run's config (:mod:`fmri_gym.curriculum`), as a
-phase list with one form per phase type or as its JSON. Two more tabs edit
-that config: Controls (the ``keys`` remap of a game phase,
-with the backend's defaults on request), Triggers (the start sync, the
-backend and the codes, with fMRI/MEG/EEG presets, a check and a live test). The
-last tab, Launch, holds the command-line flags
-of this one launch (subject, window, test switches): they are never saved to
-the file. File > New / Open / Save / Save As.
+itself. Run design is the selected run's config (:mod:`fmri_gym.config.curriculum`), as a
+phase list with one form per phase type or as its JSON. Controls edits that
+config's game phases' ``keys``. Launch holds the command-line flags of this
+one launch (subject, session, rig, test switch): they are never saved to the
+file. How the rig plays it -- window, controller, audio, data folder,
+triggers -- is the rig file's (:mod:`fmri_gym.config.rig`): Launch's Edit
+rig... opens its form, and the Triggers tab edits its triggers (the start
+sync, the backend and the codes, with fMRI/MEG/EEG presets, a check and a
+live test).
+File > New / Open / Save / Save As.
 
 A lone config is a session of one run with no script. Save writes the configs
 shown here and, for several lines, the session script; Play saves and then
@@ -39,11 +41,12 @@ import os
 import re
 import shlex
 import sys
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass, replace
 from typing import Any, Sequence
 
 from . import bids
-from . import curriculum
+from .config import curriculum
+from .config.rig import RigConfig
 from .triggers import (SYNC_MODES, TRIGGER_BACKENDS, TriggerSettings)
 
 #: Suggestions for a game phase's ``backend`` (free text is accepted too; the
@@ -81,30 +84,30 @@ class Field:
 class Launch:
     """The flags of one launch: what a run's command carries besides its config.
 
-    The fields are ``fmri_play``'s flags under their argparse names (``--no-vsync``
-    is ``no_vsync``), as the Launch tab's form and a session script's lines
+    The fields are ``fmri_play``'s flags under their argparse names (``--dummy-trigger``
+    is ``dummy_trigger``), as the Launch tab's form and a session script's lines
     spell them; a value is written on the line only when it is not the default.
     """
 
     subject: str
     #: the session number, or ``None`` for the subject's next free one
     ses: int | None
-    data_root: str
-    #: the window as ``<w>x<h>``, kept as typed: ``--size`` takes the text
-    size: str
-    monitor: int
-    fullscreen: bool
-    no_vsync: bool
-    no_audio: bool
+    #: the rig, ``<site>/<rig>``, or ``None`` for the only rig file there is
+    rig: str | None
     dummy_trigger: bool
+
+    def data_root(self) -> str:
+        """Where this launch's rig files the data.
+
+        :raises ValueError: when there is no such rig, saying how to make one.
+        """
+        return RigConfig.open(self.rig).data_root
 
 
 #: What the Launch tab starts at, and so what a run's command carries unless the
-#: tab (or an opened session script) says otherwise. Fullscreen, as a session in
-#: the scanner needs; untick it to pilot at the desk.
-DEFAULT_LAUNCH = Launch(subject="sub-test", ses=None, data_root="data", size="1024x768",
-                        monitor=0, fullscreen=True, no_vsync=False, no_audio=False,
-                        dummy_trigger=False)
+#: tab (or an opened session script) says otherwise. The window, the controller,
+#: the audio and the data root are the rig's (:mod:`fmri_gym.config.rig`), not a launch's.
+DEFAULT_LAUNCH = Launch(subject="sub-test", ses=None, rig=None, dummy_trigger=False)
 
 #: Keys are the argparse names of ``fmri_play.py``'s flags; labels are the flags.
 LAUNCH_FIELDS = [
@@ -116,18 +119,10 @@ LAUNCH_FIELDS = [
                                      "it then too. A number here is what the script takes when "
                                      "it is run without one -- `sh ses1.sh 003` overrides it, "
                                      "which is how a stopped session is resumed."),
-    Field("data_root", "--data-root", tip="Where the BIDS tree goes. Blank = data."),
-    Field("size", "--size", "combo", (),
-          tip="The window's size as <w>x<h>, when not fullscreen: common sizes that fit the "
-              "monitor, or type another. Fullscreen always takes the monitor's resolution."),
-    Field("fullscreen", "--fullscreen", "bool", default=False,
-          tip="Fill the screen. Windowed is handier for piloting at the desk."),
-    Field("no_vsync", "--no-vsync", "bool", default=False,
-          tip="Do not lock flips to the monitor refresh. Only if the display self-test "
-              "(python -m fmri_gym.display) reports it cannot lock."),
-    Field("no_audio", "--no-audio", "bool", default=False,
-          tip="Mute game audio in every block; the manifest's curriculum then shows "
-              "\"audio\": false."),
+    Field("rig", "--rig", "combo", (),
+          tip="The rig it is played on: its file says the window, the controller, the audio "
+              "and where the data goes. Blank = the only rig file there is. Edit rig... changes "
+              "it, or makes a new one."),
     Field("dummy_trigger", "--dummy-trigger", "bool", default=False,
           tip="Skip the experimenter and scanner waits. A test run, not a session -- though its "
               "data is saved like any run's and takes the next run number."),
@@ -276,9 +271,9 @@ PHASE_FIELDS: dict[str, list[Field]] = {
                   "frame triggers (the Triggers tab's line)."),
         Field("input_device", "input device", tip="Sound-card input, index or name "
                                                   "(blank: the default)."),
-        Field("mic", "microphone", "bool", default=False,
+        Field("has_mic", "has_mic", "bool", default=False,
               tip="A microphone at the ear on input 1: the clicks are timed when heard."),
-        Field("audio", "audio test", "bool", default=True,
+        Field("has_audio", "has_audio", "bool", default=True,
               tip="A tone burst on every other flash through the session's audio output, "
                   "timed at the DAC."),
         Field("n", "flashes", "int", tip="Flashes (default 10; the long check 850)."),
@@ -398,7 +393,7 @@ def listed_files(ext: str) -> list[str]:
 
     Sessions (``sh``) and runs (``json``) are picked from here rather than found
     through a file dialog, so the repo's examples are one click away. Shared phases
-    (:func:`fmri_gym.curriculum.is_common_file`) are not runs; they are left out.
+    (:func:`fmri_gym.config.curriculum.is_common_file`) are not runs; they are left out.
 
     :param ext: ``"sh"`` for session scripts, ``"json"`` for run configs.
     :return: paths relative to the working directory, in path order.
@@ -476,58 +471,16 @@ def translate_keys(game_map: dict[str, Any], layout: dict[str, str]) -> dict[str
     return out
 
 
-def launch_values(form: dict, monitor: int) -> Launch:
+def launch_values(form: dict) -> Launch:
     """The Launch form as the flags ``fmri_play`` reads, every flag present.
 
     :param form: what :func:`field_values` returned for :data:`LAUNCH_FIELDS`.
-    :param monitor: the monitor picked beside the form.
-    :raises ValueError: if the subject is blank, or the size is not ``<w>x<h>``.
+    :raises ValueError: if the subject is blank.
     """
     if "subject" not in form:
         raise ValueError("--subject: required")
-    if not re.fullmatch(r"[1-9]\d*x[1-9]\d*", form.get("size", "")):
-        raise ValueError(f"--size: expected <width>x<height> such as 1024x768, got "
-                         f"{form.get('size', '')!r}")
     off = {f.key: False for f in LAUNCH_FIELDS if f.kind == "bool"}
-    return Launch(**{"ses": None, "data_root": DATA_ROOT, **off, **form, "monitor": monitor})
-
-
-def trigger_mismatches(steps: list[dict], configs: dict[str, dict]) -> list[str]:
-    """Runs of one session whose triggers differ: a session has one scanner and one line.
-
-    Each run keeps its own ``triggers`` section, so one edited on the Triggers
-    tab changes that run only; a rig check set to ``send`` before a game run
-    left at ``wait`` would test a line the session never uses.
-
-    :param steps: the session's lines; skipped ones and commands are left out.
-    :param configs: config path -> config.
-    :return: one problem naming each run's settings, or nothing when they agree.
-    """
-    seen: dict[str, list[str]] = {}
-    for step in steps:
-        if step["skip"] or "config" not in step:
-            continue
-        try:
-            s = asdict(TriggerSettings.from_dict(configs[step["config"]].get("triggers")))
-        except (TypeError, ValueError):
-            continue  # validate_curriculum names what is wrong with it
-        s.pop("defaulted")
-        seen.setdefault(json.dumps(s, sort_keys=True), []).append(step["config"])
-    if len(seen) < 2:
-        return []
-    groups = "; ".join(f"{', '.join(paths)}: {_short_triggers(json.loads(key))}"
-                       for key, paths in seen.items())
-    return [f"the session's runs have different triggers ({groups}); a session has one "
-            "scanner and one trigger line: make them the same on the Triggers tab"]
-
-
-def _short_triggers(s: dict) -> str:
-    """``sync wait for '=', backend null`` / ``sync send, backend serial /dev/ttyUSB0``."""
-    sync = s["sync"]
-    start = f"sync wait for {sync['key']!r}" if sync["mode"] == "wait" else f"sync {sync['mode']}"
-    line = {"lsl": s["lsl_stream_name"], "serial": s["port"], "parallel": s["port"]}
-    where = f" {line[s['backend']]}" if line.get(s["backend"]) else ""
-    return f"{start}, backend {s['backend']}{where}"
+    return Launch(**{"ses": None, "rig": None, **off, **form})
 
 
 def phase_label(index: int, phase: dict) -> str:
@@ -631,7 +584,7 @@ def describe_triggers(section: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Session scripts (the .sh the Session manager edits; curriculum.py has the .json)
+# Session scripts (the .sh the Session manager edits; config/curriculum.py has the .json)
 # ---------------------------------------------------------------------------
 
 
@@ -639,9 +592,8 @@ HEADER = ["#!/bin/sh", "# fmri-gym session: one line per run, in order.", "set -
 PLAY = "uv run fmri-play"
 #: What a script's first line asks for the session number when it is given none.
 SES_TOOL = "uv run fmri-ses"
-DATA_ROOT = "data"
-#: The launch flags a session carries on every run's line (argparse names of ``fmri_play``).
-SWITCHES = ("fullscreen", "no_vsync", "no_audio", "dummy_trigger")
+#: The launch switches a session carries on every run's line (argparse names of ``fmri_play``).
+SWITCHES = ("dummy_trigger",)
 #: Where a run's line takes its ``--ses``: the session the script picked once, in
 #: its first line. Written as typed, not quoted -- the shell has to expand it.
 SES_VAR = '"$SES"'
@@ -670,8 +622,8 @@ def write_session(steps: list[dict], launch: Launch) -> str:
     fails or is quit.
 
     :param steps: ``{"config" | "command", "skip"}`` dicts, in order.
-    :param launch: the flags written on every run's line (the data root and
-        monitor only when not the default).
+    :param launch: the flags written on every run's line (the rig only when
+        one is named).
     :return: the script.
     """
     lines = [*HEADER, _ses_line(launch)]
@@ -743,20 +695,21 @@ def play_command(config_path: str, launch: Launch, ses: str, run: int) -> list[s
     :param run: the ``--run`` value (see :func:`run_number`).
     :return: the command, word by word.
     """
-    root = [] if launch.data_root == DATA_ROOT else ["--data-root", launch.data_root]
-    monitor = ["--monitor", str(launch.monitor)] if launch.monitor else []
     switches = [f"--{key.replace('_', '-')}" for key in SWITCHES if getattr(launch, key)]
-    return [*PLAY.split(), "--curriculum", config_path, "--subject", launch.subject, *root,
-            "--ses", ses, "--run", str(run),
-            "--size", launch.size, *monitor, *switches]
+    return [*PLAY.split(), "--curriculum", config_path, "--subject", launch.subject,
+            "--ses", ses, "--run", str(run), *_rig_flag(launch), *switches]
+
+
+def _rig_flag(launch: Launch) -> list[str]:
+    return ["--rig", launch.rig] if launch.rig else []
 
 
 def _ses_line(launch: Launch) -> str:
     """``SES=``: the script's own argument, else the number pinned here or the next free one."""
     if launch.ses is not None:
         return f"SES=${{1:-{launch.ses:03d}}}"
-    root = [] if launch.data_root == DATA_ROOT else ["--data-root", launch.data_root]
-    return f"SES=${{1:-$({_shell([*SES_TOOL.split(), '--subject', launch.subject, *root])})}}"
+    ses_tool = [*SES_TOOL.split(), "--subject", launch.subject, *_rig_flag(launch)]
+    return f"SES=${{1:-$({_shell(ses_tool)})}}"
 
 
 def _play_line(config_path: str, launch: Launch, run: int) -> str:
@@ -782,11 +735,10 @@ def _parse_play_line(line: str) -> tuple[str, Launch, int] | None:
     if not line.startswith(PLAY + " "):
         return None
     parser = _Parser(add_help=False, allow_abbrev=False)
-    for flag in ("--curriculum", "--subject", "--size", "--ses"):
+    for flag in ("--curriculum", "--subject", "--ses"):
         parser.add_argument(flag, required=True)
     parser.add_argument("--run", type=int, required=True)
-    parser.add_argument("--data-root", default=DATA_ROOT)
-    parser.add_argument("--monitor", type=int, default=0)
+    parser.add_argument("--rig")
     for key in SWITCHES:
         parser.add_argument(f"--{key.replace('_', '-')}", action="store_true")
     try:
@@ -803,7 +755,7 @@ def edit_config(config: dict, path: str | None,
                 session: str | None = None) -> list[str] | None:
     """Open the editor; return the command that plays what it showed, or ``None``.
 
-    :param config: config dict (see :func:`fmri_gym.curriculum.check_shape`).
+    :param config: config dict (see :func:`fmri_gym.config.curriculum.check_shape`).
     :param path: file it came from, for Save; ``None`` if new.
     :param session: a session script to open instead of ``config``.
     :return: what Play starts, word by word -- one ``fmri-play`` for a run
@@ -829,7 +781,7 @@ def main() -> None:
     The editor opens on a run config, a session script, or a new run. Play
     saves what is shown and this process turns into the command that plays it:
     one ``fmri-play`` for a run, the script itself for a session of several.
-    Nothing about a launch is a flag here -- subject, window, the test switches
+    Nothing about a launch is a flag here -- subject, rig, the test switch
     are the Launch tab's, and a session writes them on every line of its script.
     """
     p = argparse.ArgumentParser(description="Design fmri-gym runs and sessions, then play one.")

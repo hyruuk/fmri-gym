@@ -10,7 +10,7 @@ import re
 
 import pytest
 
-from fmri_gym.curriculum import load_curriculum, validate_curriculum
+from fmri_gym.config.curriculum import load_curriculum, validate_curriculum
 from tests.backends import BACKENDS, REPO, all_configs, game_phases, phase_backend
 
 CONFIGS = all_configs()

@@ -10,8 +10,10 @@ This file is the rules: the five below, and the shape of the repo. The step-by-s
 
 ```text
 fmri_play.py                     CLI   parse the flags of one run, then play it (Run.from_config_and_curriculum)
-fmri_gym/config.py               CORE  RunConfig: one run's command line (subject, session, window, switches)
-fmri_gym/curriculum.py           CORE  the curriculum file: load, save, check; GamePhase, a game phase's settings
+fmri_gym/config/run.py           CORE  RunConfig: one run's command line (subject, session, switches) and its RigConfig
+fmri_gym/config/rig.py           CORE  RigConfig: one rig's file (configs/rigs/<site>/<rig>.json): window, pad, audio, data root
+fmri_gym/config/curriculum.py    CORE  Curriculum: the curriculum file, loaded once into typed phases; load, save, includes
+fmri_gym/config/phases.py        CORE  one frozen dataclass per phase type (Fixation, Message, GamePhase, Check*...)
 fmri_gym/run.py                  CORE  one run's experiment loop: trigger, phases, timing
 fmri_gym/display.py              CORE  one pygame window: frames, text, fixation
 fmri_gym/keys.py                 CORE  pygame keycode to key NAME ("LEFT", "SPACE")
@@ -34,7 +36,7 @@ The core is engine-agnostic: `run.py` never imports a game engine, never touches
 
 Three layers, three directories, each optional until needed: `external/` is a game's own repo when its files must be read from a checkout (use only when `pip install` is not an option); `gym/` is a `gymnasium.Env` for a game that ships none (or a rough one); `fmri_gym/adapters/` is the fMRI adapter over whatever env results. Code goes in the lowest layer that owns the concern -- game rules in the game or its `gym/` env, never in the adapter.
 
-Three kinds of settings, kept apart because they are shared differently. The **curriculum** (`curriculum.py`, the `--curriculum` JSON) is what is played: the sequence of phases of one run, tied to a game and the same for every subject at every site. The **run config** (`config.py`, `RunConfig`) is one run: who plays, which session and run number, where the data goes, how this machine shows it, the test switches. The **rig config** is the site's own settings, the same for all of its subjects: today the curriculum's `triggers` section and the rig file of `checks.py`, on their way to a file of their own. A setting goes in the kind it is shared like, and keeps that kind's word all the way down the call stack: a curriculum is `curriculum` in `fmri_play`, in `Run.from_config_and_curriculum` and in `checks.prepare`, its phase list is `phases`, and nothing calls either one "the config".
+Three kinds of settings, kept apart because they are shared differently, all in `fmri_gym/config/`, and neither of the first two knows the other exists. The **curriculum** (`config/curriculum.py`, `Curriculum`, the `--curriculum` JSON) is what is played: a sequence of phases -- one game or several -- the same for every subject at every site, read once into one typed object per phase (`config/phases.py`: `Fixation`, `Message`, `Survey`, `GamePhase`, the `Check*` phases). The **rig config** (`config/rig.py`, `RigConfig`, one file per rig in `configs/rigs/<site>/`) is how one rig plays every run, the same for all of its subjects and games: what the rig is, its window, pad, audio, triggers and data root. The **run config** (`config/run.py`, `RunConfig`) is one curriculum on one rig plus the handful of things only the run says (subject, session and run number, duration, the test switches); what needs both -- a game key the rig's scanner types, a block's sound being its game's `has_audio` and the rig's -- is decided there or in the `Run`, never by one config rewriting the other. `fmri_play` builds the `RunConfig` and calls `Run.from_config`; the `Run` keeps it whole (`run.config.curriculum`, `run.config.rig`, `run.config.duration`), records both in the manifest, and nothing below opens a file of either. A setting goes in the kind it is shared like, and keeps that kind's word all the way down the call stack.
 
 ## Rule 1: the game logic lives in the gym env, not the adapter
 

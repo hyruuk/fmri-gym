@@ -12,7 +12,7 @@ COOM's action is Discrete(12), a table of turn x move x execute: 0=noop, 1=execu
 
 ## Audio
 
-Requires OpenAL (Ubuntu: `sudo apt install libopenal1`). Native stereo PCM at 44100 Hz, one Doom tic per step: keep fps at 35. EFX reverb is disabled. `--no-audio` mutes playback but keeps the logged PCM. MIDI music also needs a working engine MIDI renderer; check the engine's start-up log.
+Requires OpenAL (Ubuntu: `sudo apt install libopenal1`). Native stereo PCM at 44100 Hz, one Doom tic per step: keep fps at 35. EFX reverb is disabled. The rig file's `"has_audio": false` mutes playback but keeps the logged PCM. MIDI music also needs a working engine MIDI renderer; check the engine's start-up log.
 
 ## Curricula
 
