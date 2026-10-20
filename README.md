@@ -34,7 +34,7 @@ With [uv](https://docs.astral.sh/uv/):
 ```bash
 sudo apt install libportaudio2               # Linux only: PortAudio (macOS/Windows wheels bundle it)
 uv sync --extra dbp                          # .venv/ with the DBP backends, pinned by uv.lock
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/minihack/room5x5.json --ses 1 --run 1 --rig example/laptop
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/minihack/room5x5.json
 ```
 
 Nothing is installed by default: a bare `uv sync` gets the engine-agnostic core alone, and every game arrives as an extra. `dbp` is the DBP games; each backend is also its own extra (`ale`, `retro`, `vizdoom`, `minihack`, `rushhour`, …), so `--extra baba` is the core plus that one game. `gui` adds the `fmri-edit` editor, and `--extra all` installs every backend and the editor -- enough to run every game here without an import error. Extras combine (`--extra dbp --extra gui`), and each `uv sync` makes `.venv/` match exactly the extras it names -- one you leave out is one uv uninstalls, so repeat the whole list every time. `uv run` does not: it adds what the lockfile requires and leaves the rest, so the games survive every `uv run`; only the next bare `uv sync` strips them. `baba_auto` (hence `all`) compiles a C++ engine at install, so it needs a compiler: `build-essential` on Linux, `xcode-select --install` on macOS. No `.python-version` is needed to keep uv off a Python the backends have no wheels for: `requires-python` in `pyproject.toml` caps the interpreter at `<3.14`, which is also what pip reads.
@@ -43,7 +43,7 @@ Without uv: pip into a venv of your own, and `python fmri_play.py` in place of `
 
 ```bash
 pip install -e ".[dbp]"            # private default index? add --index-url https://pypi.org/simple
-python fmri_play.py --subject sub-01 --dummy-trigger --curriculum configs/curricula/minihack/room5x5.json --ses 1 --run 1 --rig example/laptop
+python fmri_play.py --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/minihack/room5x5.json
 ```
 
 To check an install, or a change, play the suite: `uv run pytest --changed` plays the backends your branch touches through the adapter, a recorded block, a bit-exact replay and a headless run of the real loop, and `uv run pytest --backend crafter` plays one by name; a backend this machine cannot play is skipped with the fix in the reason. CI runs the same on every pull request marked ready for review. `tests/README.md` has the map.
@@ -56,21 +56,21 @@ Every command here plays on a laptop as it is: `--rig example/laptop` (`configs/
 
 ```bash
 # --- per-family demo curricula (all tested end-to-end; ~15 s per block) ---
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/ale/all.json --ses 1 --run 1 --rig example/laptop    # 10 popular Atari games
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/gym/classic_control.json --ses 1 --run 1 --rig example/laptop  # all 5 classic-control
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/gym/toy_text.json --ses 1 --run 1 --rig example/laptop     # all 5 toy_text (render RGB; turn-based, arrow keys)
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/gym/box2d.json --ses 1 --run 1 --rig example/laptop     # LunarLander, BipedalWalker, CarRacing  (`box2d` extra)
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/aigamestore/all.json --ses 1 --run 1 --rig example/laptop  # 10 AI GameStore p5.js games (`aigamestore` extra; see below)
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/vgdl/all.json --ses 1 --run 1 --rig example/laptop   # all 10 VGDL games (`vgdl` extra + external/vgdl; see below)
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/ale/all.json    # 10 popular Atari games
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/gym/classic_control.json  # all 5 classic-control
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/gym/toy_text.json     # all 5 toy_text (render RGB; turn-based, arrow keys)
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/gym/box2d.json     # LunarLander, BipedalWalker, CarRacing  (`box2d` extra)
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/aigamestore/all.json  # 10 AI GameStore p5.js games (`aigamestore` extra; see below)
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/vgdl/all.json   # all 10 VGDL games (`vgdl` extra + external/vgdl; see below)
 
 # demos/mixed spans seven backends in one session (Pong/ale, Airstriker/retro,
 # Crafter, MiniHack, Aliens/vgdl, MountainCar/classic, FrozenLake/toy_text,
 # CarRacing/box2d, WaterSort/aigamestore) -- needs the VGDL checkout + box2d-py +
 # crafter + minihack + playwright:
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/demos/mixed.json --ses 1 --run 1 --rig example/laptop
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/demos/mixed.json
 
 # Play ONE game on its own, for a long stretch (see configs/curricula/):
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/ale/pong.json --ses 1 --run 1 --rig example/laptop
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/ale/pong.json
 ```
 
 A run is a JSON file and a session is a `.sh` script (below). Write them by hand, or design them in `fmri-edit` -- either way `fmri-play` reads the same files, and refuses one it cannot play. `fmri-play` plays one run and nothing else; the editor is a command of its own, which opens on a run, a session, or a new run. **Play** there saves what it shows and starts it: an `fmri-play` command for a run, the script itself for a session. Its Launch tab holds the flags of that launch (subject, session, rig, the test switch), which belong to the launch, not to the files; its **Edit rig...** opens the rig file (see *Rigs* below). The editor is the `gui` extra:
@@ -101,9 +101,9 @@ Note: **Pendulum, MountainCarContinuous and BipedalWalker use continuous (`Box`)
 Every game that plays has a curriculum for each of its supported levels, so any one of them is a one-line command:
 
 ```bash
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/minihack/room5x5.json --ses 1 --run 1 --rig example/laptop
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/vizdoom/freedoom1_e1m1.json --ses 1 --run 1 --rig example/laptop
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/rushhour/complete.json --ses 1 --run 1 --rig example/laptop
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/minihack/room5x5.json
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/vizdoom/freedoom1_e1m1.json
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/rushhour/complete.json
 ```
 
 A curriculum's file name, after its folder's, is the run's BIDS task label (`curricula/minihack/room5x5.json` is `task-minihackroom5x5`), so a level keeps its label whichever session plays it. What ships, by backend:
@@ -154,7 +154,7 @@ Runtime flow: experimenter screen (**SPACE**) → "Waiting for scanner..." → s
 | `"data_root"` | where the BIDS tree goes | `data` |
 | `"triggers"` | how a run starts and what codes the recording gets, over which line (see [Triggers](#triggers-fmri-vs-megeeg)) | wait for `=`, no codes, reported as NOT SET |
 
-`fmri-play --rig <site>/<rig>` picks the rig. With one rig file there is nothing to pick. The repo ships two example rigs that play out of the box, both a window with no scanner (a run starts on SPACE): `example/laptop`, the keyboard alone, which the commands in this README name, and `example/desk`, the Current Designs controller bound to the curricula's keys (below). The console and the manifest say which rig a run played on; with none, or with several and no `--rig`, `fmri-play` does not start and says how to pick or make one. Each rig gets one long rig check, which makes its file: its form asks for each field the first time (`fmri-play --curriculum configs/curricula/checks/rig-check-long.json --subject sub-rig --ses 1 --run 1 --rig <site>/<rig>`; `python -m fmri_gym.checks rig --rig <site>/<rig>` opens the form alone, or edits it later); commit the file it writes. In the editor, the Launch tab picks the rig and its **Edit rig...** opens the same form. The console says which rig file a run read and what it settles, and every run's manifest keeps it (`"rig"`, defaults written out).
+`fmri-play --rig <site>/<rig>` picks the rig. With one rig file there is nothing to pick. The repo ships three example rigs that play out of the box: `example/empty`, an empty `{}` and so every default (a window with sound; after SPACE the run waits for the scanner's `=`, which on a laptop you press), which QUICKSTART uses; `example/laptop`, the keyboard alone with no scanner (a run starts on SPACE), which the commands in this README name; and `example/desk`, the Current Designs controller bound to the curricula's keys (below). The console and the manifest say which rig a run played on; with none, or with several and no `--rig`, `fmri-play` does not start and says how to pick or make one. Each rig gets one long rig check, which makes its file: its form asks for each field the first time (`fmri-play --subject sub-rig --ses 1 --run 1 --rig <site>/<rig> --curriculum configs/curricula/checks/rig-check-long.json`; `python -m fmri_gym.checks rig --rig <site>/<rig>` opens the form alone, or edits it later); commit the file it writes. In the editor, the Launch tab picks the rig and its **Edit rig...** opens the same form. The console says which rig file a run read and what it settles, and every run's manifest keeps it (`"rig"`, defaults written out).
 
 **A response device that is not a keyboard.** Some button boxes and gamepads (a Current Designs interface with a controller on it, say) report HID *joystick* buttons rather than keystrokes: nothing a phase's `keys` names is ever pressed, the game does not move, and the run records no responses with nothing on screen to say why. A plugged-in controller is therefore read directly (`fmri_gym/pad.py`), and each of its controls presses the keyboard key the rig file binds it to (`"bindings"`): curricula stay written in keyboard keys, so the same game plays on a keyboard at the desk and on the controller in the scanner, and one map in the rig file serves every game played there. The map the curricula here are written for:
 
@@ -226,7 +226,7 @@ The `vgdl` backend drives the VGDL games from a gymnasium-ported fork: **[tomov/
 
    ```bash
    uv sync --extra vgdl               # or: pip install -e gym/vgdl
-   uv run fmri-play --subject sub-01 --curriculum configs/curricula/vgdl/all.json --ses 1 --run 1 --rig example/laptop
+   uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/vgdl/all.json
    ```
 
    Game files live at `<repo>/games/<game>_v0/<game>.txt` and `<game>_lvl<level>.txt`. Available games include `aliens`, `beesAndBirds`, `avoidGeorge`, `jaws`, `missile_command`, `plaqueAttack`, `portals`, `preconditions`, `pushBoulders`, `relational`.
@@ -240,7 +240,7 @@ The `coom` backend plays [TTomilin/COOM](https://github.com/TTomilin/COOM)'s own
 COOM's own Python package pins `gymnasium==0.28.1`, which conflicts with minihack's `gymnasium==1.2` pin in this shared env, so **the COOM package is never installed or imported**. The gym env is **`coom-gym`** (`gym/coom/`, the `coom` extra; also in `dbp`), which drives `vizdoom.DoomGame` on the scenario files of a COOM checkout at its pinned commit (the `external/coom` submodule; see [External checkouts](#external-checkouts-external)):
 
 ```bash
-uv run fmri-play --subject sub-01 --curriculum configs/curricula/coom/pitfall.json --ses 1 --run 1 --rig example/laptop
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/coom/pitfall.json
 ```
 
 The env reads `<repo>/COOM/env/scenarios/<scenario>/conf.cfg` and `<task>.wad` (`env_kwargs.task`, default `"default"`; `run_and_gun` also ships `blue`, `red`, `hard`, ...). Without the checkout the run stops at start-up.
@@ -273,7 +273,7 @@ uv sync --extra aigamestore        # or: pip install -e gym/aigamestore
 Run the 10 vendored public games (`game1` = Water Sort, `game2` ≈ Angry Birds, …):
 
 ```bash
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/aigamestore/all.json --ses 1 --run 1 --rig example/laptop
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/aigamestore/all.json
 ```
 
 Phase fields: `game` (`"game1"`…`"game10"`, plus `/level<N>` to name the level -- `"game6/level3"`; bare `"game6"` is level 1 -- or an `http(s)://…/index.html` URL, then `game_keys` lists the keys that game listens for), `frame_skip` (default 6; `fps` must equal `60 / frame_skip`, and the block refuses to start otherwise), `headed` (show the browser window), `browser_channel` (`"chrome"` default, or `null` for the bundled Chromium), `games_dir` (override the vendored dir). A curriculum lists one game phase per level it wants played (`configs/curricula/aigamestore/game1.json` has all nine of Water Sort's). `keys` values are indices into the game's key list (`aigamestore_gym.GAME_KEYS`; game1: LEFT, RIGHT, SPACE, Z), so `{"B": 2}` puts the game's SPACE on the B key; the env relabels the on-canvas hints to match.
@@ -283,8 +283,8 @@ Phase fields: `game` (`"game1"`…`"game10"`, plus `/level<N>` to name the level
 [Rush-Hour](https://github.com/chrplr/Rush-Hour) is a sliding-block puzzle written as a psychophysics experiment in Go, with its rules in a small engine binary that both an agent and a participant play through `rushhour-gym`. The `rushhour` backend drives the package's `RushHourHuman-v0` — the experiment program's own interface as an env: car selection on four buttons, its picture, its results columns in `info` — so the adapter is a keymap plus the fields to log. One game phase is one puzzle (`"puzzle": "p07"`); the program's ready screens, blank intervals and solved feedback are `message` phases the curriculum lists around each puzzle, so every puzzle is its own block in the manifest and its own log folder. Nothing to install beyond the `rushhour` extra: on first use the package downloads the engine of its matching release into `~/.cache/rushhour-gym/` (checksum-verified; Linux x86-64, macOS arm64, Windows x86-64). On a machine without network, run a config once while online or copy that directory; `RUSHHOUR_ENV_BIN` names a binary of your own.
 
 ```bash
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/rushhour/easy.json --ses 1 --run 1 --rig example/laptop      # 5 min of random easy puzzles
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/rushhour/complete.json --ses 1 --run 1 --rig example/laptop   # the program's session then the rest of the library: 49 puzzles, one block each
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/rushhour/easy.json      # 5 min of random easy puzzles
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/rushhour/complete.json   # the program's session then the rest of the library: 49 puzzles, one block each
 ```
 
 Controls, phase fields and the logged columns are documented in `configs/curricula/rushhour/common/README.md` and in the package's README ("A person at the board").
@@ -295,7 +295,7 @@ Controls, phase fields and the logged columns are documented in `configs/curricu
 
 ```bash
 uv sync --extra dbp --extra baba_auto
-uv run fmri-play --subject sub-01 --curriculum configs/curricula/baba_auto/baba_is_you.json --ses 1 --run 1 --rig example/laptop
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/baba_auto/baba_is_you.json
 ```
 
 A phase's `game` is a map name under the checkout's `Resources/Maps` or a map file's path; `keys` index `Discrete(5)`: 0 = wait, 1 = up, 2 = down, 3 = left, 4 = right (turn-based). Each turn logs `play_state` (0 playing, 1 won, 2 lost) and the engine's `(16, H, W)` state tensor. The savestate is the seed and the moves since (`ReplayState`), restored by replay at a few ms a move.
@@ -306,7 +306,7 @@ A phase's `game` is a map name under the checkout's `Resources/Maps` or a map fi
 
 ```bash
 uv pip install "fmri-gym[stk]"      # or: pip install supertuxkart-gym
-uv run fmri-play --subject sub-01 --dummy-trigger --curriculum configs/curricula/stk/hacienda.json --ses 1 --run 1 --rig example/laptop
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig example/laptop --curriculum configs/curricula/stk/hacienda.json
 ```
 
 There is one config per race track the asset pack ships with geometry — `stk__{hacienda,cornfield_crossing,lighthouse,scotland,snowmountain}.json`, 880–1330 m per lap, three laps, four karts. The pack's other track directories (`abyss`, `mines`, `zengarden`, … and the battle arenas and soccer fields) are metadata only: naming one kills the game process, so more tracks means a pack that carries them, not more configs. A track is fixed for the life of a process (`reset(options={"track": ...})` is refused by name), so race several by giving a curriculum one game phase per track.
@@ -404,9 +404,9 @@ One config is one run. A whole scanning session is a plain shell script with one
 # fmri-gym session: one line per run, in order.
 set -e
 SES=${1:-$(uv run fmri-ses --subject sub-01 --rig example/laptop)}
-uv run fmri-play --curriculum configs/pong.json --subject sub-01 --ses "$SES" --run 1 --rig example/laptop
+uv run fmri-play --subject sub-01 --ses "$SES" --run 1 --rig example/laptop --curriculum configs/pong.json
 ./scripts/localizer.sh "$SES"
-# uv run fmri-play --curriculum configs/mario.json --subject sub-01 --ses "$SES" --run 1 --rig example/laptop
+# uv run fmri-play --subject sub-01 --ses "$SES" --run 1 --rig example/laptop --curriculum configs/mario.json
 ```
 
 **The numbers come from the script, not from the disk.** The `SES=` line picks the session once, so every run lands in it: the script's own argument if it was given one (`sh ses1.sh 003` resumes session 3), else the subject's next free session. Each run states its `--run`, which is its place among the lines that play that task -- so it is the same run number however the session went, and skipping a line renumbers nothing after it. Both flags are required of `fmri-play`: it never picks a number itself.
@@ -550,8 +550,8 @@ Holding `key` for `hold` seconds -- even if that key does something in the game 
 A curriculum belongs to the subject, who works through its levels at their own pace; a run only says how much of it fits in one scanner acquisition. `--duration S` gives the run its length in seconds from the trigger: whatever phase is on screen stops 10 s before the end, mid-episode included, and the run closes on 10 s of fixation for the haemodynamic lag (a run that finishes the curriculum sooner ends on the same 10 s); `--end-fixation S` sets that fixation's length. `--resume` starts where the subject's latest run of the same config file (any session) stopped, read from that run's manifest and its last block's `block_end` line (`block_did_not_finish`, `block_time_elapsed`, `num_completed_episodes`, `extra.state`): a block it cut off goes on with the time and episodes it has left, the episode it was in restored from its savestate; otherwise the run starts after the last game block played, or at the last other phase shown, from its beginning. The phases marked `"include_on_resume": true` -- only the non-game phases the curriculum opens with -- are played first. ESC keeps the place the same way. The config may change between runs as long as the game the block plays does not: `duration`, `n_episodes`, `advance_on`, `instructions`, `keys` and the like can, and any other change to that phase stops the run with the fields that changed. With no earlier run `--resume` starts at the beginning, and on a config already played to its end it refuses. A backend with no savestate (the plain `gym` backend, `baba`, `arc3`) starts that episode over from its seed, and says so.
 
 ```sh
-uv run fmri-play --curriculum configs/curricula/rushhour/complete.json --subject sub-01 --ses "$SES" --run 1 --rig example/laptop --duration 600 --resume
-uv run fmri-play --curriculum configs/curricula/rushhour/complete.json --subject sub-01 --ses "$SES" --run 2 --rig example/laptop --duration 600 --resume
+uv run fmri-play --subject sub-01 --ses "$SES" --run 1 --rig example/laptop --duration 600 --resume --curriculum configs/curricula/rushhour/complete.json
+uv run fmri-play --subject sub-01 --ses "$SES" --run 2 --rig example/laptop --duration 600 --resume --curriculum configs/curricula/rushhour/complete.json
 ```
 
 A resumed episode starts from that savestate rather than from its seed alone, so its `episode_start` line carries it as `initial_state`, and `fmri_gym.replay.reconstruct_episode` restores it over the reset. Without `--duration` and `--resume` a run plays its config from start to end, as before.
