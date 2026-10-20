@@ -273,7 +273,7 @@ def test_include_refuses(tmp_path, include, shared, problem):
     (["fmri_gym/run.py"], set(), True),
     (["agents/agent_play.py", "README.md"], set(), True),
     (["gym/replay_state/replay_state_gym/wrappers.py"],
-     {"minihack", "nethack", "vizdoom", "coom", "baba_auto", "rushhour", "aigamestore", "stk"},
+     {"minihack", "nethack", "vizdoom", "coom", "baba_auto", "rushhour", "aigamestore"},
      False),
     (["gym/crafter/pyproject.toml"], {"crafter"}, False),
     (["external/coom"], {"coom"}, False),

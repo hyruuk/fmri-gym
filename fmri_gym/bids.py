@@ -39,7 +39,6 @@ import hashlib
 import json
 import os
 import re
-import sys
 from dataclasses import dataclass
 from typing import Callable, NamedTuple
 
@@ -216,6 +215,8 @@ def last_position(root: str, subject: str, curriculum_path: str) -> RunProgress 
     :param curriculum_path: the curriculum; its name is the task label.
     :return: the progress, with ``block_progress`` for a block that is carried
         on; ``None`` if no run of this curriculum got past its opening phases.
+    :raises ValueError: if that run stopped a block mid-episode on a backend
+        that keeps no savestate (its ``block_end`` has no ``extra.state``).
     """
     from .logging import read_events, read_state
     task = task_label(curriculum_path)
@@ -249,8 +250,9 @@ def last_position(root: str, subject: str, curriculum_path: str) -> RunProgress 
     state = (end["extra"] or {}).get("state")
     going = bool(episode_ends) and episode_ends[-1]["outcome"] in ("playing", "quit")
     if going and state is None:
-        print(f"resume: {last['backend']} keeps no savestate, so the episode phase "
-              f"{last['index']} stopped in starts over", file=sys.stderr)
+        raise ValueError(f"--resume: {run} stopped phase {last['index']} mid-episode, and the "
+                         f"{last['backend']} backend keeps no savestate to carry it on. Start "
+                         "the curriculum over without --resume, or at a later phase")
     block_progress = BlockProgress(
         end["block_time_elapsed"], end["num_completed_episodes"],
         read_state(state) if going and state is not None else None)

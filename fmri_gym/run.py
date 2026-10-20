@@ -312,7 +312,8 @@ def _run_progress(data_root: str, subject: str, curriculum: Curriculum) -> RunPr
         when no earlier run of this curriculum got past its opening phases.
     :raises ValueError: if that run played the curriculum to its end, or its
         last game phase is another game in this curriculum
-        (:func:`~fmri_gym.config.curriculum.game_changes`).
+        (:func:`~fmri_gym.config.curriculum.game_changes`), or it stopped an
+        episode its backend keeps no savestate of (:func:`~fmri_gym.bids.last_position`).
     """
     phases = curriculum.phases
     progress = bids.last_position(data_root, subject, curriculum.path)

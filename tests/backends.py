@@ -127,7 +127,7 @@ BACKENDS: dict[str, Backend] = {b.name: b for b in (
     Backend("aigamestore", "aigamestore", "aigamestore_gym", (_C + "aigamestore/game1.json",),
             gym_dirs=("aigamestore", "replay_state")),
     Backend("arc3", "arc3", "arc3_gym", (_C + "arc3/ls20.json",), gym_dirs=("arc3",)),
-    Backend("stk", "stk", "stk_gym", (_C + "stk/hacienda.json",), gym_dirs=("replay_state",),
+    Backend("stk", "stk", "stk_gym", (_C + "stk/hacienda.json",),
             ci="the game pack is Linux x86_64 only and renders through a real GL display",
             needs_display=True),
 )}
