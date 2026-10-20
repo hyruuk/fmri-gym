@@ -14,7 +14,7 @@ FIELDS = {**{k: "x" for k in rig.FIELDS}, "site": "site1", "pi": "MT", "modality
           "notes": ""}
 
 
-@pytest.mark.parametrize("path", rig.rig_files())
+@pytest.mark.parametrize("path", [str(p) for p in sorted(rig.REPO_RIGS.glob("*/*.json"))])
 def test_repo_rig_files_are_valid(path):
     assert RigConfig.open(path).path == path
 
