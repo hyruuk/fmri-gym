@@ -358,19 +358,26 @@ def test_each_check_files_its_measurements_beside_the_rig_under_a_new_number(tmp
     assert len(list((tmp_path / "measured").iterdir())) == 2
 
 
-def test_a_run_on_a_rig_never_measured_says_so(tmp_path, capsys, monkeypatch):
+def test_a_run_on_a_rig_never_measured_says_so_and_offers_a_check_once_a_session(
+        tmp_path, capsys, monkeypatch):
+    from types import SimpleNamespace
+
     from fmri_gym.checks import offer_check
     from fmri_gym.config.rig import RigConfig
     rig_path = tmp_path / "laptop.json"
     rig_path.write_text(json.dumps({"data_root": str(tmp_path / "data")}))
-    rig = RigConfig.open(str(rig_path))
+    run = SimpleNamespace(rig=RigConfig.open(str(rig_path)), subject="sub-01", ses=1)
     monkeypatch.setattr("sys.stdin.isatty", lambda: False)
-    offer_check(rig)
+    offer_check(run)
     err = capsys.readouterr().err
     assert "never been measured" in err and "rig-check-long.json" in err
+    (tmp_path / "data" / "sub-01" / "ses-001" / "beh").mkdir(parents=True)
+    offer_check(run)                              # the session has begun: warned, not offered
+    err = capsys.readouterr().err
+    assert "never been measured" in err and "rig-check-long.json" not in err
     (tmp_path / "measured").mkdir()
     (tmp_path / "measured" / "laptop-1.json").write_text("{}")
-    offer_check(rig)
+    offer_check(run)
     assert capsys.readouterr().err == ""
 
 

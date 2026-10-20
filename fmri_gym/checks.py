@@ -57,8 +57,8 @@ more than the last, when it measured any latency: the latencies -- flip to light
 sound card, sound card to the ear -- with every check's summary, the verdicts,
 the rig file as played and the machine. The rig file is the rig's settings,
 shared; these are one machine's measurements, and stay on it (``.gitignore``).
-A run on a rig with none says so, and on a terminal offers to run a check
-first (:func:`offer_check`)::
+A run on a rig with none says so, and the first run of a session, on a
+terminal, offers to run a check first (:func:`offer_check`)::
 
     python -m fmri_gym.checks rig --rig configs/rigs/<site>/<rig>.json   # fill in / update a rig file
     python -m fmri_gym.checks report <run folder>...   # re-file checks already run
@@ -90,7 +90,7 @@ import pygame
 from gymnasium import spaces
 
 from . import pad
-from .bids import next_session
+from .bids import has_session, next_session
 from .config import rig as rig_file
 from .config.phases import (CHECK_PHASES, CheckControls, CheckDisplay, CheckFrames, CheckPhase,
                             CheckPhotodiode, CheckTriggers, GamePhase)
@@ -103,6 +103,7 @@ from .run import _wait_for_duration
 from .triggers import LIFECYCLE_EVENTS, Codes, TriggerError, Triggers
 
 if TYPE_CHECKING:
+    from .config.run import RunConfig
     from .run import Run
 
 
@@ -169,16 +170,20 @@ def _ask_triggers(rig: rig_file.RigConfig) -> rig_file.RigConfig:
     return rig_file.RigConfig.open(where)
 
 
-def offer_check(rig: rig_file.RigConfig) -> None:
+def offer_check(config: RunConfig) -> None:
     """Before a run that is not a rig check: say so when its rig has never been measured,
-    and on a terminal offer to measure it first, as a rig check run of its own.
+    and before the session's first run, on a terminal, offer to measure it first, as a
+    rig check run of its own.
 
-    :param rig: the rig the run plays on.
+    :param config: the run.
     """
+    rig = config.rig
     if measured_files(rig.path):
         return
     print(f"WARNING: {rig.path} has never been measured: no rig check has filed when a "
           "frame's light and sound reach the participant on it", file=sys.stderr)
+    if has_session(rig.data_root, config.subject, config.ses):
+        return
     args = ["--subject", "sub-rig", "--ses", str(next_session(rig.data_root, "sub-rig")),
             "--run", "1", "--rig", rig.path]
     if not sys.stdin.isatty():

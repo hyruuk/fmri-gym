@@ -143,6 +143,11 @@ def next_session(root: str, subject: str) -> int:
     return _next_free(os.path.join(root, subject), lambda n: f"ses-{n:03d}")
 
 
+def has_session(root: str, subject: str, session: int) -> bool:
+    """Whether the subject's session already has a run filed under ``root``."""
+    return os.path.isdir(_beh(root, subject, session))
+
+
 def run_label(subject: str, session: int, task: str, run: int) -> str:
     """``sub-01_ses-001_task-pong_run-002``: what names the run, and keys its seeds.
 
