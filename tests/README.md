@@ -25,9 +25,9 @@ uv run pytest --backend none             # the engine-free tests only
 The repo root's `conftest.py` declares the suite's options (it has to be at the root: pytest reads an unknown option's value as a path, and `--backend gym` names the `gym/` directory). `backends.py` is the table: one row per backend with the extra that installs it, the import that proves it, the checkout, browser or game files it needs, its smoke configs, and why CI cannot play it, if it cannot. `changed.py` maps changed files to backends. `verify_replay.py` and `headless.py` are the two steps the backend tests drive, and both work on their own; `tap.py` is what a headless run is watched with (`--tap`), and its fake sound card (`--fake-audio`) is what a machine without one plays into:
 
 ```bash
-uv run python -m tests.verify_replay --curriculum configs/curricula/minihack/room5x5.json --max-frames 200
+uv run python -m tests.verify_replay --curriculum configs/curricula/minihack/levels/room5x5.json --max-frames 200
 PYTHONHASHSEED=7 uv run python -m tests.verify_replay --check data/sub-01/ses-001/beh/<run>   # a subject's run
-uv run python -m tests.headless --curriculum configs/curricula/vizdoom/basic.json --data-root /tmp/h --duration 25
+uv run python -m tests.headless --curriculum configs/curricula/vizdoom/levels/basic.json --data-root /tmp/h --duration 25
 uv run python -m tests.headless ... --run 2 --resume --tap /tmp/h/tap-2.json --fake-audio  # carry a run on, watched
 uv run python -m tests.verify_replay --resumed <stopped run> <resumed run>                # the same game, played on
 uv run python -m tests.changed                                                           # which backends a branch touches

@@ -1,0 +1,26 @@
+{
+  "curriculum": [
+    {"type": "fixation", "duration": 1.0, "include_on_resume": true},
+    {
+      "__include": "../common/coom.json",
+      "game": "health_gathering",
+      "instructions": {
+        "title": "Health Gathering",
+        "text": [
+          "The floor is draining your health. Find and",
+          "collect health kits to survive; watch out for",
+          "poison vials.",
+          "",
+          "Controls:",
+          "   UP           move forward",
+          "   LEFT / RIGHT turn left / right",
+          "   LSHIFT       run",
+          "",
+          "(press SPACE to start)"
+        ]
+      },
+      "keys": {"": 0, "LEFT": 8, "RIGHT": 4, "UP": 2, "LEFT+UP": 10, "RIGHT+UP": 6, "LSHIFT": 1, "UP+LSHIFT": 3}
+    },
+    {"type": "fixation", "duration": 2.0}
+  ]
+}

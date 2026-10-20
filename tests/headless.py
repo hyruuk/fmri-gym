@@ -18,7 +18,7 @@ output unless ``--no-audio`` is passed, which is what a machine without one
 would, so a five-minute block plays for the seconds a test can afford, and the
 closing fixation lasts ``--end-fixation`` (1 s here; a session's is 10).
 
-    python -m tests.headless --curriculum configs/curricula/minihack/room5x5.json \\
+    python -m tests.headless --curriculum configs/curricula/minihack/levels/room5x5.json \\
         --data-root /tmp/headless --duration 25
 
 Run as a module from the repo root: the logger's writer process re-imports

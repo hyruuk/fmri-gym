@@ -14,7 +14,7 @@ to be a branch point and not just bytes; a block's end state (its
 
 Record and check::
 
-    uv run python -m tests.verify_replay --curriculum configs/curricula/minihack/room5x5.json \\
+    uv run python -m tests.verify_replay --curriculum configs/curricula/minihack/levels/room5x5.json \\
         --max-frames 200 --n-episodes 2
 
 Check a run folder that already exists (a subject's, say)::

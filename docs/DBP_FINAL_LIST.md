@@ -6,14 +6,14 @@ The games settled on for the DBP study, and how each runs in **fmri-gym**. All 8
 
 | Category | Game | Backend / how | Config | Status |
 |---|---|---|---|---|
-| Action/shooter | **COOM** | `vizdoom` (COOM's exact Doom engine) | `curricula/vizdoom/defend_center.json` … (9 stock scenarios + 1 pair) | ✅ |
+| Action/shooter | **COOM** | `vizdoom` (COOM's exact Doom engine) | `curricula/vizdoom/levels/defend_center.json` … (9 stock scenarios + 1 pair) | ✅ |
 | Action/shooter, Puzzle | **AI GameStore** | `aigamestore` (p5.js via headless browser) | `curricula/aigamestore/game1.json` … | ✅ |
-| Building/open-world | **Crafter** | `crafter` (crafter-gym, `gym/crafter/`, over crafter's old-gym env) | `curricula/crafter/L4.json` | ✅ |
+| Building/open-world | **Crafter** | `crafter` (crafter-gym, `gym/crafter/`, over crafter's old-gym env) | `curricula/crafter/levels/L4.json` | ✅ |
 | Building/open-world | **Craftium** | `gym` + `import_module` (Luanti voxel) | none (see README, "Games without a curriculum") | ✅ |
-| Puzzle | **Rush Hour** | `rushhour` (Go engine + colored board) | `curricula/rushhour/easy.json` | ✅ |
-| Language | **Baba Is AI** (Baba Is You-style puzzles) | `baba` (baba-gym, `gym/baba/`, over baba-is-ai's old-gym env) | `curricula/baba/make_win.json` | ✅ |
-| Adventure | **MiniHack** | `minihack` | `curricula/minihack/room5x5.json` | ✅ |
-| Sports/racing | **SuperTuxKart** | `stk` (supertuxkart-gym's gym server, 3D) | `curricula/stk/hacienda.json` (+ 4 more tracks) | ✅ |
+| Puzzle | **Rush Hour** | `rushhour` (Go engine + colored board) | `curricula/rushhour/levels/easy.json` | ✅ |
+| Language | **Baba Is AI** (Baba Is You-style puzzles) | `baba` (baba-gym, `gym/baba/`, over baba-is-ai's old-gym env) | `curricula/baba/levels/make_win.json` | ✅ |
+| Adventure | **MiniHack** | `minihack` | `curricula/minihack/levels/room5x5.json` | ✅ |
+| Sports/racing | **SuperTuxKart** | `stk` (supertuxkart-gym's gym server, 3D) | `curricula/stk/levels/hacienda.json` (+ 4 more tracks) | ✅ |
 | Interactive fiction | Zork* | — (no Gymnasium) | — | ⏭️ skipped |
 | Social | Overcooked* | — (`overcooked_ai` is not a Gymnasium env) | — | ⏭️ skipped |
 | Motor/music | Stepmania* | — (no Gymnasium) | — | ⏭️ skipped |
@@ -22,7 +22,7 @@ Each was verified to render a real frame (PNG spot-checks for the SuperTuxKart 3
 
 ## The hard calls / honest notes
 
-1. **COOM → ViZDoom.** Real COOM pins `gymnasium==0.28`, which breaks MiniHack/NetHack/retro (need 1.2). ViZDoom is the *identical Doom engine* COOM is built on, works with our gymnasium, and provides the action-shooter scenarios — so we use it for the DBP slot above. COOM's own continual-learning scenarios (pitfall, chainsaw, hide_and_seek, ...) are now also reachable without a separate env: the `coom` backend drives `vizdoom.DoomGame` directly against COOM's `conf.cfg`/`.wad` files from the pinned `external/coom` checkout, never importing the COOM package itself (see `curricula/coom/pitfall.json`, etc.).
+1. **COOM → ViZDoom.** Real COOM pins `gymnasium==0.28`, which breaks MiniHack/NetHack/retro (need 1.2). ViZDoom is the *identical Doom engine* COOM is built on, works with our gymnasium, and provides the action-shooter scenarios — so we use it for the DBP slot above. COOM's own continual-learning scenarios (pitfall, chainsaw, hide_and_seek, ...) are now also reachable without a separate env: the `coom` backend drives `vizdoom.DoomGame` directly against COOM's `conf.cfg`/`.wad` files from the pinned `external/coom` checkout, never importing the COOM package itself (see `curricula/coom/levels/pitfall.json`, etc.).
 
 2. **SuperTuxKart needs a real GL display.** The frame *is* the game's own rendering, and Irrlicht needs a real GL context (works on `DISPLAY=:1`, **not** under headless `SDL_VIDEODRIVER=dummy`). Fine for the fMRI presentation machine. This slot was first filled by pystk2-gymnasium, which is state-only (no pixels) and needed its own control mapping; the `stk` backend replaced it with `supertuxkart-gym`'s gym server, whose env serves the pixels and takes held keys directly (see README).
 

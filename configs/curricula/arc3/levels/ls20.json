@@ -1,0 +1,23 @@
+{
+  "curriculum": [
+    {"type": "fixation", "duration": 1.0, "include_on_resume": true},
+    {
+      "__include": "../common/arc3.json",
+      "game": "ls20",
+      "instructions": {
+        "text": [
+          "Work out what the game wants, level by level.",
+          "Each move counts: running out of energy ends the game.",
+          "",
+          "Controls:",
+          "   ARROWS   move",
+          "   hold X   pause menu (restart / give up / resume)",
+          "",
+          "(press SPACE to start)"
+        ]
+      },
+      "keys": {"UP": 0, "DOWN": 1, "LEFT": 2, "RIGHT": 3}
+    },
+    {"type": "fixation", "duration": 2.0}
+  ]
+}
