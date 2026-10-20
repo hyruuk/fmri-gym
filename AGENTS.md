@@ -4,7 +4,7 @@ Please read this before writing code.
 
 ## Where things are explained
 
-This file is the rules: the five below, and the shape of the repo. The step-by-step procedures live as skills, one folder each under `.claude/skills/<name>/SKILL.md`, which is plain Markdown anyone can open: `testing` (run the suite, read a failure, what CI does), `add-backend` (the checklist for a new game engine and the traps), `pull-request` (branch, local checks, the description, CI). Claude Code and Cursor load them from `.claude/skills/`; Codex reads `.agents/skills/`, where each entry is a symlink to the same folder. A procedure belongs in a skill and a rule belongs here; neither belongs in both. The test suite describes itself in `tests/README.md`.
+This file is the rules: the five below, and the shape of the repo. The step-by-step procedures live as skills, one folder each under `.claude/skills/<name>/SKILL.md`, which is plain Markdown anyone can open: `testing` (run the suite, read a failure, what CI does), `add-backend` (the checklist for a new game engine and the traps), `pull-request` (branch, local checks, the description, CI). Claude Code and Cursor load them from `.claude/skills/`; Codex reads `.agents/skills/`, where each entry is a symlink to the same folder. A procedure belongs in a skill and a rule belongs here; neither belongs in both. The test suite describes itself in `tests/README.md`. Claude Code reads this file through `CLAUDE.md`, which imports it and holds nothing else; personal instructions go in `CLAUDE.local.md` (gitignored) or `~/.claude/CLAUDE.md`, which load alongside it.
 
 ## The shape of the repo
 

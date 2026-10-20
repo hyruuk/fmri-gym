@@ -13,6 +13,8 @@ __pycache__/
 # gen AI
 .cursor
 .vscode
+# Personal Claude Code instructions; they load alongside CLAUDE.md, which imports AGENTS.md
+CLAUDE.local.md
 
 # Stray logs written by backends / drivers into the working directory
 *.log
