@@ -441,12 +441,6 @@ class Run:
             "pygame": pygame.version.ver, "sdl": ".".join(map(str, pygame.get_sdl_version()))})
         return run
 
-    def _plays_sound(self, game_phase: GamePhase) -> bool:
-        """Whether a block's sound reaches the speakers: its game has sound to play
-        (``has_audio``) and the rig plays sound (its ``has_audio``). Muting changes
-        nothing that is logged."""
-        return game_phase.has_audio and self.config.rig.has_audio
-
     def close(self) -> None:
         """Close the window, the audio output, the trigger line and the logger."""
         self.display.close()
@@ -696,8 +690,7 @@ class Run:
                 recent_states.append(fs.blob)
             # The frame trigger goes out on the flip that shows this frame.
             self.display.call_on_flip(self.triggers.frame)
-            flip_t, frame, sound = self._show(adapter, self._plays_sound(game_phase), score,
-                                              block_end)
+            flip_t, frame, sound = self._show(adapter, game_phase.has_audio, score, block_end)
             # More than a frame behind (a stall): drop the debt, or it is repaid
             # as a burst of one-refresh frames. The frame of slack is what a
             # vsync-locked flip normally lands after its tick.
@@ -728,12 +721,12 @@ class Run:
                 fields["env_action"] = info["env_action"]
             if self.triggers.enabled:
                 fields["trigger"] = self.triggers.last_frame
-            if self._plays_sound(game_phase):
+            if game_phase.has_audio:
                 # The chunk this frame's sound was queued as (-1: none); when it
                 # reached the DAC is in the block_end record's audio onsets.
                 fields["audio_chunk"] = self.audio.last_chunk
             self.logger.log_frame(fields, frame=frame, state=fs.blob if save_state else None)
-            self.logger.log_audio(sound)
+            self.logger.log_audio(sound if self.audio.last_chunk >= 0 else None)
             ep_frame += 1
 
         ## Final outcome
@@ -768,7 +761,8 @@ class Run:
 
         :param adapter: the env whose ``render`` / ``hud`` / ``overlay`` /
             ``sound`` to present.
-        :param play_sound: pass the sound to the speakers.
+        :param play_sound: the block has sound: take it from the adapter and
+            queue it (a muted rig numbers it for the log and plays nothing).
         :param score: the episode's running score, for the HUD.
         :param block_end: ``perf_counter`` the block ends at, for the HUD.
         :return: ``perf_counter`` of the flip, the rendered frame, and the
