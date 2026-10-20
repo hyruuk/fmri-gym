@@ -6,7 +6,7 @@ Three example rigs play out of the box. `example/empty.json` is `{}`: every sett
 
 A rig is site-specific and shared by every run and every game on it; a curriculum (`../curricula/`) is game-specific and shared by every site; a session (`../subjects/`) is one subject's one visit. Keep each setting in the one place it belongs.
 
-A rig check files what it measured on the rig beside its file, in `measured/<rig>-<n>.json`, one new file per check (README, "Timing"). They are this machine's measurements, not the rig's settings, so git ignores them.
+A rig check files what it measured on the rig beside its file, in `measured/<rig>-<n>.json`, one new file per check that measured a latency (README, "Timing"). They are this machine's measurements, not the rig's settings, so git ignores them. A run on a rig with none warns, and from a terminal offers to run a check first.
 
 `rig-check.sh` plays the rig check (`../curricula/checks/rig-check-long.json`) on `example/laptop.json`, filed under `sub-rig`; set your rig's file on its lines (or on the editor's Launch tab: `fmri-edit --session configs/rigs/rig-check.sh`).
 

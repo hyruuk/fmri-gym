@@ -53,10 +53,12 @@ an earlier version still line up.
 
 **What the rig measured.** Every check also files its measurements beside the
 rig file, in ``measured/<rig>-<n>.json`` (:func:`file_measured`), ``n`` one
-more than the last: the latencies -- flip to light at the screen, flip to the
+more than the last, when it measured any latency: the latencies -- flip to light at the screen, flip to the
 sound card, sound card to the ear -- with every check's summary, the verdicts,
 the rig file as played and the machine. The rig file is the rig's settings,
-shared; these are one machine's measurements, and stay on it (``.gitignore``)::
+shared; these are one machine's measurements, and stay on it (``.gitignore``).
+A run on a rig with none says so, and on a terminal offers to run a check
+first (:func:`offer_check`)::
 
     python -m fmri_gym.checks rig --rig configs/rigs/<site>/<rig>.json   # fill in / update a rig file
     python -m fmri_gym.checks report <run folder>...   # re-file checks already run
@@ -79,6 +81,7 @@ import subprocess
 import sys
 import time
 from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Sequence
 
 import gymnasium as gym
@@ -87,6 +90,7 @@ import pygame
 from gymnasium import spaces
 
 from . import pad
+from .bids import next_session
 from .config import rig as rig_file
 from .config.phases import (CHECK_PHASES, CheckControls, CheckDisplay, CheckFrames, CheckPhase,
                             CheckPhotodiode, CheckTriggers, GamePhase)
@@ -102,6 +106,10 @@ if TYPE_CHECKING:
     from .run import Run
 
 
+#: The rig checks a run on a rig never measured offers to play first, by the key that picks one.
+_RIG_CHECKS = {key: str(Path(__file__).resolve().parents[1] / "configs" / "curricula" / "checks"
+                        / name)
+               for key, name in (("q", "rig-check.json"), ("l", "rig-check-long.json"))}
 #: The check phases' types, as a manifest's phase entries name them.
 CHECK_TYPES = tuple(c.type for c in CHECK_PHASES)
 #: Seconds each check's verdict stays on screen.
@@ -159,6 +167,35 @@ def _ask_triggers(rig: rig_file.RigConfig) -> rig_file.RigConfig:
     rig_file.save({**rig_file.load(where), "triggers": section}, where)
     print(f"rig check: trigger settings saved in {where}", file=sys.stderr)
     return rig_file.RigConfig.open(where)
+
+
+def offer_check(rig: rig_file.RigConfig) -> None:
+    """Before a run that is not a rig check: say so when its rig has never been measured,
+    and on a terminal offer to measure it first, as a rig check run of its own.
+
+    :param rig: the rig the run plays on.
+    """
+    if measured_files(rig.path):
+        return
+    print(f"WARNING: {rig.path} has never been measured: no rig check has filed when a "
+          "frame's light and sound reach the participant on it", file=sys.stderr)
+    args = ["--subject", "sub-rig", "--ses", str(next_session(rig.data_root, "sub-rig")),
+            "--run", "1", "--rig", rig.path]
+    if not sys.stdin.isatty():
+        curriculum = os.path.relpath(_RIG_CHECKS["l"])
+        print("  measure it: uv run fmri-play " + " ".join(args + ["--curriculum", curriculum]),
+              file=sys.stderr)
+        return
+    try:
+        answer = input("Run a rig check first? [q]uick (under a minute), [l]ong (about 25 "
+                       "minutes), Enter to go on without: ").strip().lower()
+    except EOFError:  # Ctrl+D: nothing typed
+        answer = ""
+    if answer not in _RIG_CHECKS:
+        return
+    subprocess.run([sys.executable, "-m", "fmri_play", *args,
+                    "--curriculum", _RIG_CHECKS[answer]], check=False)
+    print(f"rig check done; the run starts on {rig.path}", file=sys.stderr)
 
 
 def finish(run: Run, session: int) -> bool:
@@ -1320,29 +1357,38 @@ def measured(m: dict, folder: str) -> dict[str, Any]:
             "versions": m["versions"]}
 
 
-def measured_path(rig_path: str) -> str:
-    """Where the next check on the rig file at ``rig_path`` files its measurements:
-    ``measured/<rig>-<n>.json`` beside it, ``n`` one more than the highest there."""
+def measured_files(rig_path: str) -> list[str]:
+    """What the rig checks measured on the rig file at ``rig_path``, in the order they
+    were filed: ``measured/<rig>-<n>.json`` beside it, by ``n``."""
     folder = os.path.join(os.path.dirname(rig_path), "measured")
     rig = os.path.splitext(os.path.basename(rig_path))[0]
-    names = (os.path.basename(f)
-             for f in glob.glob(os.path.join(folder, f"{glob.escape(rig)}-*.json")))
-    taken = [int(n[1]) for name in names
-             if (n := re.fullmatch(rf"{re.escape(rig)}-(\d+)\.json", name))]
-    return os.path.join(folder, f"{rig}-{max(taken, default=0) + 1}.json")
+    numbered = {}
+    for path in glob.glob(os.path.join(folder, f"{glob.escape(rig)}-*.json")):
+        n = re.fullmatch(rf"{re.escape(rig)}-(\d+)\.json", os.path.basename(path))
+        if n:
+            numbered[int(n[1])] = path
+    return [numbered[n] for n in sorted(numbered)]
 
 
-def file_measured(m: dict, folder: str, rig_path: str) -> str:
-    """Write what the check measured beside the rig file, under the next free number.
+def file_measured(m: dict, folder: str, rig_path: str) -> str | None:
+    """Write what the check measured beside the rig file, under the next free number;
+    nothing when it measured no latency.
 
     :param m: the check's manifest, filed.
     :param folder: the check's run folder.
     :param rig_path: the rig file the check played on.
-    :return: the file written.
+    :return: the file written, or ``None``.
     """
-    path = measured_path(rig_path)
+    values = measured(m, folder)
+    if not any(values["latency"].values()):
+        print("rig check: no latency measured (no photodiode or microphone read, or their "
+              "tests failed): nothing filed beside the rig", file=sys.stderr)
+        return None
+    rig = os.path.splitext(os.path.basename(rig_path))[0]
+    path = os.path.join(os.path.dirname(rig_path), "measured",
+                        f"{rig}-{len(measured_files(rig_path)) + 1}.json")
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    _write_json(path, measured(m, folder))
+    _write_json(path, values)
     print(f"rig check: what it measured on the rig: {path}", file=sys.stderr)
     return path
 

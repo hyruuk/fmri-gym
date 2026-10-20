@@ -353,6 +353,25 @@ def test_each_check_files_its_measurements_beside_the_rig_under_a_new_number(tmp
     latency = json.loads(Path(second).read_text())["latency"]
     assert latency["flip_to_photon"]["median_ms"] == 12.0
     assert latency["dac_to_ear"] is None          # its test failed
+    m["tests"]["photodiode"]["status"] = "fail"   # no latency left: nothing filed
+    assert file_measured(m, "run3", rig_path) is None
+    assert len(list((tmp_path / "measured").iterdir())) == 2
+
+
+def test_a_run_on_a_rig_never_measured_says_so(tmp_path, capsys, monkeypatch):
+    from fmri_gym.checks import offer_check
+    from fmri_gym.config.rig import RigConfig
+    rig_path = tmp_path / "laptop.json"
+    rig_path.write_text(json.dumps({"data_root": str(tmp_path / "data")}))
+    rig = RigConfig.open(str(rig_path))
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    offer_check(rig)
+    err = capsys.readouterr().err
+    assert "never been measured" in err and "rig-check-long.json" in err
+    (tmp_path / "measured").mkdir()
+    (tmp_path / "measured" / "laptop-1.json").write_text("{}")
+    offer_check(rig)
+    assert capsys.readouterr().err == ""
 
 
 def test_claude_md_imports_agents_md():
