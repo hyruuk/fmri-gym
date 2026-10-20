@@ -114,17 +114,17 @@ A curriculum's path after `curricula/`, in camelCase (BIDS labels are letters an
 | `ale/` | 11 | `levels/`: pong, breakout, spaceinvaders, mspacman, seaquest, qbert, asterix, beamrider, enduro, boxing, and `all` |
 | `arc3/` | 6 | `levels/`: g50t, ls20, re86, tr87, tu93, wa30 (the game files are fetched once; see [ARC-AGI-3 games](#arc-agi-3-games)) |
 | `baba/` | 1 | `levels/`: make_win (rule-manipulation puzzle; other ids) |
-| `baba_auto/` | 12 | `levels/`: baba_is_you, out_of_reach, volcano, off_limits, grass_yard, pillar_yard, brick_wall, icy_waters, novice_locksmith, lock, affection, turns (the levels the baba-is-auto checkout ships; its other maps are rule-engine fixtures; `game` takes any map file) |
+| `baba_auto/` | 13 | `levels/`: baba_is_you, out_of_reach, volcano, off_limits, grass_yard, pillar_yard, brick_wall, icy_waters, novice_locksmith, lock, affection, turns (the levels the baba-is-auto checkout ships; its other maps are rule-engine fixtures; `game` takes any map file); and `all`, those in a row |
 | `checks/` | 2 | rig-check, rig-check-long: the rig check's phases instead of games (see [Timing](#timing)) |
-| `coom/` | 9 | `levels/`: pitfall, chainsaw, hide_and_seek, health_gathering, arms_dealer, parkour, raise_the_roof, run_and_gun, floor_is_lava (needs the COOM checkout) |
+| `coom/` | 10 | `levels/`: pitfall, chainsaw, hide_and_seek, health_gathering, arms_dealer, parkour, raise_the_roof, run_and_gun, floor_is_lava (needs the COOM checkout); and `all`, those in a row |
 | `crafter/` | 4 | `levels/`: L1…L4, the paradigm's four levels |
 | `demos/` | 2 | mixed (seven backends in one run), meg (Pong with a full MEG `triggers` section) |
 | `gym/` | 16 | `levels/`: classic control (cartpole, mountaincar, acrobot, pendulum, mountaincarcontinuous), toy text (frozenlake, frozenlake8x8, cliffwalking, taxi, blackjack; turn-based), Box2D (lunarlander, bipedalwalker, carracing; the `box2d` extra); and `classic_control`, `toy_text`, `box2d`, each family in a row |
-| `minihack/` | 21 | `levels/`: room5x5/15x15, mazewalk9x9, river, corridor, eat: the `-Allocentric-v0` twin from `minihack_levels` (view fixed on the map), each with an `_egocentric` sibling on MiniHack's own id (view centred on the agent); and the designed levels room_*, mazewalk_*, river_* |
+| `minihack/` | 22 | `levels/`: room5x5/15x15, mazewalk9x9, river, corridor, eat: the `-Allocentric-v0` twin from `minihack_levels` (view fixed on the map), each with an `_egocentric` sibling on MiniHack's own id (view centred on the agent); and the designed levels room_*, mazewalk_*, river_*; and `all`, the six standard tasks (allocentric) in a row |
 | `nethack/` | 1 | `levels/`: score (base NetHack; TTY rendered to a pixel frame) |
 | `retro/` | 1 | `levels/`: airstriker (ships with stable-retro; sound) |
 | `rushhour/` | 2 | `levels/`: easy (5 min of random easy puzzles); complete (Rush-Hour's own program, then the rest of the library: all 49 puzzles, one game phase each, with ready screens and solved feedback as message phases) |
-| `stk/` | 5 | `levels/`: hacienda, cornfield_crossing, lighthouse, scotland, snowmountain (the race tracks its asset pack ships; needs a real GL display) |
+| `stk/` | 6 | `levels/`: hacienda, cornfield_crossing, lighthouse, scotland, snowmountain (the race tracks its asset pack ships; needs a real GL display); and `all`, those in a row |
 | `vgdl/` | 11 | `levels/`: aliens, avoidGeorge, beesAndBirds, jaws, missile_command, plaqueAttack, portals, preconditions, pushBoulders, relational (needs the VGDL checkout), and `all` |
 | `vizdoom/` | 78 | `levels/`: basic, deadly_corridor, defend_center, defend_line, health_gathering_supreme, my_way_home, predict_position, take_cover, deathmatch, freedoom1_e1m1 … freedoom1_e4m9 and freedoom2_map01 … freedoom2_map32 (every map of [Freedoom](https://freedoom.github.io/) Phase 1 and Phase 2, whose WADs ship with `vizdoom`; `VizdoomDoom*` plays the original WADs, given them); and `take_cover_defend_line`, two of them back to back |
 
@@ -424,7 +424,9 @@ sh configs/subjects/boston-college/sub-01/ses-003/dbp_puzzle.sh   # nine AI Game
 sh configs/subjects/boston-college/sub-01/ses-001/dbp_mix.sh 003  # ... into session 3: how one that stopped is resumed
 ```
 
-They assume `sub-01` and a 1024x768 window, and play into the session their folder names unless given another: open one in `fmri-edit --session configs/subjects/boston-college/sub-01/ses-001/dbp_mix.sh` to change any of that, or `--dummy-trigger` a run of it at the desk.
+`configs/subjects/boston-college/sub-02/ses-001/dbp_multi.sh` is a session of resumed runs: eleven sequences of levels (COOM, ViZDoom, AI GameStore games 1, 4, 7 and 8, Crafter L1, Rush Hour, Baba Is Auto, MiniHack, STK), each played as two 1-min runs back to back with `--duration 60 --resume`, so the second run carries on where the first stopped (see "Resuming a curriculum").
+
+The sub-01 sessions assume `sub-01` and a 1024x768 window, and play into the session their folder names unless given another: open one in `fmri-edit --session configs/subjects/boston-college/sub-01/ses-001/dbp_mix.sh` to change any of that, or `--dummy-trigger` a run of it at the desk.
 
 ```jsonc
 {"type": "fixation", "duration": 2.0}                 // "+" for N seconds
