@@ -14,9 +14,10 @@ business, not the loop's. Nothing here reads a rig.
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, ClassVar, Union
+from typing import Any, ClassVar
 
 from ..keys import KEY_NAMES
 from ..menu import menu_problems
@@ -50,19 +51,57 @@ def join_text(text: str | list | tuple) -> str:
 
 
 @dataclass(frozen=True, slots=True)
-class Fixation:
+class Phase(ABC):
+    """One phase of a curriculum, read off its JSON once: what every phase has.
+
+    A subclass is one phase ``type``: it names it, states its own fields'
+    defaults in :meth:`from_dict` and the shape its JSON must have in
+    :meth:`problems`.
+    """
+
+    #: the phase's ``type`` in the JSON
+    type: ClassVar[str]
+    #: the JSON it was read from: the manifest records it, a resumed run compares
+    #: it, and a game phase's adapter reads its backend's own keys from it
+    spec: dict
+    #: a resumed run plays it before carrying on (only the non-game phases a
+    #: curriculum opens with may say so)
+    include_on_resume: bool
+
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, d: dict, index: int) -> Phase:
+        """Read the phase off its JSON (which :meth:`problems` passed), defaults filled in.
+
+        :param index: its place in the curriculum.
+        """
+
+    @staticmethod
+    @abstractmethod
+    def problems(d: dict) -> list[str]:
+        """What keeps ``d`` from being a phase of this type, as text; empty when it is one."""
+
+    @staticmethod
+    def _shared(d: dict) -> dict[str, Any]:
+        """The fields every phase reads the same way, for :meth:`from_dict`."""
+        return {"spec": d, "include_on_resume": d.get("include_on_resume", False)}
+
+
+@dataclass(frozen=True, slots=True)
+class CheckPhase(Phase, ABC):
+    """A rig check's phase (:mod:`fmri_gym.checks`): it measures the rig, plays no game."""
+
+
+@dataclass(frozen=True, slots=True)
+class Fixation(Phase):
     """A fixation cross for ``duration`` seconds."""
 
     type: ClassVar[str] = "fixation"
-    spec: dict
-    #: a resumed run plays it before carrying on (only the opening phases may)
-    include_on_resume: bool
     duration: float
 
     @classmethod
     def from_dict(cls, d: dict, index: int) -> Fixation:
-        return cls(spec=d, include_on_resume=d.get("include_on_resume", False),
-                   duration=d.get("duration", 2.0))
+        return cls(**cls._shared(d), duration=d.get("duration", 2.0))
 
     @staticmethod
     def problems(d: dict) -> list[str]:
@@ -70,7 +109,7 @@ class Fixation:
 
 
 @dataclass(frozen=True, slots=True)
-class Message:
+class Message(Phase):
     """Text on screen until its ``duration``, a key, or whichever comes first.
 
     ``keys_to_dismiss`` (key names) ends it at a press of one of them, and with
@@ -79,8 +118,6 @@ class Message:
     """
 
     type: ClassVar[str] = "message"
-    spec: dict
-    include_on_resume: bool
     text: str
     duration: float | None
     #: the character that dismisses an untimed message without ``keys_to_dismiss``
@@ -91,9 +128,9 @@ class Message:
     @classmethod
     def from_dict(cls, d: dict, index: int) -> Message:
         keys = d.get("keys_to_dismiss")
-        return cls(spec=d, include_on_resume=d.get("include_on_resume", False),
-                   text=join_text(d.get("text", "")), duration=d.get("duration"),
-                   key=d.get("key", " "), keys_to_dismiss=None if keys is None else tuple(keys),
+        return cls(**cls._shared(d), text=join_text(d.get("text", "")),
+                   duration=d.get("duration"), key=d.get("key", " "),
+                   keys_to_dismiss=None if keys is None else tuple(keys),
                    align=d.get("align", "center"))
 
     @staticmethod
@@ -151,19 +188,17 @@ class Instructions:
 
 
 @dataclass(frozen=True, slots=True)
-class Survey:
+class Survey(Phase):
     """Likert questions, each rated on ``n_points`` and confirmed with ENTER."""
 
     type: ClassVar[str] = "survey"
-    spec: dict
-    include_on_resume: bool
     questions: tuple[str, ...]
     n_points: int
 
     @classmethod
     def from_dict(cls, d: dict, index: int) -> Survey:
-        return cls(spec=d, include_on_resume=d.get("include_on_resume", False),
-                   questions=tuple(d.get("questions", ())), n_points=d.get("n_points", 7))
+        return cls(**cls._shared(d), questions=tuple(d.get("questions", ())),
+                   n_points=d.get("n_points", 7))
 
     @staticmethod
     def problems(d: dict) -> list[str]:
@@ -174,7 +209,7 @@ class Survey:
 
 
 @dataclass(frozen=True, slots=True)
-class GamePhase:
+class GamePhase(Phase):
     """A game block: the env it plays, how long, at what rate, and what ends it.
 
     The keys a block maps (``keys``) and its menu are its spec's, read by the
@@ -183,8 +218,6 @@ class GamePhase:
     """
 
     type: ClassVar[str] = "game"
-    spec: dict
-    include_on_resume: bool
     backend: str
     #: the env id, as the backend reads it
     game: str
@@ -259,7 +292,7 @@ class GamePhase:
         advance_on = d.get("advance_on")
         instructions = d.get("instructions")
         return cls(
-            spec=d, include_on_resume=False,
+            spec=d, include_on_resume=False,     # a game phase is never replayed on resume
             backend=d.get("backend", "gym"), game=d["game"], mode=mode,
             duration=d.get("duration", 30.0 if mode is BlockMode.DURATION else 300.0),
             n_episodes=d.get("n_episodes", 1),
@@ -299,12 +332,10 @@ class GamePhase:
 
 
 @dataclass(frozen=True, slots=True)
-class CheckDisplay:
+class CheckDisplay(CheckPhase):
     """A rig check: are flips locked to the refresh; missed refreshes."""
 
     type: ClassVar[str] = "check_display"
-    spec: dict
-    include_on_resume: bool
     #: flip intervals to measure
     n: int
     #: flip for this long instead of ``n`` flips, if given
@@ -312,8 +343,7 @@ class CheckDisplay:
 
     @classmethod
     def from_dict(cls, d: dict, index: int) -> CheckDisplay:
-        return cls(spec=d, include_on_resume=d.get("include_on_resume", False),
-                   n=d.get("n", 60), seconds=d.get("seconds"))
+        return cls(**cls._shared(d), n=d.get("n", 60), seconds=d.get("seconds"))
 
     @staticmethod
     def problems(d: dict) -> list[str]:
@@ -321,12 +351,10 @@ class CheckDisplay:
 
 
 @dataclass(frozen=True, slots=True)
-class CheckFrames:
+class CheckFrames(CheckPhase):
     """A rig check: the test pattern played through the run's own game loop, per rate and load."""
 
     type: ClassVar[str] = "check_frames"
-    spec: dict
-    include_on_resume: bool
     rates: tuple[float, ...]
     loads: tuple[str, ...]
     #: seconds per rate and load
@@ -336,9 +364,9 @@ class CheckFrames:
 
     @classmethod
     def from_dict(cls, d: dict, index: int) -> CheckFrames:
-        return cls(spec=d, include_on_resume=d.get("include_on_resume", False),
-                   rates=tuple(d.get("rates", (60,))), loads=tuple(d.get("loads", ("none",))),
-                   seconds=d.get("seconds", 2.0), recording_hz=d.get("recording_hz"))
+        return cls(**cls._shared(d), rates=tuple(d.get("rates", (60,))),
+                   loads=tuple(d.get("loads", ("none",))), seconds=d.get("seconds", 2.0),
+                   recording_hz=d.get("recording_hz"))
 
     @staticmethod
     def problems(d: dict) -> list[str]:
@@ -352,12 +380,10 @@ class CheckFrames:
 
 
 @dataclass(frozen=True, slots=True)
-class CheckTriggers:
+class CheckTriggers(CheckPhase):
     """A rig check: every line and code sent on the rig's trigger line; scanner pulses counted."""
 
     type: ClassVar[str] = "check_triggers"
-    spec: dict
-    include_on_resume: bool
     #: passes of every line and code
     repeat: int
     hold_ms: float
@@ -371,8 +397,7 @@ class CheckTriggers:
 
     @classmethod
     def from_dict(cls, d: dict, index: int) -> CheckTriggers:
-        return cls(spec=d, include_on_resume=d.get("include_on_resume", False),
-                   repeat=d.get("repeat", 1), hold_ms=d.get("hold_ms", 40),
+        return cls(**cls._shared(d), repeat=d.get("repeat", 1), hold_ms=d.get("hold_ms", 40),
                    gap_ms=d.get("gap_ms", 40), pulses=d.get("pulses", 3),
                    seconds=d.get("seconds"), timeout_s=d.get("timeout_s", 60.0))
 
@@ -383,12 +408,10 @@ class CheckTriggers:
 
 
 @dataclass(frozen=True, slots=True)
-class CheckControls:
+class CheckControls(CheckPhase):
     """A rig check: each key of ``keys`` asked for on screen and pressed on the device."""
 
     type: ClassVar[str] = "check_controls"
-    spec: dict
-    include_on_resume: bool
     #: key name -> what it stands for, shown when it is asked for
     keys: dict[str, str]
     #: seconds to press each key
@@ -400,9 +423,9 @@ class CheckControls:
 
     @classmethod
     def from_dict(cls, d: dict, index: int) -> CheckControls:
-        return cls(spec=d, include_on_resume=d.get("include_on_resume", False),
-                   keys=dict(d["keys"]), timeout_s=d.get("timeout_s", 10.0),
-                   has_pad=d.get("has_pad", True), pad_reps=d.get("pad_reps", 3))
+        return cls(**cls._shared(d), keys=dict(d["keys"]),
+                   timeout_s=d.get("timeout_s", 10.0), has_pad=d.get("has_pad", True),
+                   pad_reps=d.get("pad_reps", 3))
 
     @staticmethod
     def problems(d: dict) -> list[str]:
@@ -416,12 +439,10 @@ class CheckControls:
 
 
 @dataclass(frozen=True, slots=True)
-class CheckPhotodiode:
+class CheckPhotodiode(CheckPhase):
     """A rig check: the flip-to-photon offset, and on the same flashes the audio test."""
 
     type: ClassVar[str] = "check_photodiode"
-    spec: dict
-    include_on_resume: bool
     #: ``soundcard`` (the diode on this PC's input 0) or ``recording`` (in the MEG/EEG data)
     readout: str
     #: a microphone at the ear on input 1 times the clicks as heard
@@ -446,9 +467,9 @@ class CheckPhotodiode:
         device = d.get("input_device") or None
         if isinstance(device, str) and device.isdigit():
             device = int(device)
-        return cls(spec=d, include_on_resume=d.get("include_on_resume", False),
-                   readout=d.get("readout", "soundcard"), has_mic=d.get("has_mic", False),
-                   has_audio=d.get("has_audio", True), input_device=device,
+        return cls(**cls._shared(d), readout=d.get("readout", "soundcard"),
+                   has_mic=d.get("has_mic", False), has_audio=d.get("has_audio", True),
+                   input_device=device,
                    samplerate=d.get("samplerate", 48000), n=d.get("n", 10),
                    on_ms=d.get("on_ms", 50.0), gap_min_ms=d.get("gap_min_ms", 150.0),
                    gap_max_ms=d.get("gap_max_ms", 250.0), settle_ms=d.get("settle_ms", 300.0),
@@ -473,14 +494,13 @@ class CheckPhotodiode:
         return out
 
 
-Phase = Union[Fixation, Message, Survey, GamePhase, CheckDisplay, CheckFrames, CheckTriggers,
-              CheckControls, CheckPhotodiode]
 #: Each phase ``type`` and the class it is read as.
-PHASE_CLASSES: dict[str, type] = {cls.type: cls for cls in (
+PHASE_CLASSES: dict[str, type[Phase]] = {cls.type: cls for cls in (
     Fixation, Message, Survey, GamePhase, CheckDisplay, CheckFrames, CheckTriggers,
     CheckControls, CheckPhotodiode)}
-#: The phases of a rig check (:mod:`fmri_gym.checks`).
-CHECK_PHASES = (CheckDisplay, CheckFrames, CheckTriggers, CheckControls, CheckPhotodiode)
+#: The rig check's phase classes (:mod:`fmri_gym.checks`).
+CHECK_PHASES: tuple[type[CheckPhase], ...] = tuple(
+    cls for cls in PHASE_CLASSES.values() if issubclass(cls, CheckPhase))
 
 
 def phase_from_dict(d: dict, index: int) -> Phase:

@@ -79,7 +79,7 @@ from gymnasium import spaces
 
 from . import pad
 from .config import rig as rig_file
-from .config.phases import (CHECK_PHASES, CheckControls, CheckDisplay, CheckFrames,
+from .config.phases import (CHECK_PHASES, CheckControls, CheckDisplay, CheckFrames, CheckPhase,
                             CheckPhotodiode, CheckTriggers, GamePhase)
 from .display import Display, is_locked
 from .keys import _PYGAME_KEY_NAMES, get_events, key_name
@@ -190,8 +190,7 @@ def finish(run: Run, session: int) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def run_check(run: Run, phase: CheckDisplay | CheckFrames | CheckTriggers | CheckControls
-              | CheckPhotodiode, index: int) -> None:
+def run_check(run: Run, phase: CheckPhase, index: int) -> None:
     """Play one check phase: measure, record its tests' verdicts, save its arrays.
 
     :raises KeyboardInterrupt: on ESC or window close (the run is quit); the
@@ -222,7 +221,7 @@ def run_check(run: Run, phase: CheckDisplay | CheckFrames | CheckTriggers | Chec
     run.display.draw_text("Rig check\n\n" + "\n".join(lines))
     _wait_for_duration(run.display, _VERDICT_S)
     if index == max(i for i, p in enumerate(run.config.curriculum.phases)
-                    if isinstance(p, CHECK_PHASES)):
+                    if isinstance(p, CheckPhase)):
         _summary_screen(run)
 
 
