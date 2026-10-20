@@ -409,11 +409,13 @@ class CheckTriggers(CheckPhase):
 
 @dataclass(frozen=True, slots=True)
 class CheckControls(CheckPhase):
-    """A rig check: each key of ``keys`` asked for on screen and pressed on the device."""
+    """A rig check: each key asked for on screen and pressed on the device: the phase's
+    ``keys``, or without them each control of the rig's controller ``"bindings"``,
+    expected as the key it is bound to."""
 
     type: ClassVar[str] = "check_controls"
-    #: key name -> what it stands for, shown when it is asked for
-    keys: dict[str, str]
+    #: key name -> what it stands for, shown when it is asked for; ``None``: the rig's bindings
+    keys: dict[str, str] | None
     #: seconds to press each key
     timeout_s: float
     #: measure a plugged-in controller first
@@ -423,7 +425,7 @@ class CheckControls(CheckPhase):
 
     @classmethod
     def from_dict(cls, d: dict, index: int) -> CheckControls:
-        return cls(**cls._shared(d), keys=dict(d["keys"]),
+        return cls(**cls._shared(d), keys=None if d.get("keys") is None else dict(d["keys"]),
                    timeout_s=d.get("timeout_s", 10.0), has_pad=d.get("has_pad", True),
                    pad_reps=d.get("pad_reps", 3))
 
@@ -431,9 +433,11 @@ class CheckControls(CheckPhase):
     def problems(d: dict) -> list[str]:
         keys = d.get("keys")
         out = _positive_problems(d, ("timeout_s", "pad_reps")) + _bool_problems(d, ("has_pad",))
+        if keys is None:
+            return out  # the rig's bindings
         if not isinstance(keys, dict) or not keys:
             return out + ['keys: expected the keys to test, as {key: what it stands for} '
-                          '(e.g. {"1": "LEFT"})']
+                          '(e.g. {"1": "LEFT"}), or none to test the rig\'s bindings']
         return out + [f"keys: {k!r} is not a key the games can read (one key, a name such as "
                       "1, A, LEFT or SPACE)" for k in keys if k not in KEY_NAMES]
 

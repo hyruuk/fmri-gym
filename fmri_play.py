@@ -11,12 +11,12 @@ which ``fmri-edit`` writes and any shell plays.
 
 How it is played -- the window, the controller, the audio, where the data
 goes -- is the rig's, not the command's: each rig has a file
-(:mod:`fmri_gym.config.rig`), and ``--rig`` names it when there are several.
+(:mod:`fmri_gym.config.rig`), and ``--rig`` names it.
 
 Usage (--ses and --run say which run of which session this is; a session
 script passes the same --ses to all of its runs, each with its own --run):
-    python fmri_play.py --subject sub-01 --curriculum my.json --ses 1 --run 1
-    python fmri_play.py ... --rig bc/prisma    # configs/rigs/bc/prisma.json
+    python fmri_play.py --subject sub-01 --ses 1 --run 1 \
+        --rig configs/rigs/example/laptop.json --curriculum my.json
     python fmri_play.py ... --dummy-trigger    # testing: no experimenter/scanner wait
     python fmri_play.py ... --duration 600 --resume  # a 10-min run of a longer curriculum
 
@@ -74,9 +74,10 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--resume", action="store_true",
                    help="carry on from where this subject's latest run of this config (any "
                    "session) stopped, mid-block included. Default: start at the beginning")
-    p.add_argument("--rig", help="the rig it is played on, <site>/<rig>: its file "
-                   "configs/rigs/<site>/<rig>.json says the window, controller, audio and "
-                   "data root. Default: the only rig file there is; a rig check makes one")
+    p.add_argument("--rig", required=True,
+                   help="the rig file it is played on, e.g. configs/rigs/example/laptop.json: "
+                   "it says the window, controller, audio and data root. A rig check makes "
+                   "one when the file is missing")
     p.add_argument("--dummy-trigger", action="store_true")
     return p
 
@@ -95,7 +96,7 @@ def main() -> None:
     run_config = RunConfig.from_args(args, curriculum, rig)
     problems = run_config.problems()
     if problems:
-        raise ValueError(f"{args.curriculum} on {rig.name}: " + "; ".join(problems))
+        raise ValueError(f"{args.curriculum} on {rig.path}: " + "; ".join(problems))
     run = Run.from_config(run_config)
     if do_rig_check:
         run.logger.set_extra("trigger_error", trigger_error)

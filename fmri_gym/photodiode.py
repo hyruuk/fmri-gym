@@ -7,7 +7,7 @@ the screen can. This task, run once per rig with the same :class:`Display`
 and :class:`Triggers` a session uses, flashes a patch and records the flips,
 so the offset can be measured and then subtracted in analysis::
 
-    python -m fmri_gym.photodiode --fullscreen --rig <site>/<rig>
+    python -m fmri_gym.photodiode --fullscreen --rig configs/rigs/<site>/<rig>.json
 
 The patch (default 120 px, bottom-right) goes white ``n`` times for
 ``--on-ms`` and black again, with a randomized gap in between so nothing
@@ -364,7 +364,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--monitor", type=int, default=0,
                    help="which monitor: the one the sessions use, since the offset is its own")
     p.add_argument("--no-vsync", action="store_true")
-    p.add_argument("--rig", help="the rig, <site>/<rig>, whose rig file's triggers to use")
+    p.add_argument("--rig", help="the rig file whose triggers to use")
     p.add_argument("--trigger-backend", choices=("null", "lsl", "serial", "parallel"))
     p.add_argument("--trigger-port")
     p.add_argument("--audio", action="store_true",

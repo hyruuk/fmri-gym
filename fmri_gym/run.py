@@ -428,7 +428,7 @@ class Run:
                   "this is a test run, not a session", file=sys.stderr)
         audio = Audio(enabled=config.rig.has_audio)
         print(f"audio: {audio.status()}", file=sys.stderr)
-        pad_status = pad.init(config.rig.has_pad)
+        pad_status = pad.init(config.rig.has_pad, config.rig.bindings)
         print(f"pad: {pad_status}", file=sys.stderr)
         screen = config.rig.screen
         display = Display(size=screen.size, fullscreen=screen.is_fullscreen,

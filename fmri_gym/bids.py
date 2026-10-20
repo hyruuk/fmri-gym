@@ -278,8 +278,8 @@ def main() -> None:
     p = argparse.ArgumentParser(
         description="Print a subject's next free BIDS session number (001, 002, ...).")
     p.add_argument("--subject", required=True, help="BIDS subject: sub-<letters/digits>")
-    p.add_argument("--rig", help="the rig, <site>/<rig>, whose data root holds the BIDS tree, "
-                   "<root>/sub-XX/ses-NNN/ (default: the only rig file there is)")
+    p.add_argument("--rig", required=True, help="the rig file whose data root holds the BIDS "
+                   "tree, <root>/sub-XX/ses-NNN/")
     args = p.parse_args()
     root = RigConfig.open(args.rig).data_root
     print(f"{next_session(root, subject_label(args.subject)):03d}")

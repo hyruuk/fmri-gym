@@ -2,27 +2,34 @@
 
 A **rig** is one setup a run is played on -- a monitor, a scanner, a response
 device, a trigger line -- and a site can have several. Each has its own rig
-file in the repo, ``configs/rigs/<site>/<rig>.json`` (``configs/rigs/README.md``),
-named by its ``site`` and ``rig`` fields, so every site's rigs are kept and
-reviewed with the code; ``$FMRI_GYM_RIGS`` points at another folder of them.
-A curriculum says what is played and plays the same on every rig; the rig file
+file, kept in the repo as ``configs/rigs/<site>/<rig>.json``
+(``configs/rigs/README.md``), so every site's rigs are reviewed with the code. A
+curriculum says what is played and plays the same on every rig; the rig file
 says how this rig plays it, and every run played on the rig reads it.
 
-``fmri-play --rig <site>/<rig>`` picks the rig (:meth:`RigConfig.open`). With
-one rig file there is nothing to pick; with none, or with several and no
-``--rig``, nothing starts: which window, controller and data folder a session
-gets is not something to guess.
+``fmri-play --rig <file>`` names the rig file, as ``--curriculum`` names the
+curriculum's (:meth:`RigConfig.open`); it is required, since which window,
+controller and data folder a session gets is not something to guess.
 
-A rig file holds what the rig is -- :data:`FIELDS`, every one required, filed
-with every run so that rig checks from every site can be pooled -- and, each
-optional, how its runs are played (:data:`DEFAULTS` when left out), under the
-field names of :class:`RigConfig` and :class:`ScreenConfig`, so the file and the
-code say the same thing:
+Every key of a rig file is optional: an empty ``{}`` plays on the defaults. The
+rig check files its results under ``site`` and ``rig``, the file's folder and
+name; written in the file they must say the same. It may describe the rig for
+people -- :data:`FIELDS`, notes
+nothing plays from, filed with every run and pooled by the rig check -- and
+say how its runs are played (:data:`DEFAULTS` when left out), under the field
+names of :class:`RigConfig` and :class:`ScreenConfig`, so the file and the code
+say the same thing:
 
 - ``"screen"``: ``{"size": "1024x768", "is_fullscreen": false, "monitor": 0,
   "has_vsync": true}``, the monitor by index (0: the first); fullscreen takes
   the monitor's resolution;
 - ``"has_pad"``: read a plugged-in game controller (:mod:`fmri_gym.pad`);
+- ``"bindings"``: which keyboard key each of the controller's controls presses
+  (:data:`fmri_gym.pad.CONTROLS` -> a key name, as curricula write keys),
+  ``{"A": "SPACE", "B": "Z", "UP": "UP", ...}``: one map for every game played
+  on the rig, so a curriculum's keys stay keyboard keys. A control left out
+  presses nothing; with none at all a plugged-in controller is warned about
+  (a controller that types keys itself needs none);
 - ``"has_audio"``: play game audio; ``false`` mutes every block;
 - ``"data_root"``: where the BIDS tree goes, ``<root>/sub-XX/ses-NNN/beh/<run>/``;
 - ``"triggers"``: the scanner's start sync and the trigger codes, over which
@@ -31,7 +38,7 @@ code say the same thing:
   the manifest (``defaulted``).
 
 It is written by hand or in the rig form (``python -m fmri_gym.checks rig --rig
-<site>/<rig>``), which a rig check also opens when its rig has no valid file.
+<file>``), which a rig check also opens when its rig has no valid file.
 """
 
 from __future__ import annotations
@@ -43,10 +50,13 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from ..keys import KEY_NAMES
+from ..pad import CONTROLS
 from ..triggers import TriggerError, TriggerSettings
 
 MODALITIES = ("fmri", "meg", "eeg", "behav")
-#: What the rig is: every key required (``notes`` may be empty).
+#: What the rig is, for people: notes nothing plays from, each optional, filed with
+#: every run and pooled by the rig check (``site`` and ``rig`` are the file's place).
 FIELDS = {
     "site": "the site, and the rig file's folder: letters, digits, _ and -",
     "rig": "this rig at the site, and the rig file's name: letters, digits, _ and -",
@@ -70,7 +80,7 @@ EXAMPLES = {
 #: the pad and the audio on.
 DEFAULTS: dict[str, Any] = {
     "screen": {"size": "1024x768", "is_fullscreen": False, "monitor": 0, "has_vsync": True},
-    "has_pad": True, "has_audio": True, "data_root": "data", "triggers": {},
+    "has_pad": True, "has_audio": True, "data_root": "data", "triggers": {}, "bindings": {},
 }
 #: Trigger presets the editor and the rig check offer. Each names ``sync.mode``
 #: and ``backend`` outright: a section that leaves them out runs, but is
@@ -91,11 +101,12 @@ TRIGGER_PRESETS: dict[str, dict] = {
 _LABEL = re.compile(r"[A-Za-z0-9_-]+")
 _INITIALS = re.compile(r"[A-Z]{2,4}")
 _SIZE = re.compile(r"([1-9]\d*)x([1-9]\d*)")
-_MAKE = ("make one with the rig's long rig check, which opens a form for it: fmri-play "
-         "--curriculum configs/curricula/checks/rig-check-long.json --subject sub-rig --ses 1 "
-         "--run 1 --rig <site>/<rig> (python -m fmri_gym.checks rig --rig <site>/<rig> opens "
-         "the form alone)")
-_REPO_RIGS = Path(__file__).resolve().parents[2] / "configs" / "rigs"
+_MAKE = ("make it with the rig's long rig check, which opens a form for it: fmri-play "
+         "--subject sub-rig --ses 1 --run 1 --rig <file> --curriculum "
+         "configs/curricula/checks/rig-check-long.json (python -m fmri_gym.checks rig --rig "
+         "<file> opens the form alone), or start from configs/rigs/example/empty.json")
+#: The rig files kept in the repo, which the editor offers.
+REPO_RIGS = Path(__file__).resolve().parents[2] / "configs" / "rigs"
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,14 +140,16 @@ class ScreenConfig:
 class RigConfig:
     """One rig file, checked: what the rig is, and how every run on it is played."""
 
-    #: the rig's name, ``<site>/<rig>``: its file's place under :func:`folder`.
-    name: str
+    #: the rig file, as ``--rig`` named it.
+    path: str
     #: what the rig is, :data:`FIELDS` as written.
     fields: dict[str, str]
     #: the window.
     screen: ScreenConfig
     #: read a plugged-in game controller as key presses.
     has_pad: bool
+    #: the controller's control -> the key it presses
+    bindings: dict[str, str]
     #: play game audio; ``False`` mutes every block and opens no output.
     has_audio: bool
     #: the BIDS tree's root.
@@ -145,38 +158,42 @@ class RigConfig:
     triggers: TriggerSettings
 
     @classmethod
-    def from_dict(cls, rig: dict, name: str) -> RigConfig:
+    def from_dict(cls, rig: dict, path: str) -> RigConfig:
         """Read a rig file's JSON, :data:`DEFAULTS` where it says nothing.
 
         :param rig: the file's JSON.
-        :param name: ``<site>/<rig>``, which the file's ``site`` and ``rig`` fields must match.
-        :raises ValueError: naming each field that is missing, unknown or invalid, and
-            how to fix it.
+        :param path: the file; its folder and name are the rig's ``site`` and ``rig``,
+            which a ``site`` or ``rig`` it writes must match.
+        :raises ValueError: naming each field that is unknown or invalid, and how to fix it.
         """
         found = problems(rig)
-        named = name_of(rig) if not found else name
-        if named != name:
-            found.append(f"site/rig are {named!r}: a rig file sits at <site>/<rig>.json, "
-                         f"{path(named)}")
+        site, rig_name = Path(path).parent.name, Path(path).stem
+        found += [f'"{k}" is {rig[k]!r}, but the file is {path}: its folder is the site, '
+                  f"its name the rig" for k, own in (("site", site), ("rig", rig_name))
+                  if rig.get(k, own) != own]
         if found:
-            raise ValueError(f"{path(name)}: " + "; ".join(found) + ". Fix it by hand, or in "
-                             f"the form: python -m fmri_gym.checks rig --rig {name}")
+            raise ValueError(f"{path}: " + "; ".join(found) + ". Fix it by hand, or in the "
+                             f"form: python -m fmri_gym.checks rig --rig {path}")
         settings = {**DEFAULTS, **rig}
-        return cls(name=name, fields={k: rig[k] for k in FIELDS},
+        fields = {"site": site, "rig": rig_name,
+                  **{k: rig[k] for k in FIELDS if k in rig and k not in ("site", "rig")}}
+        return cls(path=path, fields=fields,
                    screen=ScreenConfig.from_dict(rig.get("screen", {})),
-                   has_pad=settings["has_pad"], has_audio=settings["has_audio"],
+                   has_pad=settings["has_pad"], bindings=dict(settings["bindings"]),
+                   has_audio=settings["has_audio"],
                    data_root=settings["data_root"],
                    triggers=TriggerSettings.from_dict(settings["triggers"]))
 
     @classmethod
-    def open(cls, name: str | None) -> RigConfig:
-        """The rig ``name``'s file, or the only one there is, checked.
+    def open(cls, path: str) -> RigConfig:
+        """The rig file at ``path``, checked.
 
-        :param name: ``<site>/<rig>``; ``None`` for the only rig file there is.
-        :raises ValueError: see :func:`choose`, :func:`load` and :meth:`from_dict`.
+        :raises ValueError: a file that is missing, not a JSON object, or that
+            :meth:`from_dict` refuses; the message says how to make one.
         """
-        name = choose(name)
-        return cls.from_dict(load(name), name)
+        if not os.path.isfile(path):
+            raise ValueError(f"--rig {path}: no such file; {_MAKE}")
+        return cls.from_dict(load(path), path)
 
     @property
     def has_trigger_setup(self) -> bool:
@@ -194,8 +211,8 @@ class RigConfig:
 
     def record(self) -> dict[str, Any]:
         """The rig file as the run played it, every default written out: the manifest's."""
-        return {**self.fields, "screen": self.screen.record(), "has_pad": self.has_pad,
-                "has_audio": self.has_audio, "data_root": self.data_root,
+        return {"path": self.path, **self.fields, "screen": self.screen.record(), "has_pad": self.has_pad,
+                "bindings": self.bindings, "has_audio": self.has_audio, "data_root": self.data_root,
                 "triggers": asdict(self.triggers)}
 
     def status(self) -> str:
@@ -203,60 +220,28 @@ class RigConfig:
         screen = self.screen
         window = ("fullscreen" if screen.is_fullscreen
                   else f"{screen.size[0]}x{screen.size[1]} window")
-        return (f"{path(self.name)} | {window} on monitor {screen.monitor}, vsync "
+        return (f"{self.path} | {window} on monitor {screen.monitor}, vsync "
                 f"{'on' if screen.has_vsync else 'off'} | pad {'on' if self.has_pad else 'off'}"
                 f" | audio {'on' if self.has_audio else 'off'} | data in {self.data_root}"
                 f" | triggers {self.triggers.sync.mode}, codes over {self.triggers.backend}")
 
 
-def folder() -> Path:
-    """Where the rig files are: the repo's ``configs/rigs/``, or ``$FMRI_GYM_RIGS``."""
-    return Path(os.environ.get("FMRI_GYM_RIGS") or _REPO_RIGS)
+def rig_files() -> list[str]:
+    """The rig files kept in the repo (``configs/rigs/<site>/<rig>.json``), as paths
+    from the working directory where they can be, for the editor to offer."""
+    files = sorted(REPO_RIGS.glob("*/*.json"))
+    return [os.path.relpath(f) if not os.path.relpath(f).startswith("..") else str(f)
+            for f in files]
 
 
-def path(name: str) -> Path:
-    """The file of the rig ``name``, ``<site>/<rig>`` (it need not exist)."""
-    return folder() / f"{name}.json"
-
-
-def names() -> list[str]:
-    """The rigs there is a file for, as ``<site>/<rig>``."""
-    return sorted(f"{p.parent.name}/{p.stem}" for p in folder().glob("*/*.json"))
-
-
-def choose(name: str | None) -> str:
-    """The rig to play on: ``name``, or the only one there is.
-
-    :raises ValueError: when ``name`` is not ``<site>/<rig>`` or has no file, or none
-        is given and there is not exactly one; the message says how to pick or make one.
-    """
-    found = names()
-    have = f"there are {', '.join(found)}" if found else "there are none"
-    if name is not None and name.count("/") != 1:
-        raise ValueError(f"--rig {name}: a rig is named <site>/<rig> ({have})")
-    if name is not None:
-        if name in found:
-            return name
-        raise ValueError(f"--rig {name}: no {path(name)} ({have}); {_MAKE}")
-    if len(found) == 1:
-        return found[0]
-    if found:
-        raise ValueError(f"{len(found)} rigs in {folder()} ({', '.join(found)}): "
-                         "pick one with --rig <site>/<rig>")
-    if Path("rig.json").exists():  # a rig check's file in the working directory is not read
-        raise ValueError(f"no rig file in {folder()}: move rig.json there as <site>/<rig>.json, "
-                         f"named by its site and rig fields, or {_MAKE}")
-    raise ValueError(f"no rig file in {folder()}: {_MAKE}")
-
-
-def load(name: str) -> dict:
-    """The rig file of ``name`` as written, unchecked (the form edits an invalid one).
+def load(path: str) -> dict:
+    """The rig file at ``path`` as written, unchecked (the form edits an invalid one).
 
     :raises ValueError: a file that is not a JSON object.
     """
-    where = path(name)
+    where = path
     try:
-        with where.open() as f:
+        with open(where) as f:
             rig = json.load(f)
     except json.JSONDecodeError as exc:
         raise ValueError(f"{where}: not JSON ({exc})") from None
@@ -265,47 +250,30 @@ def load(name: str) -> dict:
     return rig
 
 
-def draft(name: str | None) -> dict:
-    """What the rig form starts from for the rig ``name`` (``<site>/<rig>``): its file
-    as written, named after the file; only the name when it has no file, or one that
-    is not JSON; nothing at all for no name.
-    """
-    if name is None:
-        return {}
+def draft(path: str) -> dict:
+    """What the rig form starts from for the rig file at ``path``: the file as written;
+    nothing when it does not exist yet or is not JSON."""
     try:
-        written = load(name) if name in names() else {}
+        return load(path) if os.path.isfile(path) else {}
     except ValueError:
-        written = {}
-    site, _, rig = name.partition("/")
-    return {**written, "site": site, "rig": rig}
+        return {}
 
 
-def name_of(rig: dict) -> str:
-    """A rig file's name, ``<site>/<rig>``, from its fields."""
-    return f"{rig['site']}/{rig['rig']}"
-
-
-def save(rig: dict) -> Path:
-    """Write ``rig`` as the file of the rig it names, ``<site>/<rig>.json``.
-
-    :return: the file written.
-    """
-    where = path(name_of(rig))
-    where.parent.mkdir(parents=True, exist_ok=True)
-    with where.open("w") as f:
+def save(rig: dict, path: str) -> None:
+    """Write ``rig`` as the rig file at ``path``, its folder made if need be."""
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w") as f:
         json.dump(rig, f, indent=2)
         f.write("\n")
-    return where
 
 
 def problems(rig: dict) -> list[str]:
-    """What keeps ``rig`` from being a rig file: every one of :data:`FIELDS`, the
-    optional :data:`DEFAULTS` of the right type, no other key.
+    """What keeps ``rig`` from being a rig file: :data:`FIELDS` and :data:`DEFAULTS` of
+    the right type where given, no other key.
 
     :return: one line per problem; empty when it is valid.
     """
-    out = [f"missing {k!r} ({what})" for k, what in FIELDS.items() if k not in rig]
-    out += [f"unknown key {k!r}" for k in rig if k not in FIELDS and k not in DEFAULTS]
+    out = [f"unknown key {k!r}" for k in rig if k not in FIELDS and k not in DEFAULTS]
     fields = {k: v for k, v in rig.items() if k in FIELDS}
     out += [f"{k!r} must be a string" for k, v in fields.items() if not isinstance(v, str)]
     out += [f"{k!r} is empty" for k, v in fields.items() if k != "notes" and v == ""]
@@ -340,7 +308,18 @@ def _setting_problems(rig: dict) -> list[str]:
     root = rig.get("data_root", DEFAULTS["data_root"])
     if not isinstance(root, str) or not root:
         out.append(f'"data_root" must be a folder, got {root!r}')
-    return out + trigger_problems(rig.get("triggers", {}))
+    return out + trigger_problems(rig.get("triggers", {})) + _binding_problems(rig)
+
+
+def _binding_problems(rig: dict) -> list[str]:
+    """``bindings``: the controller's controls, each to a key name a curriculum can bind."""
+    bindings = rig.get("bindings", {})
+    if not isinstance(bindings, dict):
+        return [f'"bindings": expected {{control: key}}, got {bindings!r}']
+    return ([f'"bindings": {c!r} is not a control of the controller ({", ".join(CONTROLS)})'
+             for c in bindings if c not in CONTROLS]
+            + [f'"bindings": {c!r}: {k!r} is not a key name (as in fmri_gym/keys.py)'
+               for c, k in bindings.items() if k not in KEY_NAMES])
 
 
 def trigger_problems(section: Any) -> list[str]:

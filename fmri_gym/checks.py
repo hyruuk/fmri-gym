@@ -19,10 +19,12 @@ Its curriculum holds check phases where a game run holds games:
   run waits for the scanner. Only the configured port is written to: another
   may be wired to a response box or an eye tracker, and a write that succeeds
   says nothing of where it went.
-* ``check_controls`` -- the response device. Every key of ``keys`` is first
-  checked automatically -- a key the games can read, and one that comes back
-  through the event queue as itself -- and the input devices plugged in are
-  listed; then each key is asked for on screen and pressed on the real device.
+* ``check_controls`` -- the response device. The keys asked for are the
+  phase's ``keys``, or without them each control of the rig's ``"bindings"``,
+  expected as the key it is bound to. Every key is first checked
+  automatically -- one that comes back through the event queue as itself --
+  and the input devices plugged in are listed; then each key is asked for on
+  screen and pressed on the real device.
 * ``check_photodiode`` -- the flip-to-photon offset, and on the same flashes
   the audio test: a tone burst on every other flash, timed at the DAC, and at
   a microphone at the ear with ``"has_mic": true``.
@@ -49,7 +51,7 @@ numbers, charts, this rig's previous checks; one offline file),
 holds every check filed there, read from their manifests, so checks filed by
 an earlier version still line up::
 
-    python -m fmri_gym.checks rig --rig <site>/<rig>   # fill in / update a rig file
+    python -m fmri_gym.checks rig --rig configs/rigs/<site>/<rig>.json   # fill in / update a rig file
     python -m fmri_gym.checks report <run folder>...   # re-file checks already run
     python -m fmri_gym.checks pool data/ /mnt/siteB/data/ --out rigchecks.tsv
 """
@@ -85,6 +87,7 @@ from .display import Display, is_locked
 from .keys import _PYGAME_KEY_NAMES, get_events, key_name
 from .photodiode import (AudioRecorder, Verdict, _clicker, _light_verdict,
                          _log_clicks, _readout, _sound_verdict, run_flashes)
+from .replay import frame_arrays
 from .run import _wait_for_duration
 from .triggers import LIFECYCLE_EVENTS, Codes, TriggerError, Triggers
 
@@ -137,18 +140,18 @@ def _ask_triggers(rig: rig_file.RigConfig) -> rig_file.RigConfig:
 
     :raises ValueError: with no screen for the dialog, or when it is cancelled.
     """
-    where = rig_file.path(rig.name)
+    where = rig.path
     fix = (f'{where} has no "triggers": set them on the editor\'s Triggers tab (fmri-edit) '
            "or in the file, or answer the dialog a rig check opens")
     if not can_show_form():
         raise ValueError(f"rig check: {fix}; there is no screen here for the dialog")
     from .gui_qt import choose_triggers
-    section = choose_triggers(str(where))
+    section = choose_triggers(where)
     if section is None:
         raise ValueError(f"rig check: {fix}; it was cancelled")
-    rig_file.save({**rig_file.load(rig.name), "triggers": section})
+    rig_file.save({**rig_file.load(where), "triggers": section}, where)
     print(f"rig check: trigger settings saved in {where}", file=sys.stderr)
-    return rig_file.RigConfig.open(rig.name)
+    return rig_file.RigConfig.open(where)
 
 
 def finish(run: Run, session: int) -> bool:
@@ -359,7 +362,12 @@ def _round_trip(name: str) -> bool:
 
 def _check_controls(run: Run, phase: CheckControls, summary: dict, arrays: dict, tests: dict,
                     index: int) -> None:
-    keys = phase.keys
+    keys = phase.keys if phase.keys is not None else {
+        key: f"the {control} control" for control, key in run.config.rig.bindings.items()}
+    if not keys:
+        tests["controls"] = Verdict("not run", "the phase lists no keys and the rig file has "
+                                               'no "bindings" to test')
+        return
     summary["devices"] = input_devices()
     summary["pad"] = _check_pad(run, phase)
     summary["automatic"] = {name: _round_trip(name) for name in keys}
@@ -599,15 +607,23 @@ def _play_pattern(run: Run, fps: float, load: str, phase: CheckFrames,
     rate = f"{fps:g}".replace(".", "p")
     env_id = _register_pattern(f"Frames{rate}fps{'' if load == 'none' else load.upper()}")
     caption = f"Rig check: frames at {fps:g} fps" + ("" if load == "none" else f", {load} load")
+    # keys: the pattern takes no input; its one action is what a frame with no key sends.
     game = {"type": "game", "backend": "gym", "game": env_id, "mode": "duration",
             "duration": phase.seconds, "fps": fps, "has_audio": False, "seed": 1000 + index,
-            "env_kwargs": {"caption": caption}}
+            "keys": {"": 0}, "env_kwargs": {"caption": caption}}
     # The run's own game loop, not a copy: its pacing and triggers are what is measured.
     run._game(GamePhase.from_dict(game, index), index)
     entry = run.logger.manifest["phases"][-1]
-    with np.load(os.path.join(run.outdir, entry["data_file"]), allow_pickle=True) as d:
-        flips, codes = d["flip_time"], (d["trigger"] if "trigger" in d else None)
+    flips, codes = _block_flips(os.path.join(run.outdir, entry["data_dir"]))
     return _judge_frames(run, fps, load, phase, flips, codes, entry)
+
+
+def _block_flips(block: str) -> tuple[np.ndarray, np.ndarray | None]:
+    """A logged block's flip times, and its frame trigger codes (0: none) if it sent any."""
+    frames = frame_arrays(block)
+    codes = frames.get("trigger")
+    return (np.asarray(frames.get("flip_time", []), dtype=float),
+            None if codes is None else np.array([c or 0 for c in codes], dtype=int))
 
 
 def _judge_frames(run: Run, fps: float, load: str, phase: CheckFrames, flips: np.ndarray,
@@ -632,7 +648,7 @@ def _judge_frames(run: Run, fps: float, load: str, phase: CheckFrames, flips: np
          "locked": period is not None,
          "divides_refresh": (bool(abs(dt / period - round(dt / period)) < 1e-3)
                              if period else None),
-         "data_file": entry["data_file"], "triggers": _frame_marks(run, codes, dt, phase)}
+         "data_dir": entry["data_dir"], "triggers": _frame_marks(run, codes, dt, phase)}
     name = f"{fps:g} fps" + ("" if load == "none" else f" under {load} load")
     allowed = {"lost": 0, "late": 0, "pacing_resets": 0}
     what = {"lost": "frames lost", "late": "frames a refresh late",
@@ -1105,32 +1121,26 @@ NAMES = tuple(c[0] for c in COLUMNS)
 # ---------------------------------------------------------------------------
 
 
-def ensure_rig(name: str | None) -> rig_file.RigConfig:
+def ensure_rig(path: str) -> rig_file.RigConfig:
     """The rig a rig check plays on; when its file is missing or invalid, the form to
     fill it in first (:func:`fmri_gym.gui_qt.fill_rig`), then the file.
 
     The form needs the ``gui`` extra and a screen; without them, or when it is
-    cancelled, the rig file's own error is raised. Several rigs and no ``name``
-    is the experimenter's to settle: that raises with no form.
+    cancelled, the rig file's own error is raised.
 
-    :param name: ``--rig``, ``<site>/<rig>``; ``None`` for the only rig, or a new one when
-        there is none.
+    :param path: ``--rig``, the rig file.
     :raises ValueError: when there is still no valid rig file, saying how to make one.
     """
-    if (name is None and len(rig_file.names()) > 1) or (name is not None and name.count("/") != 1):
-        return rig_file.RigConfig.open(name)  # raises: which rig is the experimenter's to say
     try:
-        return rig_file.RigConfig.open(name)
+        return rig_file.RigConfig.open(path)
     except ValueError as error:
         if not can_show_form():
             raise
         print(f"{error}\nrig check: opening the rig form", file=sys.stderr)
         from .gui_qt import fill_rig
-        only = rig_file.names()[0] if rig_file.names() else None
-        saved = fill_rig(rig_file.draft(name if name is not None else only))
-        if saved is None:
+        if fill_rig(rig_file.draft(path), path) is None:
             raise
-    return rig_file.RigConfig.open(rig_file.name_of(saved))
+    return rig_file.RigConfig.open(path)
 
 
 def can_show_form() -> bool:
@@ -1420,8 +1430,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description="The rig file, and pooling rig checks.")
     sub = p.add_subparsers(dest="command", required=True)
     r = sub.add_parser("rig", help="fill in or update a rig file, in a form")
-    r.add_argument("--rig", help="the rig, <site>/<rig>; default: the only rig file there "
-                                 "is, or a new one when there is none")
+    r.add_argument("--rig", required=True, help="the rig file, made when it is missing")
     f = sub.add_parser("report", help="re-file checks already run: their reports and the "
                                       "data root's rigchecks.tsv, with this version")
     f.add_argument("folders", nargs="+", help="rig-check run folders")
@@ -1453,19 +1462,16 @@ def main() -> None:
         sys.stdout.write(text)
 
 
-def _edit_rig(name: str | None) -> None:
-    """Open the form on a rig file (a new one if there is none), and save it."""
+def _edit_rig(path: str) -> None:
+    """Open the form on the rig file at ``path`` (a new one if there is none), and save it."""
     if not can_show_form():
         raise RuntimeError("rig check: the rig form needs PySide6 (pip install "
                            "'fmri-gym[gui]') and a screen; or edit the file by hand")
-    if name is None and rig_file.names():
-        name = rig_file.choose(None)
     from .gui_qt import fill_rig
-    saved = fill_rig(rig_file.draft(name))
-    if saved is None:
+    if fill_rig(rig_file.draft(path), path) is None:
         print("rig check: cancelled, the rig file is unchanged", file=sys.stderr)
         return
-    print(f"saved: {rig_file.path(rig_file.name_of(saved))}")
+    print(f"saved: {path}")
 
 
 # ---------------------------------------------------------------------------
@@ -1760,6 +1766,18 @@ def _html_display(m: dict, folder: str) -> str:
     return "".join(out)
 
 
+def _html_section(section: Callable[[dict, str], str], m: dict, folder: str,
+                  verdict: dict | None) -> str:
+    """A check's section; for a check that broke part-way and left its summary
+    half-written (see :func:`run_check`), a note that it stopped, and why."""
+    try:
+        return section(m, folder)
+    except (KeyError, IndexError, TypeError):
+        why = (verdict or {}).get("why")
+        return (f'<p class="note">This check stopped before it finished'
+                f'{": " + _e(why) if why else ""}.</p>')
+
+
 def _html_frames(m: dict, folder: str) -> str:
     f = m["rig_check"]["frames"]
     out = [f'<p class="note">A test pattern played as a game through the session\'s own game '
@@ -1771,9 +1789,9 @@ def _html_frames(m: dict, folder: str) -> str:
                    'alone; late frames cannot be told from jitter.</p>')
     rows = []
     for b in f["blocks"]:
-        z = np.load(os.path.join(folder, b["data_file"]), allow_pickle=True) \
-            if os.path.exists(os.path.join(folder, b["data_file"])) else None
-        line = sparkline(np.diff(z["flip_time"]) * 1000) if z is not None else ""
+        block = os.path.join(folder, b["data_dir"])
+        line = (sparkline(np.diff(_block_flips(block)[0]) * 1000) if os.path.isdir(block)
+                else "")
         t = b["triggers"]
         marks = "off" if t is None else (f"{t['marked']}/{t['expected']}"
                                          + ("" if t["ok"] else f" — {_e(t['why'])}"))
@@ -1927,7 +1945,8 @@ def render_html(m: dict, folder: str, history: list[dict[str, str]]) -> str:
     verdict = "Every test passed" if not failed else f"{len(failed)} of {len(tests)} tests failed"
     body = [f'<header><h1>Rig check · {_e(rig["site"])} / {_e(rig["rig"])}</h1>'
             f'<div class="meta">{_e(m["start_time"])} · {_e(m["run"]["label"])} · PI '
-            f'{_e(rig["pi"])} · {_e(rig["modality"])} · fmri-gym {_e(m["versions"]["fmri_gym"])} '
+            f'{_e(rig.get("pi", "?"))} · {_e(rig.get("modality", "?"))} · '
+            f'fmri-gym {_e(m["versions"]["fmri_gym"])} '
             f'({_e(m["versions"]["git"])})</div></header>',
             f'<div class="hero">{_status("pass" if not failed else "fail")} {_e(verdict)}</div>',
             '<div class="card">' + _html_table(["test", "verdict", "why"], [
@@ -1938,7 +1957,8 @@ def render_html(m: dict, folder: str, history: list[dict[str, str]]) -> str:
         body.append(f'<h2>{_e(title)} {_status(tests.get(test, {}).get("status", "not run"))}'
                     + (f' {_status(tests["audio"]["status"])}' if key == "photodiode"
                        and "audio" in tests else "") + "</h2>")
-        body.append('<div class="card">' + (section(m, folder) if key in m["rig_check"]
+        body.append('<div class="card">' + (_html_section(section, m, folder, tests.get(test))
+                                            if key in m["rig_check"]
                                             else '<p class="note">Not run.</p>') + "</div>")
     body.append(f'<h2>This rig over time</h2><div class="card">{_html_history(m, history)}</div>')
     body.append('<h2>Rig</h2><div class="card">' + _html_table(["", ""], [

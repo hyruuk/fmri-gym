@@ -1,5 +1,5 @@
-"""The rig config: picking a rig file, reading it, and refusing a wrong one; and every
-rig file in the repo is one a run would start on."""
+"""The rig config: reading a rig file and refusing a wrong one; and every rig file in the
+repo is one a run would start on."""
 
 from __future__ import annotations
 
@@ -14,24 +14,25 @@ FIELDS = {**{k: "x" for k in rig.FIELDS}, "site": "site1", "pi": "MT", "modality
           "notes": ""}
 
 
-REPO_RIGS = rig.names()  # read before any test points the folder elsewhere
-
-
-@pytest.mark.parametrize("name", REPO_RIGS)
-def test_repo_rig_files_are_valid(name):
-    assert RigConfig.open(name).name == name
+@pytest.mark.parametrize("path", [str(p) for p in sorted(rig.REPO_RIGS.glob("*/*.json"))])
+def test_repo_rig_files_are_valid(path):
+    assert RigConfig.open(path).path == path
 
 
 @pytest.fixture(autouse=True)
-def rigs_folder(tmp_path, monkeypatch, request):
-    if request.node.originalname != "test_repo_rig_files_are_valid":
-        monkeypatch.setenv("FMRI_GYM_RIGS", str(tmp_path / "rigs"))
+def in_tmp(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
 
+def write(name: str, **values) -> str:
+    """The rig file ``site1/<name>.json``, written; its path."""
+    path = f"site1/{name}.json"
+    rig.save({**FIELDS, "rig": name, **values}, path)
+    return path
+
+
 def test_defaults_fill_what_the_file_leaves_out():
-    rig.save({**FIELDS, "rig": "desk"})
-    desk = RigConfig.open(None)
+    desk = RigConfig.open(write("desk"))
     screen = desk.screen
     assert (screen.size, screen.is_fullscreen, screen.monitor, screen.has_vsync) == (
         (1024, 768), False, 0, True)
@@ -40,28 +41,18 @@ def test_defaults_fill_what_the_file_leaves_out():
 
 
 def test_settings_are_read():
-    rig.save({**FIELDS, "rig": "scan", "screen": {"size": "800x600", "is_fullscreen": True,
-                                                  "monitor": 1, "has_vsync": False},
-              "has_pad": False, "has_audio": False, "data_root": "/data"})
-    scan = RigConfig.open("site1/scan")
+    scan = RigConfig.open(write("scan", screen={"size": "800x600", "is_fullscreen": True,
+                                                "monitor": 1, "has_vsync": False},
+                                has_pad=False, has_audio=False, data_root="/data"))
     screen = scan.screen
     assert (screen.size, screen.is_fullscreen, screen.monitor, screen.has_vsync) == (
         (800, 600), True, 1, False)
     assert (scan.has_pad, scan.has_audio, scan.data_root) == (False, False, "/data")
 
 
-def test_none_or_several_rigs_need_a_name():
-    with pytest.raises(ValueError, match="rig-check-long"):
-        RigConfig.open(None)
-    rig.save({**FIELDS, "rig": "a"})
-    rig.save({**FIELDS, "rig": "b"})
-    with pytest.raises(ValueError, match="pick one with --rig"):
-        RigConfig.open(None)
-    assert RigConfig.open("site1/b").name == "site1/b"
-    with pytest.raises(ValueError, match="there are site1/a, site1/b"):
-        RigConfig.open("site1/c")
-    with pytest.raises(ValueError, match="a rig is named <site>/<rig>"):
-        RigConfig.open("b")
+def test_a_missing_file_says_how_to_make_one():
+    with pytest.raises(ValueError, match="no such file.*rig-check-long"):
+        RigConfig.open("site1/none.json")
 
 
 @pytest.mark.parametrize("change, problem", [
@@ -72,39 +63,29 @@ def test_none_or_several_rigs_need_a_name():
     ({"audio": False}, "unknown key 'audio'"),
     ({"data_root": ""}, '"data_root"'),
     ({"bogus": 1}, "unknown key 'bogus'"),
-    ({"rig": "other"}, "sits at <site>/<rig>.json"),
+    ({"rig": "other"}, "its folder is the site, its name the rig"),
 ])
 def test_a_wrong_file_is_refused(change, problem):
-    rig.save({**FIELDS, "rig": "r"})
-    rig.path("site1/r").write_text(json.dumps({**FIELDS, "rig": "r", **change}))
+    path = write("r")
+    with open(path, "w") as f:
+        json.dump({**FIELDS, "rig": "r", **change}, f)
     with pytest.raises(ValueError, match=problem):
-        RigConfig.open("site1/r")
-
-
-def test_a_loose_rig_json_is_pointed_at(tmp_path):
-    (tmp_path / "rig.json").write_text("{}")
-    with pytest.raises(ValueError, match="move rig.json there"):
-        RigConfig.open(None)
+        RigConfig.open(path)
 
 
 def test_triggers_are_the_rigs():
-    rig.save({**FIELDS, "rig": "meg", "triggers": {"sync": {"mode": "send"}, "backend": "lsl"}})
-    meg = RigConfig.open("site1/meg")
+    meg = RigConfig.open(write("meg", triggers={"sync": {"mode": "send"}, "backend": "lsl"}))
     assert meg.has_trigger_setup and meg.triggers.backend == "lsl"
     assert meg.without_trigger_line().triggers.sync.mode == "none"
-    rig.save({**FIELDS, "rig": "plain"})
-    assert not RigConfig.open("site1/plain").has_trigger_setup
-    rig.path("site1/plain").write_text(json.dumps({**FIELDS, "rig": "plain",
-                                                   "triggers": {"backend": "serial"}}))
+    assert not RigConfig.open(write("plain")).has_trigger_setup
     with pytest.raises(ValueError, match="needs a port"):
-        RigConfig.open("site1/plain")
+        RigConfig.open(write("plain", triggers={"backend": "serial"}))
 
 
 def test_a_game_key_the_scanner_types_is_refused_on_that_rig():
     from fmri_gym.config.curriculum import Curriculum
     from fmri_gym.config.run import RunConfig
-    rig.save({**FIELDS, "rig": "box", "triggers": {"sync": {"mode": "wait", "key": "5"}}})
-    box = RigConfig.open("site1/box")
+    box = RigConfig.open(write("box", triggers={"sync": {"mode": "wait", "key": "5"}}))
 
     def run_of(keys: dict) -> RunConfig:
         game = {"type": "game", "game": "CartPole-v1", "fps": 30, "keys": keys}
@@ -113,3 +94,20 @@ def test_a_game_key_the_scanner_types_is_refused_on_that_rig():
                          duration=None, end_fixation=10.0, resume=False, dummy_trigger=True)
 
     assert run_of({"": 0, "5": 1}).problems() and not run_of({"": 0, "LEFT": 1}).problems()
+
+
+def test_bindings_map_the_controllers_controls_to_keys():
+    pad = RigConfig.open(write("pad", bindings={"A": "SPACE", "UP": "UP"}))
+    assert pad.bindings == {"A": "SPACE", "UP": "UP"}
+    with pytest.raises(ValueError, match="'Q' is not a control.*'NOPE' is not a key name"):
+        RigConfig.open(write("pad", bindings={"Q": "SPACE", "B": "NOPE"}))
+
+
+def test_every_key_is_optional_and_site_and_rig_are_the_files_place(tmp_path):
+    (tmp_path / "site1").mkdir()
+    (tmp_path / "site1" / "bare.json").write_text("{}")
+    bare = RigConfig.open("site1/bare.json")
+    assert bare.fields == {"site": "site1", "rig": "bare"} and bare.has_audio
+    (tmp_path / "site1" / "bare.json").write_text(json.dumps({"site": "elsewhere"}))
+    with pytest.raises(ValueError, match="its folder is the site"):
+        RigConfig.open("site1/bare.json")

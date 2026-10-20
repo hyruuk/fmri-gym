@@ -4,13 +4,17 @@ Some sites' response device is a game controller on an fMRI interface (a
 Current Designs 932, say) that reports HID *joystick* buttons rather than
 keystrokes. Nothing a phase's ``keys`` names is ever pressed there, so the game
 does not move and the run records no responses, with nothing on screen to say
-why. This module presses the key each control stands for, so the run sees a
-keyboard either way and a curriculum's ``keys`` stay the one place input is
-mapped. :func:`pump` moves the events across; it registers with
-:func:`fmri_gym.keys.get_events`, which runs it before every read of the queue.
+why. This module presses the keyboard key each control is bound to, so the run
+sees a keyboard either way and a curriculum's ``keys`` stay in keyboard keys,
+playable at the desk and in the scanner alike. :func:`pump` moves the events
+across; it registers with :func:`fmri_gym.keys.get_events`, which runs it
+before every read of the queue.
 
-The map is fixed on purpose -- every site with this controller expects the same
-keys, so one curriculum plays at all of them. What is *not* fixed is the stick,
+The controls are the controller's own (:data:`CONTROLS`: the stick's four
+directions and the buttons Y B X LT A RT); which key each presses is the rig's
+(its file's ``"bindings"``, handed to :func:`init`), one map for every game
+played on the rig. A control with no binding presses nothing; a controller
+that types keys itself needs none. What is *not* the rig file's is the stick,
 which rests off centre, travels further one way than the other, and moves its
 centre between sessions; that is measured per rig by ``fmri-pad-calibrate``
 (below) into ``~/.config/fmri-gym/pad.json``, and checked in ``fmri-pad-scope``.
@@ -37,16 +41,18 @@ import pygame
 
 from .keys import KEYCODE_BY_NAME, register_event_source, register_held_source
 
-#: Which key each control presses. SDL numbers buttons from 0, one less than
-#: the HID report does: on the Current Designs pad that is y=0, b=1, x=2, LT=3,
-#: a=4, RT=5.
-BUTTON_KEYS: dict[int, str] = {0: "W", 1: "D", 2: "A", 3: "Q", 4: "S", 5: "E"}
-#: Which key a stick axis presses. Axis 0 is horizontal, 1 vertical; SDL reads
-#: up and left as negative.
-AXIS_KEYS: dict[tuple[int, str], str] = {
+#: Each button's control, as printed on it. SDL numbers buttons from 0, one less
+#: than the HID report does: on the Current Designs pad that is y=0, b=1, x=2,
+#: LT=3, a=4, RT=5.
+BUTTON_CONTROLS: dict[int, str] = {0: "Y", 1: "B", 2: "X", 3: "LT", 4: "A", 5: "RT"}
+#: The stick's controls. Axis 0 is horizontal, 1 vertical; SDL reads up and
+#: left as negative.
+AXIS_CONTROLS: dict[tuple[int, str], str] = {
     (0, "-"): "LEFT", (0, "+"): "RIGHT", (1, "-"): "UP", (1, "+"): "DOWN",
 }
-_ARROWS = frozenset(AXIS_KEYS.values())
+#: Every control a rig file's ``"bindings"`` can bind to a key.
+CONTROLS = ("UP", "DOWN", "LEFT", "RIGHT", *BUTTON_CONTROLS.values())
+_ARROWS = frozenset(AXIS_CONTROLS.values())
 STICK_AXES = (0, 1)
 
 #: Where each direction sits as an angle of push. A push is classified by which
@@ -87,7 +93,8 @@ _SETTLE_S, _SETTLE_STILL, _SETTLE_SLACK = 1.0, 0.01, 1.5
 _enabled = False
 _calibration: dict = {}                 # axis -> {rest, min, max, drift}
 _sectors: dict[str, float] = dict(IDEAL_SECTORS)
-_held: set[str] = set()                 # the NAMES the pad is holding down
+_held: set[str] = set()                 # the controls the pad is holding down
+_bindings: dict[str, str] = {}          # control -> the key it presses (the rig's)
 _value: dict[int, float] = {}           # axis -> last reading, calibrated
 _raw: dict[int, float] = {}             # axis -> last reading, untouched
 _zero: dict[int, float] = {}            # axis -> where it is centred now
@@ -110,13 +117,16 @@ def config_path() -> Path:
     return Path(base).expanduser() / "fmri-gym" / "pad.json"
 
 
-def init(enabled: bool = True) -> str:
+def init(enabled: bool = True, bindings: dict[str, str] | None = None) -> str:
     """Open whatever pad is plugged in, unless the rig file said not to.
 
     :param enabled: ``False`` to leave the pad off for this run.
-    :return: a one-line status for the run's stderr banner.
+    :param bindings: control (:data:`CONTROLS`) -> the key name it presses; a
+        control left out presses nothing.
+    :return: a one-line status for the run's stderr banner and the manifest.
     """
-    global _status, _enabled
+    global _status, _enabled, _bindings
+    _bindings = dict(bindings or {})
     if not enabled:
         _status = 'off (the rig\'s "has_pad": false)'
         return _status
@@ -131,10 +141,11 @@ def init(enabled: bool = True) -> str:
            else f"UNCALIBRATED (run fmri-pad-calibrate; writing {config_path()})")
     rule = ("one direction at a time" if _DIAGONAL >= 1.0
             else f"diagonals past {_DIAGONAL:.2f}")
-    _status = (f"{', '.join(j.get_name() for j in _joysticks)} -> "
-               f"buttons {', '.join(BUTTON_KEYS.values())}, stick UP/DOWN/LEFT/RIGHT "
-               f"at {_AXIS_ON:.2f}/{_AXIS_OFF:.2f}, {rule}, {_DWELL * 1000:.0f} ms "
-               f"dwell; {cal}")
+    bound = (", ".join(f"{c}={k}" for c, k in _bindings.items()) if _bindings else
+             'WARNING: the rig file has no "bindings", so its controls press no key (a '
+             "controller that types keys itself needs none)")
+    _status = (f"{', '.join(j.get_name() for j in _joysticks)} -> {bound}; stick at "
+               f"{_AXIS_ON:.2f}/{_AXIS_OFF:.2f}, {rule}, {_DWELL * 1000:.0f} ms dwell; {cal}")
     return _status
 
 
@@ -198,8 +209,8 @@ def _open() -> bool:
 
 
 def held() -> frozenset[str]:
-    """The NAMES the pad is holding down this frame."""
-    return frozenset(_held)
+    """The keys the pad's held controls are bound to, this frame."""
+    return frozenset(_bindings[c] for c in _held if c in _bindings)
 
 
 def centre(index: int) -> float:
@@ -251,18 +262,21 @@ def _settle(now: float) -> None:
                   file=sys.stderr)
 
 
-def _press(name: str, down: bool) -> None:
-    """Hold or release ``name``, and post the keypress it stands for."""
+def _press(control: str, down: bool) -> None:
+    """Hold or release ``control``, and post the keypress of the key it is bound to."""
     if down:
-        _held.add(name)
+        _held.add(control)
     else:
-        _held.discard(name)
+        _held.discard(control)
+    key = _bindings.get(control)
+    if key is None:
+        return
     # `unicode` is what a "press <char> to go on" screen reads; `pad` marks the
     # event as ours for anything that wants to tell the two apart.
-    char = name.lower() if len(name) == 1 else ""
+    char = " " if key == "SPACE" else key.lower() if len(key) == 1 else ""
     pygame.event.post(pygame.event.Event(
         pygame.KEYDOWN if down else pygame.KEYUP,
-        key=KEYCODE_BY_NAME[name], mod=0, unicode=char if down else "",
+        key=KEYCODE_BY_NAME[key], mod=0, unicode=char if down else "",
         scancode=0, pad=True))
 
 
@@ -309,8 +323,8 @@ def _independent() -> set[str]:
     for index in list(_value):
         side = _side(index)
         _pushed[index] = side
-        if side is not None and (index, side) in AXIS_KEYS:
-            wanted[index] = AXIS_KEYS[(index, side)]
+        if side is not None and (index, side) in AXIS_CONTROLS:
+            wanted[index] = AXIS_CONTROLS[(index, side)]
     x, y = STICK_AXES
     if x in wanted and y in wanted:
         strong, weak = (x, y) if abs(_value[x]) >= abs(_value[y]) else (y, x)
@@ -364,12 +378,12 @@ def pump() -> None:
         if event.type == pygame.JOYAXISMOTION:
             _raw[event.axis] = event.value
             moved = True
-        elif event.button in BUTTON_KEYS:
-            _press(BUTTON_KEYS[event.button], event.type == pygame.JOYBUTTONDOWN)
+        elif event.button in BUTTON_CONTROLS:
+            _press(BUTTON_CONTROLS[event.button], event.type == pygame.JOYBUTTONDOWN)
         elif event.type == pygame.JOYBUTTONDOWN and event.button not in _unmapped:
             _unmapped.add(event.button)
-            print(f"pad: button {event.button} pressed, but no key is mapped to it "
-                  "(fmri_gym/pad.py: BUTTON_KEYS)", file=sys.stderr)
+            print(f"pad: button {event.button} pressed, but it is no control of "
+                  "fmri_gym/pad.py's BUTTON_CONTROLS", file=sys.stderr)
     if moved:
         _resolve()
 
@@ -1141,7 +1155,7 @@ def scope_main() -> None:
             if down != prev_btn.get(i, False):
                 log.appendleft((now, (f"button {BUTTONS.get(i, i):<3} "
                                       f"{'press' if down else 'release':<8}"
-                                      f"-> {BUTTON_KEYS.get(i) or 'unmapped'}"),
+                                      f"-> {_bindings.get(BUTTON_CONTROLS.get(i, '')) or 'unbound'}"),
                                 LIVE if down else INK3))
         prev_held, prev_btn = pressed, btn
         hist.append((now, a0, a1, pressed))
@@ -1163,7 +1177,7 @@ def scope_main() -> None:
         bx, by, bw = 20, 66, 160
         for i in range(6):
             x = bx + i * (bw + 4)
-            key, down = BUTTON_KEYS.get(i), btn.get(i, False)
+            key, down = _bindings.get(BUTTON_CONTROLS.get(i, "")), btn.get(i, False)
             label, hue = FACE.get(i, (f"b{i}", INK2))
             pygame.draw.rect(screen, hue if down else PANEL, (x, by, bw, 62), border_radius=4)
             pygame.draw.rect(screen, hue if down else GRID, (x, by, bw, 62), 1, border_radius=4)
@@ -1271,7 +1285,7 @@ def scope_main() -> None:
 
 
 def main() -> None:
-    """``python -m fmri_gym.pad``: name each control and the key it presses."""
+    """``python -m fmri_gym.pad``: name each control as it is pressed and released."""
     pygame.init()
     pygame.display.set_mode((320, 64))
     print(init(), file=sys.stderr)
