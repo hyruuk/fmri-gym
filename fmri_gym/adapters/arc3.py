@@ -13,7 +13,8 @@ that it offers, then ``ACTION7`` (undo) if it does. ACTION1-4 are up, down, left
 and right; ACTION5 is a game-specific interact action. The games that need a
 click (``ACTION6``) are not supported: the scanner has no pointer, and the env
 refuses them at start-up. Use ``is_turn_based: true``: a move is a key press. No
-savestate -> seed + action replay.
+savestate of its own: seed + action replay, which is also the savestate a block
+ends on (``replay_state_gym.ReplayState``), for a resumed run.
 """
 
 from __future__ import annotations
@@ -30,9 +31,11 @@ class Arc3Adapter(EnvAdapter):
 
     def _make(self, spec: dict) -> gym.Env:
         import arc3_gym  # noqa: F401  (registers Arc3-v0)
+        from replay_state_gym import ReplayState
 
         kwargs = {k: spec[k] for k in ("environments_dir", "cell_px") if k in spec}
-        return gym.make("Arc3-v0", render_mode="rgb_array", game=spec["game"], **kwargs)
+        return ReplayState(gym.make("Arc3-v0", render_mode="rgb_array", game=spec["game"],
+                                    **kwargs))
 
     def outcome(self, terminated: bool, truncated: bool) -> tuple[str, str]:
         state = self.last_info.get("state")
@@ -46,3 +49,9 @@ class Arc3Adapter(EnvAdapter):
         variables = dict(info)
         variables["grid"] = obs.copy()
         return FrameState(blob=None, variables=variables)
+
+    def restore(self, blob: bytes) -> None:
+        self.env.set_state(blob)
+
+    def block_extra(self) -> dict:
+        return {"state": self.env.get_state()}
