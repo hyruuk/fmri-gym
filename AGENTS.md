@@ -23,7 +23,7 @@ fmri_gym/menu.py                 CORE  hold-a-key pause menu: reset / forfeit / 
 fmri_gym/adapters/base.py        CORE  EnvAdapter + FrameState: the seam
 fmri_gym/adapters/keymap.py      CORE  the phase's keys, one Keymap per action space
 fmri_gym/adapters/<BACKEND>.py   YOU   one small wrapper per game engine
-configs/curricula/<BACKEND>/     YOU   the game's curricula: one per level, or a sequence; common/ the phase they share
+configs/curricula/<BACKEND>/     YOU   the game's curricula: levels/ one per level, the folder a sequence; common/ the phase they share
 gym/<GAME>/                      YOU   a Gymnasium env for a game that ships none, or a rough one
 gym/replay_state/                      ReplayState: a savestate by replay, for any env
 external/<BACKEND>/              a game's own repo, a submodule at the commit the README pins
@@ -72,7 +72,8 @@ Before editing `run.py`, `display.py`, `keys.py`, `logging.py`, `base.py`, or `k
 
 - **Each method should ideally fit on one screen** (~40 lines). If it doesn't, extract a helper with a name that says what it does. `run._episode` and `_game` are at the upper limit already; let's try to not to expand them, if possible.
 - **Stay within two levels of nesting.** Use guard clauses and early `return`/`continue` instead of `else` ladders — see `_poll_keys_until` and `make_keymap`.
-- **Module docstring explains *why*.** Every file here opens with the reasoning a newcomer needs: why this backend and not COOM, why `pixel_crop` and not `pixel`, what is deliberately not supported. Keep doing that; it is the most valuable text in the repo.
+- **Comments are short.** A module docstring is a few lines: what the file is, and why, if that is not obvious (why this backend and not COOM, what is deliberately not supported). A docstring or comment is one or two lines; a paragraph nobody reads is noise, and every sentence is one more thing that can go stale.
+- **Code knows no folder layout.** A `.py` file takes the paths it is given and never builds, parses or names a folder under `configs/` (a backend's folder, `levels/`, `common/`), in code or in a comment. Moving or renaming config files must not require changing any `.py` file. The only exceptions are the roots, `configs/` and `configs/curricula/`, and the task label, which is the path after `curricula/` in camelCase (`bids.task_label`).
 - **Docstrings on public methods** in the existing Sphinx style (`:param:`, `:return:`, `:raises:`). Short private helpers can get a one-liner.
 - **Comments explain the trap, not the code.** The good ones here record a fact you cannot see from the source: why MiniHack needs an explicit `seed(core=, disp=)`, why classic control tears down the shared pygame window.
 - **A docstring describes its own subject, not its callers.** Say what the class or function *is* and what it guarantees, in terms a reader who has only this file can check. A docstring that instead recites the order some other module calls the methods in ("construct after X is built, this one after each reset, that one once at the end") couples the two: either side can change and the text becomes a lie that nothing catches, and the reader still does not know what the thing holds. Document each method's own contract — what it opens, what it writes, what it flushes — and let the call sequence live in the caller, the one place it is actually visible.

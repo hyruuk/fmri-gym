@@ -44,9 +44,8 @@ prebuilt binary and a trimmed asset pack once, for its own version.
 ``STK_ENV_BIN`` overrides that binary.
 Not supported: the pystk2 backend's ``num_kart`` spelling (it is ``num_karts``
 here, the game's), and a different track per episode (one process, one track):
-a curriculum that wants several tracks uses one game phase per track, as
-``configs/curricula/stk/<track>.json`` does (one per race track the asset pack
-ships; its arenas and soccer fields need game modes this adapter never sets).
+a curriculum that wants several tracks uses one game phase per track. Arenas
+and soccer fields need game modes this adapter never sets.
 """
 
 from __future__ import annotations

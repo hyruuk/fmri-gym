@@ -139,13 +139,12 @@ def test_validate_config_accepts_a_plain_game_phase():
 
 
 @pytest.mark.parametrize("path, label", [
-    ("configs/curricula/minihack/room5x5.json", "minihackroom5x5"),
-    ("configs/curricula/crafter/L4.json", "crafterL4"),
-    ("/elsewhere/curricula/ale/pong.json", "alepong"),
-    ("configs/pong_v2.json", "pongv2"),
-    ("configs/curricula/top_level.json", "toplevel"),
+    ("configs/curricula/minihack/levels/room5x5.json", "minihackLevelsRoom5x5"),
+    ("/elsewhere/curricula/baba_auto/levels/lock.json", "babaAutoLevelsLock"),
+    ("configs/pong_v2.json", "pongV2"),
+    ("configs/curricula/top_level.json", "topLevel"),
 ])
-def test_task_label_names_the_backend_folder_under_curricula(path, label):
+def test_task_label_is_the_path_under_curricula(path, label):
     assert task_label(path) == label
 
 
@@ -277,7 +276,7 @@ def test_include_refuses(tmp_path, include, shared, problem):
      False),
     (["gym/crafter/pyproject.toml"], {"crafter"}, False),
     (["external/coom"], {"coom"}, False),
-    (["configs/curricula/vizdoom/basic.json"], {"vizdoom"}, False),
+    (["configs/curricula/vizdoom/levels/basic.json"], {"vizdoom"}, False),
     (["configs/curricula/gym/classic_control.json"], {"gym"}, False),
     (["README.md", "docs/SAVESTATES.md", "tests/README.md"], set(), False),
     (["tests/test_core.py"], set(), True),

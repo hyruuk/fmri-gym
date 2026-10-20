@@ -34,7 +34,7 @@ With [uv](https://docs.astral.sh/uv/):
 ```bash
 sudo apt install libportaudio2               # Linux only: PortAudio (macOS/Windows wheels bundle it)
 uv sync --extra dbp                          # .venv/ with the DBP backends, pinned by uv.lock
-uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/minihack/room5x5.json
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/minihack/levels/room5x5.json
 ```
 
 Nothing is installed by default: a bare `uv sync` gets the engine-agnostic core alone, and every game arrives as an extra. `dbp` is the DBP games; each backend is also its own extra (`ale`, `retro`, `vizdoom`, `minihack`, `rushhour`, …), so `--extra baba` is the core plus that one game. `gui` adds the `fmri-edit` editor, and `--extra all` installs every backend and the editor -- enough to run every game here without an import error. Extras combine (`--extra dbp --extra gui`), and each `uv sync` makes `.venv/` match exactly the extras it names -- one you leave out is one uv uninstalls, so repeat the whole list every time. `uv run` does not: it adds what the lockfile requires and leaves the rest, so the games survive every `uv run`; only the next bare `uv sync` strips them. `baba_auto` (hence `all`) compiles a C++ engine at install, so it needs a compiler: `build-essential` on Linux, `xcode-select --install` on macOS. No `.python-version` is needed to keep uv off a Python the backends have no wheels for: `requires-python` in `pyproject.toml` caps the interpreter at `<3.14`, which is also what pip reads.
@@ -43,7 +43,7 @@ Without uv: pip into a venv of your own, and `python fmri_play.py` in place of `
 
 ```bash
 pip install -e ".[dbp]"            # private default index? add --index-url https://pypi.org/simple
-python fmri_play.py --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/minihack/room5x5.json
+python fmri_play.py --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/minihack/levels/room5x5.json
 ```
 
 To check an install, or a change, play the suite: `uv run pytest --changed` plays the backends your branch touches through the adapter, a recorded block, a bit-exact replay and a headless run of the real loop, and `uv run pytest --backend crafter` plays one by name; a backend this machine cannot play is skipped with the fix in the reason. CI runs the same on every pull request marked ready for review. `tests/README.md` has the map.
@@ -70,14 +70,14 @@ uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/
 uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/demos/mixed.json
 
 # Play ONE game on its own, for a long stretch (see configs/curricula/):
-uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/ale/pong.json
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/ale/levels/pong.json
 ```
 
 A run is a JSON file and a session is a `.sh` script (below). Write them by hand, or design them in `fmri-edit` -- either way `fmri-play` reads the same files, and refuses one it cannot play. `fmri-play` plays one run and nothing else; the editor is a command of its own, which opens on a run, a session, or a new run. **Play** there saves what it shows and starts it: an `fmri-play` command for a run, the script itself for a session. Its Launch tab holds the flags of that launch (subject, session, rig, the test switch), which belong to the launch, not to the files; its **Edit rig...** opens the rig file (see *Rigs* below). The editor is the `gui` extra:
 
 ```bash
 uv sync --extra dbp --extra gui
-uv run fmri-edit --curriculum configs/curricula/ale/pong.json
+uv run fmri-edit --curriculum configs/curricula/ale/levels/pong.json
 uv run fmri-edit --session configs/subjects/boston-college/sub-01/ses-001/dbp_mix.sh
 uv run fmri-edit                                    # start from a new run
 ```
@@ -94,39 +94,39 @@ Note: **Pendulum, MountainCarContinuous and BipedalWalker use continuous (`Box`)
 
 | folder | what it is | specific to |
 |---|---|---|
-| `configs/curricula/<backend>/<name>.json` | a **curriculum**: what one run plays -- one level, or a game's sequence of levels | the game; the same for every subject and site |
+| `configs/curricula/<backend>/levels/<name>.json`, `configs/curricula/<backend>/<name>.json` | a **curriculum**: what one run plays -- one level (in `levels/`), or a sequence of levels (in the backend's folder) | the game; the same for every subject and site |
 | `configs/rigs/<site>/<rig>.json` | a **rig**: the machine a session runs on (`configs/rigs/README.md`) | the site and its machine |
 | `configs/subjects/<site>/sub-<label>/ses-<NNN>/<name>.sh` | a **session**: one `fmri-play` line per run, in order | one subject's one session |
 
 Every game that plays has a curriculum for each of its supported levels, so any one of them is a one-line command:
 
 ```bash
-uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/minihack/room5x5.json
-uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/vizdoom/freedoom1_e1m1.json
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/minihack/levels/room5x5.json
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/vizdoom/levels/freedoom1_e1m1.json
 uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/rushhour/complete.json
 ```
 
-A curriculum's file name, after its folder's, is the run's BIDS task label (`curricula/minihack/room5x5.json` is `task-minihackroom5x5`), so a level keeps its label whichever session plays it. What ships, by backend:
+A curriculum's path after `curricula/`, in camelCase (BIDS labels are letters and digits only), is the run's BIDS task label (`curricula/minihack/levels/room5x5.json` is `task-minihackLevelsRoom5x5`), so a level keeps its label whichever session plays it. What ships, by backend (`levels/` holds the curricula of one level each, the backend's folder those that play several):
 
 | folder | count | curricula |
 |---|---|---|
-| `aigamestore/` | 11 | game1…game10 (p5.js; needs playwright), and `all`, the ten in a row |
-| `ale/` | 11 | pong, breakout, spaceinvaders, mspacman, seaquest, qbert, asterix, beamrider, enduro, boxing, and `all` |
-| `arc3/` | 6 | g50t, ls20, re86, tr87, tu93, wa30 (the game files are fetched once; see [ARC-AGI-3 games](#arc-agi-3-games)) |
-| `baba/` | 1 | make_win (rule-manipulation puzzle; other ids) |
-| `baba_auto/` | 12 | baba_is_you, out_of_reach, volcano, off_limits, grass_yard, pillar_yard, brick_wall, icy_waters, novice_locksmith, lock, affection, turns (the levels the baba-is-auto checkout ships; its other maps are rule-engine fixtures; `game` takes any map file) |
+| `aigamestore/` | 11 | game1…game10 (p5.js; needs playwright): game4 and game6 in `levels/`, the others several levels each; and `all`, the ten in a row |
+| `ale/` | 11 | `levels/`: pong, breakout, spaceinvaders, mspacman, seaquest, qbert, asterix, beamrider, enduro, boxing, and `all` |
+| `arc3/` | 6 | `levels/`: g50t, ls20, re86, tr87, tu93, wa30 (the game files are fetched once; see [ARC-AGI-3 games](#arc-agi-3-games)) |
+| `baba/` | 1 | `levels/`: make_win (rule-manipulation puzzle; other ids) |
+| `baba_auto/` | 12 | `levels/`: baba_is_you, out_of_reach, volcano, off_limits, grass_yard, pillar_yard, brick_wall, icy_waters, novice_locksmith, lock, affection, turns (the levels the baba-is-auto checkout ships; its other maps are rule-engine fixtures; `game` takes any map file) |
 | `checks/` | 2 | rig-check, rig-check-long: the rig check's phases instead of games (see [Timing](#timing)) |
-| `coom/` | 9 | pitfall, chainsaw, hide_and_seek, health_gathering, arms_dealer, parkour, raise_the_roof, run_and_gun, floor_is_lava (needs the COOM checkout) |
-| `crafter/` | 4 | L1…L4, the paradigm's four levels |
+| `coom/` | 9 | `levels/`: pitfall, chainsaw, hide_and_seek, health_gathering, arms_dealer, parkour, raise_the_roof, run_and_gun, floor_is_lava (needs the COOM checkout) |
+| `crafter/` | 4 | `levels/`: L1…L4, the paradigm's four levels |
 | `demos/` | 2 | mixed (seven backends in one run), meg (Pong with a full MEG `triggers` section) |
-| `gym/` | 16 | classic control (cartpole, mountaincar, acrobot, pendulum, mountaincarcontinuous, and `classic_control`, all five), toy text (frozenlake, frozenlake8x8, cliffwalking, taxi, blackjack; turn-based; and `toy_text`), Box2D (lunarlander, bipedalwalker, carracing; the `box2d` extra; and `box2d`) |
-| `minihack/` | 21 | room5x5/15x15, mazewalk9x9, river, corridor, eat: the `-Allocentric-v0` twin from `minihack_levels` (view fixed on the map), each with an `_egocentric` sibling on MiniHack's own id (view centred on the agent); and the designed levels room_*, mazewalk_*, river_* |
-| `nethack/` | 1 | score (base NetHack; TTY rendered to a pixel frame) |
-| `retro/` | 1 | airstriker (ships with stable-retro; sound) |
-| `rushhour/` | 2 | easy (5 min of random easy puzzles); complete (Rush-Hour's own program, then the rest of the library: all 49 puzzles, one game phase each, with ready screens and solved feedback as message phases) |
-| `stk/` | 5 | hacienda, cornfield_crossing, lighthouse, scotland, snowmountain (the race tracks its asset pack ships; needs a real GL display) |
-| `vgdl/` | 11 | aliens, avoidGeorge, beesAndBirds, jaws, missile_command, plaqueAttack, portals, preconditions, pushBoulders, relational (needs the VGDL checkout), and `all` |
-| `vizdoom/` | 78 | basic, deadly_corridor, defend_center, defend_line, health_gathering_supreme, my_way_home, predict_position, take_cover, deathmatch, and `take_cover_defend_line` (two of them back to back); freedoom1_e1m1 … freedoom1_e4m9 and freedoom2_map01 … freedoom2_map32 (every map of [Freedoom](https://freedoom.github.io/) Phase 1 and Phase 2, whose WADs ship with `vizdoom`; `VizdoomDoom*` plays the original WADs, given them) |
+| `gym/` | 16 | `levels/`: classic control (cartpole, mountaincar, acrobot, pendulum, mountaincarcontinuous), toy text (frozenlake, frozenlake8x8, cliffwalking, taxi, blackjack; turn-based), Box2D (lunarlander, bipedalwalker, carracing; the `box2d` extra); and `classic_control`, `toy_text`, `box2d`, each family in a row |
+| `minihack/` | 21 | `levels/`: room5x5/15x15, mazewalk9x9, river, corridor, eat: the `-Allocentric-v0` twin from `minihack_levels` (view fixed on the map), each with an `_egocentric` sibling on MiniHack's own id (view centred on the agent); and the designed levels room_*, mazewalk_*, river_* |
+| `nethack/` | 1 | `levels/`: score (base NetHack; TTY rendered to a pixel frame) |
+| `retro/` | 1 | `levels/`: airstriker (ships with stable-retro; sound) |
+| `rushhour/` | 2 | `levels/`: easy (5 min of random easy puzzles); complete (Rush-Hour's own program, then the rest of the library: all 49 puzzles, one game phase each, with ready screens and solved feedback as message phases) |
+| `stk/` | 5 | `levels/`: hacienda, cornfield_crossing, lighthouse, scotland, snowmountain (the race tracks its asset pack ships; needs a real GL display) |
+| `vgdl/` | 11 | `levels/`: aliens, avoidGeorge, beesAndBirds, jaws, missile_command, plaqueAttack, portals, preconditions, pushBoulders, relational (needs the VGDL checkout), and `all` |
+| `vizdoom/` | 78 | `levels/`: basic, deadly_corridor, defend_center, defend_line, health_gathering_supreme, my_way_home, predict_position, take_cover, deathmatch, freedoom1_e1m1 … freedoom1_e4m9 and freedoom2_map01 … freedoom2_map32 (every map of [Freedoom](https://freedoom.github.io/) Phase 1 and Phase 2, whose WADs ship with `vizdoom`; `VizdoomDoom*` plays the original WADs, given them); and `take_cover_defend_line`, two of them back to back |
 
 Each backend's `common/README.md` says what its curricula play, how to set them up and what the action indices in their `keys` mean. Most are a `fixation → game → fixation` run whose game phase opens on its own instructions screen.
 
@@ -198,7 +198,7 @@ Once imported, reference the env id in a game phase and it plays like any other 
  "mode": "duration", "duration": 30.0, "fps": 60, "state_stride": 15}
 ```
 
-The `retro` backend itself is verified with Airstriker (`configs/curricula/retro/airstriker.json`), the one game whose ROM ships with stable-retro; any other needs both its ROM imported and an integration in stable-retro (see "Games without a curriculum").
+The `retro` backend itself is verified with Airstriker (`configs/curricula/retro/levels/airstriker.json`), the one game whose ROM ships with stable-retro; any other needs both its ROM imported and an integration in stable-retro (see "Games without a curriculum").
 
 ## External checkouts (`external/`)
 
@@ -240,7 +240,7 @@ The `coom` backend plays [TTomilin/COOM](https://github.com/TTomilin/COOM)'s own
 COOM's own Python package pins `gymnasium==0.28.1`, which conflicts with minihack's `gymnasium==1.2` pin in this shared env, so **the COOM package is never installed or imported**. The gym env is **`coom-gym`** (`gym/coom/`, the `coom` extra; also in `dbp`), which drives `vizdoom.DoomGame` on the scenario files of a COOM checkout at its pinned commit (the `external/coom` submodule; see [External checkouts](#external-checkouts-external)):
 
 ```bash
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/coom/pitfall.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/coom/levels/pitfall.json
 ```
 
 The env reads `<repo>/COOM/env/scenarios/<scenario>/conf.cfg` and `<task>.wad` (`env_kwargs.task`, default `"default"`; `run_and_gun` also ships `blue`, `red`, `hard`, ...). Without the checkout the run stops at start-up.
@@ -283,7 +283,7 @@ Phase fields: `game` (`"game1"`…`"game10"`, plus `/level<N>` to name the level
 [Rush-Hour](https://github.com/chrplr/Rush-Hour) is a sliding-block puzzle written as a psychophysics experiment in Go, with its rules in a small engine binary that both an agent and a participant play through `rushhour-gym`. The `rushhour` backend drives the package's `RushHourHuman-v0` — the experiment program's own interface as an env: car selection on four buttons, its picture, its results columns in `info` — so the adapter is a keymap plus the fields to log. One game phase is one puzzle (`"puzzle": "p07"`); the program's ready screens, blank intervals and solved feedback are `message` phases the curriculum lists around each puzzle, so every puzzle is its own block in the manifest and its own log folder. Nothing to install beyond the `rushhour` extra: on first use the package downloads the engine of its matching release into `~/.cache/rushhour-gym/` (checksum-verified; Linux x86-64, macOS arm64, Windows x86-64). On a machine without network, run a config once while online or copy that directory; `RUSHHOUR_ENV_BIN` names a binary of your own.
 
 ```bash
-uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/rushhour/easy.json      # 5 min of random easy puzzles
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/rushhour/levels/easy.json      # 5 min of random easy puzzles
 uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/rushhour/complete.json   # the program's session then the rest of the library: 49 puzzles, one block each
 ```
 
@@ -295,7 +295,7 @@ Controls, phase fields and the logged columns are documented in `configs/curricu
 
 ```bash
 uv sync --extra dbp --extra baba_auto
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/baba_auto/baba_is_you.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/baba_auto/levels/baba_is_you.json
 ```
 
 A phase's `game` is a map name under the checkout's `Resources/Maps` or a map file's path; `keys` index `Discrete(5)`: 0 = wait, 1 = up, 2 = down, 3 = left, 4 = right (turn-based). Each turn logs `play_state` (0 playing, 1 won, 2 lost) and the engine's `(16, H, W)` state tensor. The savestate is the seed and the moves since (`ReplayState`), restored by replay at a few ms a move.
@@ -306,7 +306,7 @@ A phase's `game` is a map name under the checkout's `Resources/Maps` or a map fi
 
 ```bash
 uv pip install "fmri-gym[stk]"      # or: pip install supertuxkart-gym
-uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/stk/hacienda.json
+uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/stk/levels/hacienda.json
 ```
 
 There is one config per race track the asset pack ships with geometry — `stk__{hacienda,cornfield_crossing,lighthouse,scotland,snowmountain}.json`, 880–1330 m per lap, three laps, four karts. The pack's other track directories (`abyss`, `mines`, `zengarden`, … and the battle arenas and soccer fields) are metadata only: naming one kills the game process, so more tracks means a pack that carries them, not more configs. A track is fixed for the life of a process (`reset(options={"track": ...})` is refused by name), so race several by giving a curriculum one game phase per track.
@@ -496,12 +496,12 @@ They assume `sub-01` and a 1024x768 window, and play into the session their fold
 The levels of one game repeat most of their game phase: the keys, the instructions, the mode, the env's settings. A phase can instead start from a shared one and write only what differs:
 
 ```jsonc
-// configs/curricula/vizdoom/freedoom1_e2m5.json
-{"__include": "common/freedoom1.json", "game": "VizdoomFreedoom1E2M5-S2-v0",
+// configs/curricula/vizdoom/levels/freedoom1_e2m5.json
+{"__include": "../common/freedoom1.json", "game": "VizdoomFreedoom1E2M5-S2-v0",
  "instructions": {"title": "Freedoom: Underground Hub"}}
 ```
 
-`__include` names a file relative to the curriculum's own folder, which holds one phase object (`configs/curricula/vizdoom/common/freedoom1.json`: type, backend, instructions, `env_kwargs`, keys, mode, fps). The `common/README.md` beside it explains them: setup, what the keys' indices mean, the notes a level needs. The phase's own keys are laid over it: an object in both merges key by key, so the line above changes the title and keeps the instructions' text; anything else (a list, a number, a string) replaces the shared value whole. A key cannot be taken away, so a shared phase holds only what every phase that includes it keeps. A shared phase may include another, relative to its own folder. Shared phases live in folders named `common`, which hold no curricula: neither `fmri-edit`'s lists nor the tests treat them as runs.
+`__include` names a file relative to the curriculum's own folder, which holds one phase object (`configs/curricula/vizdoom/common/freedoom1.json`: type, backend, instructions, `env_kwargs`, keys, mode, fps). The `common/README.md` beside it explains them: setup, what the keys' indices mean, the notes a level needs. The phase's own keys are laid over it: an object in both merges key by key, so the line above changes the title and keeps the instructions' text; anything else (a list, a number, a string) replaces the shared value whole. A key cannot be taken away, so a shared phase holds only what every phase that includes it keeps. A shared phase may include another, relative to its own folder. Shared phases live in folders named `common`, which hold no curricula: neither `fmri-edit`'s lists nor the tests treat them as runs. A backend's curricula of one level each sit in its `levels/` folder, beside `common/`, so they include `../common/<name>.json`; those that play several levels sit in the backend's folder and include `common/<name>.json`.
 
 Includes are resolved when the file is read, so everything after that sees each phase in full: `fmri-play`, the editor and the manifest, which keeps the run's curriculum as it was played. `fmri-edit` keeps each phase's `__include` (a game phase shows it in its extra JSON, as a path from the working directory) and saves the phase as its include and what it adds. A phase that changes something its shared phase sets makes the editor ask before saving: the change is that curriculum's alone, and if it should hold for every level, it belongs in the file in `common/`, which every phase that includes it then shares. A phase that drops a key of its shared phase cannot be written as an include, so it is saved in full.
 
@@ -543,7 +543,7 @@ A subject can get stuck (a Baba Is You puzzle with its rules pushed into a corne
          "move": ["UP", "DOWN"], "confirm": "SPACE"}
 ```
 
-Holding `key` for `hold` seconds -- even if that key does something in the game -- pauses the game and shows the options; `move` steps through them and `confirm` picks one. `reset` starts the episode over -- a new `reset()` of the env with the same seed, so the very same level instance -- `forfeit` ends the block and moves on to the next phase, `resume` continues. The menu is unavailable for the first `after` seconds of the block (0 = always), and a hold plus a two-key choice is hard to do by accident -- the point is that this is possible but never done lightly. Only `key` is required; the rest default to the values shown, and `options` may list any subset, in the order to show them. The manifest's phase entry records the settings and every pop-up (`menu.events`: when, and what was chosen); a reset or forfeited episode's `episode_outcome` is `reset` / `forfeit` (the env's own `terminated` / `truncated` flags are never touched), and a reset one does not count towards `n_episodes`. `configs/curricula/baba/make_win.json` uses it.
+Holding `key` for `hold` seconds -- even if that key does something in the game -- pauses the game and shows the options; `move` steps through them and `confirm` picks one. `reset` starts the episode over -- a new `reset()` of the env with the same seed, so the very same level instance -- `forfeit` ends the block and moves on to the next phase, `resume` continues. The menu is unavailable for the first `after` seconds of the block (0 = always), and a hold plus a two-key choice is hard to do by accident -- the point is that this is possible but never done lightly. Only `key` is required; the rest default to the values shown, and `options` may list any subset, in the order to show them. The manifest's phase entry records the settings and every pop-up (`menu.events`: when, and what was chosen); a reset or forfeited episode's `episode_outcome` is `reset` / `forfeit` (the env's own `terminated` / `truncated` flags are never touched), and a reset one does not count towards `n_episodes`. `configs/curricula/baba/levels/make_win.json` uses it.
 
 ### Resuming a curriculum (`--duration`, `--resume`)
 
@@ -709,7 +709,7 @@ Most engines keep their state where Python cannot reach it (a NetHack library lo
 Whether an engine really is deterministic is measured, not assumed:
 
 ```sh
-uv run python -m tests.verify_replay --curriculum configs/curricula/minihack/room5x5.json --max-frames 200 --n-episodes 2
+uv run python -m tests.verify_replay --curriculum configs/curricula/minihack/levels/room5x5.json --max-frames 200 --n-episodes 2
 PYTHONHASHSEED=7 uv run python -m tests.verify_replay --check data/sub-01/ses-001/beh/<run>   # a run that exists
 ```
 
@@ -720,10 +720,10 @@ The first form records the curriculum's game blocks with the random policy (`age
 `agents/agent_play.py` runs the same curriculum with a policy where `fmri_play.py` puts a person. It shares everything that defines the task (the config, the adapter, the episode seeds, the Logger and its log schema) and none of the session loop, which exists for a scanner: trigger wait, fps pacing, a window, a key queue.
 
 ```sh
-python agents/agent_play.py --curriculum configs/curricula/crafter/L4.json \
+python agents/agent_play.py --curriculum configs/curricula/crafter/levels/L4.json \
     --policy random --outdir data/model-random --n-episodes 2 --max-frames 60
 export ANTHROPIC_API_KEY=...      # `--policy vlm` refuses to start without it
-python agents/agent_play.py --curriculum configs/curricula/crafter/L4.json \
+python agents/agent_play.py --curriculum configs/curricula/crafter/levels/L4.json \
     --policy vlm --model claude-sonnet-5 --history 4 --max-frames 60
 ```
 
