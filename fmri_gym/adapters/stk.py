@@ -22,9 +22,14 @@ race in the same process leaves the physics world a little off a fresh one
 few hundred steps). So every episode but the block's first gets a fresh
 launch (``reset``), about half a second of track loading between races, and an
 episode is then exact from its launch ``seed``, its episode seed and its
-actions alone. The savestate is ``replay_state_gym.ReplayState``'s: the seed
-and the actions since, restored by a fresh launch and a replay at about a
-millisecond a step.
+actions alone.
+
+No savestate, so no ``--resume`` of an episode a run stopped: the game keeps
+none of its own, and one by replay (``replay_state_gym.ReplayState``) is a
+fresh launch and the whole episode played again, about 6 s plus a third of
+the time already played -- minutes of a frozen screen, charged to the block,
+after a long race. A run that tries refuses to start (:func:`fmri_gym.bids
+.last_position`).
 
 Timing: the game is lock-stepped, one ``step`` per fmri-gym frame, so
 ``fps`` here must equal the game's physics rate divided by ``frame_skip``
@@ -59,7 +64,6 @@ class STKAdapter(EnvAdapter):
 
     def _make(self, spec: dict) -> gym.Env:
         import stk_gym
-        from replay_state_gym import ReplayState
 
         env = stk_gym.StkEnv(
             track=spec.get("track", "hacienda"),
@@ -85,7 +89,7 @@ class STKAdapter(EnvAdapter):
                 f"(physics {env.engine.meta['physics_fps']} Hz / frame_skip "
                 f"{env.engine.meta['frames']}); set frame_skip so they match"
             )
-        return ReplayState(env)
+        return env
 
     def reset(self, seed: int) -> tuple[Any, dict]:
         """Relaunch the game, unless it is unused since its launch, and start a race."""
@@ -105,12 +109,3 @@ class STKAdapter(EnvAdapter):
         # Every SAMPLE_FIELDS column every frame (NaN when the game did not
         # report), including the controls the kart applied.
         return FrameState(variables=self.env.unwrapped.sample())
-
-    def restore(self, blob: bytes) -> None:
-        self.env.close()
-        self.env = self._make(self.spec)
-        self._played = True
-        self.env.set_state(blob)
-
-    def block_extra(self) -> dict:
-        return {"state": self.env.get_state()}

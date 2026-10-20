@@ -225,11 +225,10 @@ def _audio_output_here() -> bool:
         return False
 
 
-def _play(config: Path, data_root: Path, plan, tap: Path, backend: str, *more: str) -> Session:
-    """Play ``config`` headless into ``data_root``, tapped; fail with its stderr if it fails."""
-    # A machine without an output (CI), or told to keep off it, plays into a
-    # fake card, so the sound is still played, logged and checked.
-    fake = plan.no_audio or not _audio_output_here()
+def _headless(config: Path, data_root: Path, plan, tap: Path, backend: str,
+              *more: str) -> subprocess.CompletedProcess:
+    """Play ``config`` headless into ``data_root``, tapped; the finished process."""
+    fake = _fake_card(plan)
     cmd = [sys.executable, "-m", "tests.headless", "--curriculum", str(config),
            "--data-root", str(data_root), "--duration", str(plan.run_seconds),
            "--tap", str(tap), *more]
@@ -238,12 +237,26 @@ def _play(config: Path, data_root: Path, plan, tap: Path, backend: str, *more: s
     env = {**os.environ}
     if not window:
         env["SDL_VIDEODRIVER"] = "dummy"
-    done = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True,
+    return subprocess.run(cmd, cwd=REPO, capture_output=True, text=True,
                           timeout=plan.run_seconds + 180, env=env)
+
+
+def _play(config: Path, data_root: Path, plan, tap: Path, backend: str, *more: str) -> Session:
+    """:func:`_headless`, failing with its stderr if it fails."""
+    done = _headless(config, data_root, plan, tap, backend, *more)
     assert done.returncode == 0, f"fmri-play exited {done.returncode}:\n{done.stderr[-3000:]}"
     runs = sorted(data_root.glob("sub-test/ses-001/beh/*/manifest.json"))
     return Session(backend, config, data_root, runs[-1].parent, json.loads(tap.read_text()),
-                   not fake)
+                   not _fake_card(plan))
+
+
+def _fake_card(plan) -> bool:
+    """Whether the headless runs play into the fake sound card.
+
+    A machine without an output (CI), or told to keep off it, does, so the
+    sound is still played, logged and checked.
+    """
+    return plan.no_audio or not _audio_output_here()
 
 
 @pytest.fixture
@@ -314,9 +327,12 @@ def test_headless_replays(session):
 @pytest.fixture
 def resumed(session, plan, request) -> Session:
     """A second run of the same config with ``--resume``, carrying on the block the first stopped."""
-    end = read_events(str(_game_block(session.run)))[-1]
-    if not end["block_did_not_finish"]:
+    stopped = _game_block(session.run)
+    if not read_events(str(stopped))[-1]["block_did_not_finish"]:
         pytest.skip("the first run finished its block: there is nothing to carry on")
+    if _stopped_mid_episode(stopped) and not _has_end_state(stopped):
+        pytest.skip(f"{session.backend} keeps no savestate, so --resume refuses the episode the "
+                    "first run stopped (test_resume_refused_without_savestate)")
     cache = request.config.fmri_resumed
     if session.config not in cache:
         cache[session.config] = _play(session.config, session.data_root, plan,
@@ -330,14 +346,8 @@ def test_resume(session, resumed):
     stopped = _game_block(session.run)
     manifest = json.loads((resumed.run / "manifest.json").read_text())
     assert manifest["resumed_from"]["index"] == 1, manifest["resumed_from"]
-    ends = [e for e in read_events(str(stopped)) if e["type"] == "episode_end"]
-    if not ends or ends[-1]["outcome"] != "playing":
+    if not _stopped_mid_episode(stopped):
         pytest.skip("the first run stopped between episodes: no episode to carry on")
-    block = _game_block(resumed.run)
-    start = next(e for e in read_events(str(block)) if e["type"] == "episode_start")
-    if start["initial_state"] is None:
-        pytest.skip(f"{read_events(str(block))[0]['backend']} keeps no savestate: the episode "
-                    "the first run stopped in starts over")
     last = max(session.tap["logged"], key=int)
     assert resumed.tap["draws"][0] == session.tap["logged"][last][1], (
         "the resumed episode's first picture is not the one the stopped run ended on")
@@ -347,3 +357,29 @@ def test_resume(session, resumed):
     assert done.returncode == 0, (
         f"the resumed run is not the stopped game played on:\n{done.stdout}\n"
         f"{done.stderr[-2000:]}")
+
+
+def test_resume_refused_without_savestate(session, plan):
+    """A backend with no savestate stops a run that would resume an episode, before it starts."""
+    stopped = _game_block(session.run)
+    if not read_events(str(stopped))[-1]["block_did_not_finish"] \
+            or not _stopped_mid_episode(stopped):
+        pytest.skip("the first run left no episode to carry on")
+    if _has_end_state(stopped):
+        pytest.skip(f"{session.backend} keeps a savestate (test_resume)")
+    done = _headless(session.config, session.data_root, plan,
+                     session.config.parent / "tap-refused.json", session.backend,
+                     "--run", "2", "--resume")
+    assert done.returncode != 0 and "keeps no savestate" in done.stderr, (
+        f"--resume did not refuse (exit {done.returncode}):\n{done.stderr[-2000:]}")
+
+
+def _stopped_mid_episode(block: Path) -> bool:
+    """Whether the block's last episode was still being played when the block stopped."""
+    ends = [e for e in read_events(str(block)) if e["type"] == "episode_end"]
+    return bool(ends) and ends[-1]["outcome"] == "playing"
+
+
+def _has_end_state(block: Path) -> bool:
+    """Whether the block's ``block_end`` carries the state it ended in."""
+    return bool((read_events(str(block))[-1]["extra"] or {}).get("state"))
