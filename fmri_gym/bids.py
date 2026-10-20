@@ -42,7 +42,6 @@ import re
 from dataclasses import dataclass
 from typing import Callable, NamedTuple
 
-from .config.curriculum import LEVELS_DIRNAME
 from .config.rig import RigConfig
 
 _LABEL = re.compile(r"[A-Za-z0-9]+")
@@ -123,23 +122,15 @@ def subject_label(subject: str) -> str:
 
 
 def task_label(curriculum_path: str) -> str:
-    """A curriculum's task label: its file name, letters and digits only.
+    """A curriculum's path after ``curricula/`` (else its file name), letters and digits only.
 
-    A file under a backend's folder of a ``curricula`` folder is named by both,
-    so the same level name under two backends is two tasks, and a level is the
-    same task in the backend's ``levels/`` folder as in the backend's own:
-    ``curricula/ale/levels/pong.json`` and ``curricula/ale/all.json`` give
-    ``alepong`` and ``aleall``; ``pong.json`` elsewhere, ``pong``.
+    ``curricula/ale/levels/pong.json`` gives ``alelevelspong``.
 
     :raises ValueError: if nothing is left (a file named ``__.json``).
     """
-    stem = os.path.splitext(os.path.basename(curriculum_path))[0]
-    folder = os.path.dirname(os.path.abspath(curriculum_path))
-    if os.path.basename(folder) == LEVELS_DIRNAME:
-        folder = os.path.dirname(folder)
-    if os.path.basename(os.path.dirname(folder)) == "curricula":
-        stem = os.path.basename(folder) + stem
-    label = "".join(re.findall(r"[A-Za-z0-9]", stem))
+    path = os.path.splitext(os.path.abspath(curriculum_path))[0]
+    _, found, tail = path.rpartition(os.sep + "curricula" + os.sep)
+    label = "".join(re.findall(r"[A-Za-z0-9]", tail if found else os.path.basename(path)))
     if not label:
         raise ValueError(f"{curriculum_path}: no letter or digit in its name to make a BIDS "
                          "task label from; rename the file")

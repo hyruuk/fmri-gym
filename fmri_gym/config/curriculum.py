@@ -18,10 +18,8 @@ names a file (relative to the curriculum's own) holding one phase object, and
 the phase's other keys are laid over it (:func:`overlay`). Curricula of one
 game then write the setup once and only what differs per level. Shared
 phases live in folders named ``common`` (:data:`COMMON_DIRNAME`), which hold no
-curricula; a backend's curricula of one level each live in its ``levels``
-folder (:data:`LEVELS_DIRNAME`) and include ``../common/<game>.json``.
-Includes are resolved when the file is loaded, so everything downstream, the
-manifest included, sees each phase written out in full.
+curricula. Includes are resolved when the file is loaded, so everything
+downstream, the manifest included, sees each phase written out in full.
 """
 
 from __future__ import annotations
@@ -43,9 +41,6 @@ COMMENT_PREFIX = "##"
 INCLUDE_KEY = "__include"
 #: Folders of this name hold shared phases, which are included, not played.
 COMMON_DIRNAME = "common"
-#: A backend's folder of this name holds its curricula of one level each; the
-#: backend's own folder, those that play several.
-LEVELS_DIRNAME = "levels"
 #: Game-phase fields a curriculum may change between runs and still carry a
 #: block on; any other change makes it a different game. ``seed`` is the
 #: run's own (folded in from the run label).

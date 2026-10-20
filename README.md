@@ -106,7 +106,7 @@ uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/
 uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/rigs/example/laptop.json --curriculum configs/curricula/rushhour/complete.json
 ```
 
-A curriculum's file name, after its folder's, is the run's BIDS task label (`curricula/minihack/levels/room5x5.json` is `task-minihackroom5x5`), so a level keeps its label whichever session plays it; `levels/` is not part of it. What ships, by backend (`levels/` holds the curricula of one level each, the backend's folder those that play several):
+A curriculum's path after `curricula/`, letters and digits only, is the run's BIDS task label (`curricula/minihack/levels/room5x5.json` is `task-minihacklevelsroom5x5`), so a level keeps its label whichever session plays it. What ships, by backend (`levels/` holds the curricula of one level each, the backend's folder those that play several):
 
 | folder | count | curricula |
 |---|---|---|

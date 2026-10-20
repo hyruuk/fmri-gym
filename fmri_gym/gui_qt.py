@@ -1060,15 +1060,13 @@ class _Editor(QtWidgets.QMainWindow):
         self._insert_step({"config": path, "skip": False})
 
     def _provisional_path(self, config: dict, own: str | None = None) -> str:
-        """``configs/curricula/<backend>/<backend>.json``, counting up past the files there, in
-        its ``levels/`` (the same task label) and this session's (but not ``own``, the name it
-        has now, so it can keep it)."""
+        """``<backend>.json`` in the curricula folder, a name not yet taken there or in this
+        session (``own`` excepted, so it can keep its name)."""
         backend = gui.first_backend(config)
-        folder = os.path.join("configs", "curricula", backend)
+        folder = os.path.relpath(gui.CURRICULA_DIR)
         taken = {os.path.splitext(os.path.basename(p))[0] for p in self.configs if p != own}
-        for d in (folder, os.path.join(folder, curriculum.LEVELS_DIRNAME)):
-            if os.path.isdir(d):
-                taken |= {os.path.splitext(name)[0] for name in os.listdir(d)}
+        if os.path.isdir(folder):
+            taken |= {os.path.splitext(name)[0] for name in os.listdir(folder)}
         return os.path.join(folder, gui.suggest_name(backend, taken) + ".json")
 
     def _ask_config_path(self, suggested: str) -> str:
