@@ -365,8 +365,8 @@ class Audio:
         pick the rig's output there, as for any other program.
 
         :param enabled: ``False`` (the rig's ``"has_audio": false``) never touches a sound device,
-            so a machine without one can run; a block that then has sound to
-            play raises.
+            so a machine without one can run; a block's sound is still numbered
+            and logged, and played nowhere.
         :raises RuntimeError: if there is no usable output, or it reports no
             DAC timestamps.
         """
@@ -449,7 +449,7 @@ class Audio:
 
     def block_log(self) -> AudioBlockLog | None:
         """The block's sound timing for its log, or ``None`` if it played none."""
-        if not self._queued:
+        if not self._queued or not self.enabled:
             return None
         return AudioBlockLog(list(self._log["onsets"]), self.delay * 1000,
                              self._log["resyncs"], self._log["trimmed"])
@@ -483,6 +483,10 @@ class Audio:
     def play(self, sound: Sound | None, flip_t: float) -> None:
         """Queue one chunk to start :attr:`delay` after its frame's flip.
 
+        With the output off (the rig's ``"has_audio": false``) the chunk is
+        numbered as if it had been queued, so the log keeps the game's sound,
+        and goes nowhere.
+
         :param sound: a :class:`~fmri_gym.adapters.base.Sound`, or ``None`` for
             a frame with nothing to play (which leaves playback alone, rather
             than cutting off what is still queued).
@@ -490,15 +494,14 @@ class Audio:
         :raises ValueError: if the PCM is not shaped ``(samples, channels)``,
             or its amount per step does not match the block's frame rate
             (:meth:`start`).
-        :raises RuntimeError: if the output is off (the rig's ``"has_audio": false``).
         """
         self.last_chunk = -1
         if sound is None or not len(sound.pcm):
             return
         if not self.enabled:
-            raise RuntimeError("audio: a game block has sound to play but the output is off "
-                               '(the rig\'s "has_audio": false); set "has_audio": false on '
-                               "that phase")
+            self.last_chunk = self._queued
+            self._queued += 1
+            return
         pcm = sound.pcm
         sound_format = (sound.sample_rate, pcm.shape[1:], pcm.dtype)
         if sound_format != self.format:

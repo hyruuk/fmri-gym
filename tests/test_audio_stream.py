@@ -250,3 +250,20 @@ def test_chunks_play_whole_once_in_order(title, block_size, puts, seconds):
 
 def test_stop_drops_the_cue_in_flight():
     assert episode_boundary() == 0
+
+
+def test_muted_output_numbers_chunks_for_the_log():
+    """A rig with ``"has_audio": false`` plays nothing but numbers each chunk, so the log keeps it.
+
+    An empty chunk is no chunk: it gets no number, as it gets no row in ``audio.h5``.
+    """
+    from fmri_gym.adapters.base import Sound
+
+    out = _audio.Audio(enabled=False)
+    out.start(frame_period=1 / 35, flip_period=None)
+    numbers = []
+    for n in (10, 0, 10, 10):
+        out.play(Sound(np.ones((n, 2), dtype=np.int16), RATE), 0.0)
+        numbers.append(out.last_chunk)
+    assert numbers == [0, -1, 1, 2]
+    assert out.block_log() is None, "a muted output has no onsets to report"
