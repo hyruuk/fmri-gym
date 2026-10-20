@@ -1,17 +1,7 @@
 {
-  "site": "example",
-  "rig": "desk",
-  "pi": "MT",
-  "modality": "behav",
-  "monitor": "the desk PC's screen, in a window",
-  "photodiode": "none",
-  "audio_path": "this computer's default sound output",
-  "trigger_hardware": "none: a run starts on the experimenter's SPACE",
-  "notes": "An example rig for a desk PC with the Current Designs controller plugged in, its controls bound to the keys the curricula expect (the keyboard works too). Copy it to configs/rigs/<site>/<rig>.json and fill it in for a real rig (or let the rig check's form do it).",
   "screen": {"size": "1024x768", "is_fullscreen": false, "monitor": 0, "has_vsync": true},
   "has_pad": true,
-  "bindings": {"Y": "W", "B": "D", "X": "A", "A": "S", "LT": "Q", "RT": "E",
-               "UP": "UP", "DOWN": "DOWN", "LEFT": "LEFT", "RIGHT": "RIGHT"},
+  "bindings": {"Y": "W", "B": "D", "X": "A", "A": "S", "LT": "Q", "RT": "E", "UP": "UP", "DOWN": "DOWN", "LEFT": "LEFT", "RIGHT": "RIGHT"},
   "has_audio": true,
   "data_root": "data",
   "triggers": {"sync": {"mode": "none"}, "backend": "null"}

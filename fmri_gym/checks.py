@@ -1955,7 +1955,8 @@ def render_html(m: dict, folder: str, history: list[dict[str, str]]) -> str:
     verdict = "Every test passed" if not failed else f"{len(failed)} of {len(tests)} tests failed"
     body = [f'<header><h1>Rig check · {_e(rig["site"])} / {_e(rig["rig"])}</h1>'
             f'<div class="meta">{_e(m["start_time"])} · {_e(m["run"]["label"])} · PI '
-            f'{_e(rig["pi"])} · {_e(rig["modality"])} · fmri-gym {_e(m["versions"]["fmri_gym"])} '
+            f'{_e(rig.get("pi", "?"))} · {_e(rig.get("modality", "?"))} · '
+            f'fmri-gym {_e(m["versions"]["fmri_gym"])} '
             f'({_e(m["versions"]["git"])})</div></header>',
             f'<div class="hero">{_status("pass" if not failed else "fail")} {_e(verdict)}</div>',
             '<div class="card">' + _html_table(["test", "verdict", "why"], [

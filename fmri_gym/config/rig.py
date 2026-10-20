@@ -13,11 +13,13 @@ one rig file there is nothing to pick; with none, or with several and no
 ``--rig``, nothing starts: which window, controller and data folder a session
 gets is not something to guess.
 
-A rig file holds what the rig is -- :data:`FIELDS`, every one required, filed
-with every run so that rig checks from every site can be pooled -- and, each
-optional, how its runs are played (:data:`DEFAULTS` when left out), under the
-field names of :class:`RigConfig` and :class:`ScreenConfig`, so the file and the
-code say the same thing:
+Every key of a rig file is optional: an empty ``{}`` plays on the defaults. Its
+name is its place, ``<site>/<rig>``; a ``site`` or ``rig`` written in the file
+must say the same. It may describe the rig for people -- :data:`FIELDS`, notes
+nothing plays from, filed with every run and pooled by the rig check -- and
+say how its runs are played (:data:`DEFAULTS` when left out), under the field
+names of :class:`RigConfig` and :class:`ScreenConfig`, so the file and the code
+say the same thing:
 
 - ``"screen"``: ``{"size": "1024x768", "is_fullscreen": false, "monitor": 0,
   "has_vsync": true}``, the monitor by index (0: the first); fullscreen takes
@@ -54,7 +56,8 @@ from ..pad import CONTROLS
 from ..triggers import TriggerError, TriggerSettings
 
 MODALITIES = ("fmri", "meg", "eeg", "behav")
-#: What the rig is: every key required (``notes`` may be empty).
+#: What the rig is, for people: notes nothing plays from, each optional, filed with
+#: every run and pooled by the rig check (``site`` and ``rig`` are the file's place).
 FIELDS = {
     "site": "the site, and the rig file's folder: letters, digits, _ and -",
     "rig": "this rig at the site, and the rig file's name: letters, digits, _ and -",
@@ -159,20 +162,21 @@ class RigConfig:
         """Read a rig file's JSON, :data:`DEFAULTS` where it says nothing.
 
         :param rig: the file's JSON.
-        :param name: ``<site>/<rig>``, which the file's ``site`` and ``rig`` fields must match.
-        :raises ValueError: naming each field that is missing, unknown or invalid, and
-            how to fix it.
+        :param name: ``<site>/<rig>``, the file's place, which a ``site`` or ``rig`` it
+            writes must match.
+        :raises ValueError: naming each field that is unknown or invalid, and how to fix it.
         """
         found = problems(rig)
-        named = name_of(rig) if not found else name
-        if named != name:
-            found.append(f"site/rig are {named!r}: a rig file sits at <site>/<rig>.json, "
-                         f"{path(named)}")
+        site, _, rig_name = name.partition("/")
+        found += [f'"{k}" is {rig[k]!r}: a rig file sits at <site>/<rig>.json, here {name}'
+                  for k, own in (("site", site), ("rig", rig_name)) if rig.get(k, own) != own]
         if found:
             raise ValueError(f"{path(name)}: " + "; ".join(found) + ". Fix it by hand, or in "
                              f"the form: python -m fmri_gym.checks rig --rig {name}")
         settings = {**DEFAULTS, **rig}
-        return cls(name=name, fields={k: rig[k] for k in FIELDS},
+        fields = {"site": site, "rig": rig_name,
+                  **{k: rig[k] for k in FIELDS if k in rig and k not in ("site", "rig")}}
+        return cls(name=name, fields=fields,
                    screen=ScreenConfig.from_dict(rig.get("screen", {})),
                    has_pad=settings["has_pad"], bindings=dict(settings["bindings"]),
                    has_audio=settings["has_audio"],
@@ -310,13 +314,12 @@ def save(rig: dict) -> Path:
 
 
 def problems(rig: dict) -> list[str]:
-    """What keeps ``rig`` from being a rig file: every one of :data:`FIELDS`, the
-    optional :data:`DEFAULTS` of the right type, no other key.
+    """What keeps ``rig`` from being a rig file: :data:`FIELDS` and :data:`DEFAULTS` of
+    the right type where given, no other key.
 
     :return: one line per problem; empty when it is valid.
     """
-    out = [f"missing {k!r} ({what})" for k, what in FIELDS.items() if k not in rig]
-    out += [f"unknown key {k!r}" for k in rig if k not in FIELDS and k not in DEFAULTS]
+    out = [f"unknown key {k!r}" for k in rig if k not in FIELDS and k not in DEFAULTS]
     fields = {k: v for k, v in rig.items() if k in FIELDS}
     out += [f"{k!r} must be a string" for k, v in fields.items() if not isinstance(v, str)]
     out += [f"{k!r} is empty" for k, v in fields.items() if k != "notes" and v == ""]

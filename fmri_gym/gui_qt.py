@@ -1924,7 +1924,8 @@ class _RigForm(QtWidgets.QDialog):
             text = (w.currentText() if isinstance(w, QtWidgets.QComboBox)
                     else w.toPlainText() if isinstance(w, QtWidgets.QPlainTextEdit)
                     else w.text())
-            out[key] = text.strip()
+            if text.strip() or key in ("site", "rig"):   # a blank note is left out
+                out[key] = text.strip()
         out["screen"] = {"size": self.size_pick.currentText().strip(),
                          "is_fullscreen": self.switches["is_fullscreen"].isChecked(),
                          "monitor": self.monitor_pick.currentData(),

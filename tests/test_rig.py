@@ -122,3 +122,13 @@ def test_bindings_map_the_controllers_controls_to_keys():
                                                  "bindings": {"Q": "SPACE", "B": "NOPE"}}))
     with pytest.raises(ValueError, match="'Q' is not a control.*'NOPE' is not a key name"):
         RigConfig.open("site1/pad")
+
+
+def test_every_key_is_optional_and_the_name_is_the_files_place():
+    rig.path("site1/bare").parent.mkdir(parents=True, exist_ok=True)
+    rig.path("site1/bare").write_text("{}")
+    bare = RigConfig.open("site1/bare")
+    assert bare.fields == {"site": "site1", "rig": "bare"} and bare.has_audio
+    rig.path("site1/bare").write_text(json.dumps({"site": "elsewhere"}))
+    with pytest.raises(ValueError, match="sits at <site>/<rig>.json"):
+        RigConfig.open("site1/bare")

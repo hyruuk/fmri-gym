@@ -1,13 +1,4 @@
 {
-  "site": "example",
-  "rig": "laptop",
-  "pi": "MT",
-  "modality": "behav",
-  "monitor": "the laptop's own screen, in a window",
-  "photodiode": "none",
-  "audio_path": "the laptop's default sound output",
-  "trigger_hardware": "none: a run starts on the experimenter's SPACE",
-  "notes": "An example rig for a laptop and its keyboard alone: no controller is read, so the curricula's keyboard keys are what is pressed. Copy it to configs/rigs/<site>/<rig>.json and fill it in for a real rig (or let the rig check's form do it).",
   "screen": {"size": "1024x768", "is_fullscreen": false, "monitor": 0, "has_vsync": true},
   "has_pad": false,
   "has_audio": true,
