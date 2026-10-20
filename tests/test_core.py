@@ -139,10 +139,10 @@ def test_validate_config_accepts_a_plain_game_phase():
 
 
 @pytest.mark.parametrize("path, label", [
-    ("configs/curricula/minihack/levels/room5x5.json", "minihacklevelsroom5x5"),
-    ("/elsewhere/curricula/ale/all.json", "aleall"),
-    ("configs/pong_v2.json", "pongv2"),
-    ("configs/curricula/top_level.json", "toplevel"),
+    ("configs/curricula/minihack/levels/room5x5.json", "minihackLevelsRoom5x5"),
+    ("/elsewhere/curricula/baba_auto/levels/lock.json", "babaAutoLevelsLock"),
+    ("configs/pong_v2.json", "pongV2"),
+    ("configs/curricula/top_level.json", "topLevel"),
 ])
 def test_task_label_is_the_path_under_curricula(path, label):
     assert task_label(path) == label

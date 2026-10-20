@@ -122,15 +122,16 @@ def subject_label(subject: str) -> str:
 
 
 def task_label(curriculum_path: str) -> str:
-    """A curriculum's path after ``curricula/`` (else its file name), letters and digits only.
+    """A curriculum's path after ``curricula/`` (else its file name), in camelCase.
 
-    ``curricula/ale/levels/pong.json`` gives ``alelevelspong``.
+    ``curricula/ale/levels/pong.json`` gives ``aleLevelsPong``: BIDS labels are letters and digits.
 
     :raises ValueError: if nothing is left (a file named ``__.json``).
     """
     path = os.path.splitext(os.path.abspath(curriculum_path))[0]
     _, found, tail = path.rpartition(os.sep + "curricula" + os.sep)
-    label = "".join(re.findall(r"[A-Za-z0-9]", tail if found else os.path.basename(path)))
+    parts = re.findall(r"[A-Za-z0-9]+", tail if found else os.path.basename(path))
+    label = "".join(parts[:1] + [p[0].upper() + p[1:] for p in parts[1:]])
     if not label:
         raise ValueError(f"{curriculum_path}: no letter or digit in its name to make a BIDS "
                          "task label from; rename the file")
