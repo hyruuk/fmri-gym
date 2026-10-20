@@ -41,21 +41,21 @@ playwright install chromium   # then set "browser_channel": null in the phase if
 ## 2. Play a game on a laptop
 
 ```bash
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/minihack/room5x5.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/minihack/room5x5.json
 ```
 
-`--rig example/empty` is an empty rig file (`configs/rigs/example/empty.json`, just `{}`), so every setting is the default: a 1024x768 window with the game's sound on the laptop's speakers, the keyboard (arrows and the letter keys each game's instructions name), and the data saved under `data/`. Press **SPACE** on the first screen, then **=**: with no triggers in the rig file, a run waits for the scanner's `=` like an fMRI rig (the screen says NOT SET). **ESC** quits. Every command below plays this way: swap the curriculum for any game in `configs/curricula/<backend>/<game>.json`.
+`--rig configs/rigs/example/empty.json` is an empty rig file (`configs/rigs/example/empty.json`, just `{}`), so every setting is the default: a 1024x768 window with the game's sound on the laptop's speakers, the keyboard (arrows and the letter keys each game's instructions name), and the data saved under `data/`. Press **SPACE** on the first screen, then **=**: with no triggers in the rig file, a run waits for the scanner's `=` like an fMRI rig (the screen says NOT SET). **ESC** quits. Every command below plays this way: swap the curriculum for any game in `configs/curricula/<backend>/<game>.json`.
 
 
 | Flag / key         | What it does                                                    |
 | ------------------ | --------------------------------------------------------------- |
 | `--subject sub-01` | Subject id used in the output folder name                       |
-| `--rig example/empty` | Which rig plays it, `<site>/<rig>`: here, all defaults      |
+| `--rig configs/rigs/example/empty.json` | The rig file it is played on: here, all defaults |
 | **SPACE**          | Advance past the experimenter screen                            |
 | `=`                | Scanner trigger (anchors the session clock); on a laptop, press it yourself |
 | **ESC**            | Quit early; data is still saved                                 |
 
-**A rig file first.** How a run is played -- window size, fullscreen, which monitor, the controller, audio, where the data goes -- is the rig's, not the command's: one file per rig, in the repo, `configs/rigs/<site>/<rig>.json`. The repo ships three example rigs: `example/empty`, an empty file and so every default, which the commands below name; `example/laptop`, the keyboard alone with no scanner (a run starts on SPACE, no `=`); and `example/desk`, the Current Designs controller bound to the curricula's keys. For a real rig, make its file with the rig's long rig check (one per rig), which opens a form for it: `uv run fmri-play --subject sub-rig --ses 1 --run 1 --rig <site>/<rig> --curriculum configs/curricula/checks/rig-check-long.json` (or only the form: `uv run python -m fmri_gym.checks rig --rig <site>/<rig>`), and commit the file; `--rig` names the rig every run plays on (README "Rigs").
+**A rig file first.** How a run is played -- window size, fullscreen, which monitor, the controller, audio, where the data goes -- is the rig's, not the command's: one file per rig, in the repo, `configs/rigs/<site>/<rig>.json`. The repo ships three example rigs in `configs/rigs/example/`: `empty.json`, an empty file and so every default, which the commands below name; `laptop.json`, the keyboard alone with no scanner (a run starts on SPACE, no `=`); and `desk.json`, the Current Designs controller bound to the curricula's keys. For a real rig, make its file with the rig's long rig check (one per rig), which opens a form for it: `uv run fmri-play --subject sub-rig --ses 1 --run 1 --rig configs/rigs/<site>/<rig>.json --curriculum configs/curricula/checks/rig-check-long.json` (or only the form: `uv run python -m fmri_gym.checks rig --rig configs/rigs/<site>/<rig>.json`), and commit the file; `--rig` names the rig file every run plays on (README "Rigs").
 
 
 The config editor is a command of its own, `fmri-edit` (needs the `gui` extra: `uv sync --extra dbp --extra gui`). It opens on a run, on a session script (`--session ses1.sh`, one line per run) or on a new run, and its **Play** starts what it shows. To play a session without it: `sh ses1.sh`.
@@ -75,16 +75,16 @@ All commands assume you're in the repo root with `fmri-gym` activated.
 All ten stock scenarios, one line each:
 
 ```bash
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/vizdoom/basic.json                      # strafe and shoot one monster
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/vizdoom/deadly_corridor.json            # fight down a corridor to the vest
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/vizdoom/deathmatch.json                 # arena, full arsenal, scored by kills
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/vizdoom/defend_center.json              # surrounded; turn and shoot
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/vizdoom/defend_line.json                # they advance down a hall and respawn
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/vizdoom/health_gathering_supreme.json   # acid-floor maze; find medikits
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/vizdoom/my_way_home.json                # navigate a 9-room maze to the vest
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/vizdoom/predict_position.json           # lead a moving target with a rocket
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/vizdoom/take_cover.json                 # no weapon; dodge fireballs
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/vizdoom/take_cover_defend_line.json     # those last two back to back, 150 s each
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/vizdoom/basic.json                      # strafe and shoot one monster
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/vizdoom/deadly_corridor.json            # fight down a corridor to the vest
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/vizdoom/deathmatch.json                 # arena, full arsenal, scored by kills
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/vizdoom/defend_center.json              # surrounded; turn and shoot
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/vizdoom/defend_line.json                # they advance down a hall and respawn
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/vizdoom/health_gathering_supreme.json   # acid-floor maze; find medikits
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/vizdoom/my_way_home.json                # navigate a 9-room maze to the vest
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/vizdoom/predict_position.json           # lead a moving target with a rocket
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/vizdoom/take_cover.json                 # no weapon; dodge fireballs
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/vizdoom/take_cover_defend_line.json     # those last two back to back, 150 s each
 ```
 
 Controls: arrows move/turn, Z/X strafe, SPACE shoots — but each scenario only has the buttons its `.cfg` declares, so the arrows *strafe* in Basic and Take Cover (no turning), there is no SPACE in Health Gathering / My Way Home / Take Cover (no weapon), and Deathmatch adds N/M to switch weapons and S to run. Each config's controls message lists exactly what that scenario accepts.
@@ -94,15 +94,15 @@ Controls: arrows move/turn, Z/X strafe, SPACE shoots — but each scenario only 
 COOM's own Doom scenarios (not the stock ViZDoom ones above). The env ships here as `coom-gym` (`gym/coom/`, part of the `dbp` extra) and reads the scenario files from the COOM checkout at its pinned commit (the `external/coom` submodule; README "External checkouts").
 
 ```bash
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/coom/pitfall.json          # cross a corridor of randomized pits
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/coom/chainsaw.json         # hunt maze enemies at melee range
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/coom/run_and_gun.json      # find and shoot maze enemies
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/coom/health_gathering.json # draining floor; collect health kits
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/coom/hide_and_seek.json    # evade enemies, grab kits when low
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/coom/arms_dealer.json      # collect weapons, deliver to platforms
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/coom/floor_is_lava.json    # stay on the briefly-appearing platforms
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/coom/parkour.json          # jump the gaps and ledges
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/coom/raise_the_roof.json   # press wall switches before the ceiling crushes you
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/coom/pitfall.json          # cross a corridor of randomized pits
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/coom/chainsaw.json         # hunt maze enemies at melee range
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/coom/run_and_gun.json      # find and shoot maze enemies
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/coom/health_gathering.json # draining floor; collect health kits
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/coom/hide_and_seek.json    # evade enemies, grab kits when low
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/coom/arms_dealer.json      # collect weapons, deliver to platforms
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/coom/floor_is_lava.json    # stay on the briefly-appearing platforms
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/coom/parkour.json          # jump the gaps and ledges
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/coom/raise_the_roof.json   # press wall switches before the ceiling crushes you
 ```
 
 Controls: UP moves forward, LEFT/RIGHT turn, and the scenario's one extra button is SPACE (pitfall, chainsaw, run_and_gun, parkour), LSHIFT (health_gathering, hide_and_seek, arms_dealer, floor_is_lava) or E (raise_the_roof). The nine configs enable native audio; OpenAL is required. MIDI background music needs a working MIDI renderer. See README for audio setup and the current episode-end playback limitation.
@@ -110,7 +110,7 @@ Controls: UP moves forward, LEFT/RIGHT turn, and the scenario's one extra button
 ### Crafter
 
 ```bash
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/crafter/L4.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/crafter/L4.json
 ```
 
 
@@ -118,8 +118,8 @@ uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curricul
 ### Rush Hour
 
 ```bash
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/rushhour/easy.json      # 5 min of random easy puzzles
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/rushhour/complete.json    # Rush-Hour's own session: 12 puzzles, easiest first, self-paced
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/rushhour/easy.json      # 5 min of random easy puzzles
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/rushhour/complete.json    # Rush-Hour's own session: 12 puzzles, easiest first, self-paced
 ```
 
 `configs/curricula/rushhour/complete.json` is the Rush-Hour program's own session (ready screen before each puzzle, blank interval, solved hold); see `configs/curricula/rushhour/common/README.md`.
@@ -129,7 +129,7 @@ The engine binary is fetched on first run (see §1); nothing to build.
 ### Baba Is AI (generated puzzles in the style of Baba Is You)
 
 ```bash
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/baba/make_win.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/baba/make_win.json
 ```
 
 
@@ -140,7 +140,7 @@ The engine is C++, compiled when the extra installs from the checkout at its pin
 
 ```bash
 uv sync --extra dbp --extra baba_auto
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/baba_auto/baba_is_you.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/baba_auto/baba_is_you.json
 ```
 
 
@@ -151,7 +151,7 @@ Ten small arcade games from a gymnasium-ported fork, at its pinned commit (READM
 
 ```bash
 uv sync --extra dbp --extra vgdl
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/vgdl/all.json   # all ten, 15 s each
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/vgdl/all.json   # all ten, 15 s each
 ```
 
 
@@ -159,16 +159,16 @@ uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curricul
 ### AI GameStore (p5.js browser games)
 
 ```bash
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/aigamestore/game1.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/aigamestore/game2.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/aigamestore/game3.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/aigamestore/game4.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/aigamestore/game5.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/aigamestore/game6.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/aigamestore/game7.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/aigamestore/game8.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/aigamestore/game9.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/aigamestore/game10.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game1.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game2.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game3.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game4.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game5.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game6.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game7.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game8.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game9.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game10.json
 ```
 
 Controls: arrows + SPACE / Z / ENTER (game-dependent). Needs Playwright + Chrome (§1).
@@ -176,12 +176,12 @@ Controls: arrows + SPACE / Z / ENTER (game-dependent). Needs Playwright + Chrome
 ### MiniHack
 
 ```bash
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/minihack/room5x5.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/minihack/room15x15.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/minihack/mazewalk9x9.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/minihack/river.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/minihack/corridor.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/minihack/eat.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/minihack/room5x5.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/minihack/room15x15.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/minihack/mazewalk9x9.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/minihack/river.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/minihack/corridor.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/minihack/eat.json
 ```
 
 Controls: arrow keys (N/E/S/W). Needs `setuptools<81` (already a core dependency).
@@ -189,7 +189,7 @@ Controls: arrow keys (N/E/S/W). Needs `setuptools<81` (already a core dependency
 ### SuperTuxKart
 
 ```bash
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig example/empty --curriculum configs/curricula/stk/hacienda.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/stk/hacienda.json
 ```
 
 Needs a real GL display (does **not** work under `SDL_VIDEODRIVER=dummy`); the game itself comes with `supertuxkart-gym`, which fetches it on first use (no checkout, no build). See the README section "Running SuperTuxKart". Controls: arrows steer/accelerate/brake, SPACE fire, V skid, N nitro, BACKSPACE rescue.

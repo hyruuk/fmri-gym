@@ -92,8 +92,8 @@ class Launch:
     subject: str
     #: the session number, or ``None`` for the subject's next free one
     ses: int | None
-    #: the rig, ``<site>/<rig>``, or ``None`` for the only rig file there is
-    rig: str | None
+    #: the rig file
+    rig: str
     dummy_trigger: bool
 
     def data_root(self) -> str:
@@ -107,7 +107,8 @@ class Launch:
 #: What the Launch tab starts at, and so what a run's command carries unless the
 #: tab (or an opened session script) says otherwise. The window, the controller,
 #: the audio and the data root are the rig's (:mod:`fmri_gym.config.rig`), not a launch's.
-DEFAULT_LAUNCH = Launch(subject="sub-test", ses=None, rig=None, dummy_trigger=False)
+DEFAULT_LAUNCH = Launch(subject="sub-test", ses=None, rig="configs/rigs/example/laptop.json",
+                        dummy_trigger=False)
 
 #: Keys are the argparse names of ``fmri_play.py``'s flags; labels are the flags.
 LAUNCH_FIELDS = [
@@ -120,9 +121,8 @@ LAUNCH_FIELDS = [
                                      "it is run without one -- `sh ses1.sh 003` overrides it, "
                                      "which is how a stopped session is resumed."),
     Field("rig", "--rig", "combo", (),
-          tip="The rig it is played on: its file says the window, the controller, the audio "
-              "and where the data goes. Blank = the only rig file there is. Edit rig... changes "
-              "it, or makes a new one."),
+          tip="The rig file it is played on: it says the window, the controller, the audio "
+              "and where the data goes. Edit rig... changes it, or makes it when it is missing."),
     Field("dummy_trigger", "--dummy-trigger", "bool", default=False,
           tip="Skip the experimenter and scanner waits. A test run, not a session -- though its "
               "data is saved like any run's and takes the next run number."),
@@ -476,12 +476,13 @@ def launch_values(form: dict) -> Launch:
     """The Launch form as the flags ``fmri_play`` reads, every flag present.
 
     :param form: what :func:`field_values` returned for :data:`LAUNCH_FIELDS`.
-    :raises ValueError: if the subject is blank.
+    :raises ValueError: if the subject or the rig is blank.
     """
-    if "subject" not in form:
-        raise ValueError("--subject: required")
+    for key in ("subject", "rig"):
+        if key not in form:
+            raise ValueError(f"--{key}: required")
     off = {f.key: False for f in LAUNCH_FIELDS if f.kind == "bool"}
-    return Launch(**{"ses": None, "rig": None, **off, **form})
+    return Launch(**{"ses": None, **off, **form})
 
 
 def phase_label(index: int, phase: dict) -> str:
@@ -698,18 +699,14 @@ def play_command(config_path: str, launch: Launch, ses: str, run: int) -> list[s
     """
     switches = [f"--{key.replace('_', '-')}" for key in SWITCHES if getattr(launch, key)]
     return [*PLAY.split(), "--curriculum", config_path, "--subject", launch.subject,
-            "--ses", ses, "--run", str(run), *_rig_flag(launch), *switches]
-
-
-def _rig_flag(launch: Launch) -> list[str]:
-    return ["--rig", launch.rig] if launch.rig else []
+            "--ses", ses, "--run", str(run), "--rig", launch.rig, *switches]
 
 
 def _ses_line(launch: Launch) -> str:
     """``SES=``: the script's own argument, else the number pinned here or the next free one."""
     if launch.ses is not None:
         return f"SES=${{1:-{launch.ses:03d}}}"
-    ses_tool = [*SES_TOOL.split(), "--subject", launch.subject, *_rig_flag(launch)]
+    ses_tool = [*SES_TOOL.split(), "--subject", launch.subject, "--rig", launch.rig]
     return f"SES=${{1:-$({_shell(ses_tool)})}}"
 
 
@@ -739,7 +736,7 @@ def _parse_play_line(line: str) -> tuple[str, Launch, int] | None:
     for flag in ("--curriculum", "--subject", "--ses"):
         parser.add_argument(flag, required=True)
     parser.add_argument("--run", type=int, required=True)
-    parser.add_argument("--rig")
+    parser.add_argument("--rig", required=True)
     for key in SWITCHES:
         parser.add_argument(f"--{key.replace('_', '-')}", action="store_true")
     try:

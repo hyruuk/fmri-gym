@@ -72,7 +72,7 @@ class RunConfig:
         name = sync.key.upper()
         if sync.mode != "wait" or not (len(name) == 1 and name.isalnum()):
             return []  # "=" is no game key: nothing can clash
-        return [f"phase {i}: keys: {combo} uses {sync.key!r}, the key {self.rig.name}'s scanner "
+        return [f"phase {i}: keys: {combo} uses {sync.key!r}, the key {self.rig.path}'s scanner "
                 "types at every volume (its triggers.sync.key): bind another key"
                 for i, phase in enumerate(self.curriculum.phases) if isinstance(phase, GamePhase)
                 for combo in phase.spec["keys"] if name in combo.upper().split("+")]

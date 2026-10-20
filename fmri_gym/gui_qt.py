@@ -685,7 +685,7 @@ class _Editor(QtWidgets.QMainWindow):
         self.launch_page = page
         layout = QtWidgets.QVBoxLayout(page)
         self.launch_form = _Form(gui.LAUNCH_FIELDS)
-        self.launch_form.set_choices("rig", rig_file.names())
+        self.launch_form.set_choices("rig", rig_file.rig_files())
         self._set_launch(launch)
         dummy = self.launch_form.widgets["dummy_trigger"]
         dummy.toggled.connect(self._label_play_button)
@@ -714,45 +714,42 @@ class _Editor(QtWidgets.QMainWindow):
         return gui.launch_values(self.launch_form.get())
 
     def _edit_rig(self) -> None:
-        """The rig form on the launch's rig (a new one if it has no file); on Save, picked."""
-        name = self.launch_form.get().get("rig")
-        if name is None and len(rig_file.names()) == 1:
-            name = rig_file.names()[0]
-        saved = fill_rig(rig_file.draft(name))
-        if saved is None:
+        """The rig form on the launch's rig file (made if it is missing); on Save, picked."""
+        path = self._launch_rig()
+        if path is None:
+            self._error("--rig: name the rig file to edit or make, e.g. "
+                        "configs/rigs/<site>/<rig>.json")
             return
-        self.launch_form.set_choices("rig", rig_file.names())
-        self.launch_form.write("rig", rig_file.name_of(saved))
+        if fill_rig(rig_file.draft(path), path) is None:
+            return
+        self.launch_form.set_choices("rig", rig_file.rig_files())
+        self.launch_form.write("rig", path)
         self._show_rig_triggers()
 
     def _launch_rig(self) -> str | None:
-        """The rig the Launch tab names, or the only one there is; ``None`` without one."""
-        name = self.launch_form.get().get("rig")
-        names = rig_file.names()
-        if name is None:
-            return names[0] if len(names) == 1 else None
-        return name if name in names else None
+        """The rig file the Launch tab names; ``None`` when it names none."""
+        return self.launch_form.get().get("rig")
 
     def _show_rig_triggers(self) -> None:
         """The Triggers tab on the launch's rig's ``triggers``: they are the rig's, not a run's."""
-        name = self._launch_rig()
-        section = dict(rig_file.draft(name).get("triggers", {})) if name else {}
+        path = self._launch_rig()
+        section = dict(rig_file.draft(path).get("triggers", {})) if path else {}
         codes = {**asdict(Codes()), **section.pop("codes", {})}
         self._set_sync(section.pop("sync", {}), codes["scanner_start"])
         self.code_form.set(codes)
         self.trigger_form.set({**_trigger_defaults(), **section})
         self.trigger_rig.setText(
-            f"The triggers of the rig {name} ({rig_file.path(name)}), for every run on it. "
-            "Save to the rig file keeps a change." if name else
-            "No rig picked on the Launch tab: pick one, or Edit rig... to make one, to see and "
+            f"The triggers of the rig {path}, for every run on it. "
+            "Save to the rig file keeps a change." if path else
+            "No rig file on the Launch tab: name one, or Edit rig... to make one, to see and "
             "save its triggers.")
         self._refresh_triggers()
 
     def _save_rig_triggers(self) -> None:
         """Write the tab's settings as the launch's rig's ``triggers``."""
-        name = self._launch_rig()
-        if name is None:
-            self._error("No rig picked on the Launch tab: its triggers have nowhere to go")
+        path = self._launch_rig()
+        if path is None:
+            self._error("No rig file on the Launch tab: its triggers have nowhere to go")
             return
         try:
             section = self._current_triggers()
@@ -763,8 +760,8 @@ class _Editor(QtWidgets.QMainWindow):
         if problems:
             self._error("\n".join(problems))
             return
-        where = rig_file.save({**rig_file.load(name), "triggers": section})
-        self._set_status(f"triggers saved in {where}")
+        rig_file.save({**rig_file.draft(path), "triggers": section}, path)
+        self._set_status(f"triggers saved in {path}")
 
     # -- model <-> widgets -------------------------------------------------
 
@@ -1792,11 +1789,12 @@ _RIG_RUNS = ("What every run played on this rig uses, whatever its config: the w
 
 
 class _RigForm(QtWidgets.QDialog):
-    def __init__(self, values: dict) -> None:
+    def __init__(self, values: dict, path: str) -> None:
         super().__init__()
-        self.setWindowTitle(f"Rig file: {rig_file.folder()}/<site>/<rig>.json")
-        #: what the form does not edit (the Triggers tab, the file), kept as it is
-        self._kept = {k: values[k] for k in ("triggers", "bindings") if k in values}
+        self.setWindowTitle(f"Rig file: {path}")
+        #: what the form does not edit (the file's place, the Triggers tab, the file), kept
+        self._kept = {k: values[k] for k in ("site", "rig", "triggers", "bindings")
+                      if k in values}
         self.setMinimumWidth(640)
         self.fields: dict[str, QtWidgets.QWidget] = {}
         layout = QtWidgets.QVBoxLayout(self)
@@ -1805,6 +1803,8 @@ class _RigForm(QtWidgets.QDialog):
         layout.addWidget(intro)
         form = QtWidgets.QFormLayout()
         for key, what in rig_file.FIELDS.items():
+            if key in ("site", "rig"):   # the file's folder and name
+                continue
             form.addRow(key, self._field(key, str(values.get(key, "")),
                                          rig_file.EXAMPLES.get(key, "")))
             hint = QtWidgets.QLabel(what)
@@ -1924,7 +1924,7 @@ class _RigForm(QtWidgets.QDialog):
             text = (w.currentText() if isinstance(w, QtWidgets.QComboBox)
                     else w.toPlainText() if isinstance(w, QtWidgets.QPlainTextEdit)
                     else w.text())
-            if text.strip() or key in ("site", "rig"):   # a blank note is left out
+            if text.strip():   # a blank field is left out
                 out[key] = text.strip()
         out["screen"] = {"size": self.size_pick.currentText().strip(),
                          "is_fullscreen": self.switches["is_fullscreen"].isChecked(),
@@ -1946,24 +1946,25 @@ class _RigForm(QtWidgets.QDialog):
         self.save.setEnabled(not problems)
 
 
-def fill_rig(values: dict) -> dict[str, Any] | None:
+def fill_rig(values: dict, path: str) -> dict[str, Any] | None:
     """A rig file (:mod:`fmri_gym.config.rig`), filled in a form instead of by hand; on
-    Save, written as the file of the rig it names (``rigs/<site>/<rig>.json``).
+    Save, written at ``path``.
 
     One window rather than a prompt per field: all of it stays in view, and the
     problems are listed live -- the same :func:`~fmri_gym.config.rig.problems` a
     loaded file is held to, so the form cannot save a file a run would refuse.
 
-    :param values: what is known so far (an invalid file's content, or only its name).
+    :param values: what is known so far (an invalid file's content, or nothing).
+    :param path: the rig file.
     :return: the rig written, or ``None`` if the form was cancelled.
     """
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(["fmri-gym"])
     app.setStyle("Fusion")
-    form = _RigForm(values)
+    form = _RigForm(values, path)
     if form.exec() != QtWidgets.QDialog.DialogCode.Accepted:
         return None
     rig = form.rig
-    rig_file.save(rig)
+    rig_file.save(rig, path)
     return rig
 
 

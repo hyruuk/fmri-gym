@@ -51,7 +51,7 @@ numbers, charts, this rig's previous checks; one offline file),
 holds every check filed there, read from their manifests, so checks filed by
 an earlier version still line up::
 
-    python -m fmri_gym.checks rig --rig <site>/<rig>   # fill in / update a rig file
+    python -m fmri_gym.checks rig --rig configs/rigs/<site>/<rig>.json   # fill in / update a rig file
     python -m fmri_gym.checks report <run folder>...   # re-file checks already run
     python -m fmri_gym.checks pool data/ /mnt/siteB/data/ --out rigchecks.tsv
 """
@@ -140,18 +140,18 @@ def _ask_triggers(rig: rig_file.RigConfig) -> rig_file.RigConfig:
 
     :raises ValueError: with no screen for the dialog, or when it is cancelled.
     """
-    where = rig_file.path(rig.name)
+    where = rig.path
     fix = (f'{where} has no "triggers": set them on the editor\'s Triggers tab (fmri-edit) '
            "or in the file, or answer the dialog a rig check opens")
     if not can_show_form():
         raise ValueError(f"rig check: {fix}; there is no screen here for the dialog")
     from .gui_qt import choose_triggers
-    section = choose_triggers(str(where))
+    section = choose_triggers(where)
     if section is None:
         raise ValueError(f"rig check: {fix}; it was cancelled")
-    rig_file.save({**rig_file.load(rig.name), "triggers": section})
+    rig_file.save({**rig_file.load(where), "triggers": section}, where)
     print(f"rig check: trigger settings saved in {where}", file=sys.stderr)
-    return rig_file.RigConfig.open(rig.name)
+    return rig_file.RigConfig.open(where)
 
 
 def finish(run: Run, session: int) -> bool:
@@ -1121,32 +1121,26 @@ NAMES = tuple(c[0] for c in COLUMNS)
 # ---------------------------------------------------------------------------
 
 
-def ensure_rig(name: str | None) -> rig_file.RigConfig:
+def ensure_rig(path: str) -> rig_file.RigConfig:
     """The rig a rig check plays on; when its file is missing or invalid, the form to
     fill it in first (:func:`fmri_gym.gui_qt.fill_rig`), then the file.
 
     The form needs the ``gui`` extra and a screen; without them, or when it is
-    cancelled, the rig file's own error is raised. Several rigs and no ``name``
-    is the experimenter's to settle: that raises with no form.
+    cancelled, the rig file's own error is raised.
 
-    :param name: ``--rig``, ``<site>/<rig>``; ``None`` for the only rig, or a new one when
-        there is none.
+    :param path: ``--rig``, the rig file.
     :raises ValueError: when there is still no valid rig file, saying how to make one.
     """
-    if (name is None and len(rig_file.names()) > 1) or (name is not None and name.count("/") != 1):
-        return rig_file.RigConfig.open(name)  # raises: which rig is the experimenter's to say
     try:
-        return rig_file.RigConfig.open(name)
+        return rig_file.RigConfig.open(path)
     except ValueError as error:
         if not can_show_form():
             raise
         print(f"{error}\nrig check: opening the rig form", file=sys.stderr)
         from .gui_qt import fill_rig
-        only = rig_file.names()[0] if rig_file.names() else None
-        saved = fill_rig(rig_file.draft(name if name is not None else only))
-        if saved is None:
+        if fill_rig(rig_file.draft(path), path) is None:
             raise
-    return rig_file.RigConfig.open(rig_file.name_of(saved))
+    return rig_file.RigConfig.open(path)
 
 
 def can_show_form() -> bool:
@@ -1436,8 +1430,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description="The rig file, and pooling rig checks.")
     sub = p.add_subparsers(dest="command", required=True)
     r = sub.add_parser("rig", help="fill in or update a rig file, in a form")
-    r.add_argument("--rig", help="the rig, <site>/<rig>; default: the only rig file there "
-                                 "is, or a new one when there is none")
+    r.add_argument("--rig", required=True, help="the rig file, made when it is missing")
     f = sub.add_parser("report", help="re-file checks already run: their reports and the "
                                       "data root's rigchecks.tsv, with this version")
     f.add_argument("folders", nargs="+", help="rig-check run folders")
@@ -1469,19 +1462,16 @@ def main() -> None:
         sys.stdout.write(text)
 
 
-def _edit_rig(name: str | None) -> None:
-    """Open the form on a rig file (a new one if there is none), and save it."""
+def _edit_rig(path: str) -> None:
+    """Open the form on the rig file at ``path`` (a new one if there is none), and save it."""
     if not can_show_form():
         raise RuntimeError("rig check: the rig form needs PySide6 (pip install "
                            "'fmri-gym[gui]') and a screen; or edit the file by hand")
-    if name is None and rig_file.names():
-        name = rig_file.choose(None)
     from .gui_qt import fill_rig
-    saved = fill_rig(rig_file.draft(name))
-    if saved is None:
+    if fill_rig(rig_file.draft(path), path) is None:
         print("rig check: cancelled, the rig file is unchanged", file=sys.stderr)
         return
-    print(f"saved: {rig_file.path(rig_file.name_of(saved))}")
+    print(f"saved: {path}")
 
 
 # ---------------------------------------------------------------------------

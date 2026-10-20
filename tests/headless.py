@@ -3,8 +3,8 @@
 ``fmri_play.main()`` runs in this process, so the trigger wait, the
 instructions screen, the window, the key queue, the pacing and the logger are
 the ones a subject gets. Three things stand in for the rig: a rig file of
-its own (:mod:`fmri_gym.config.rig`, in a temporary ``$FMRI_GYM_RIGS``: a small
-window, no pad, vsync off), SDL's dummy video driver (a window that is never
+its own (:mod:`fmri_gym.config.rig`, in a temporary folder: a small window, no
+pad, vsync off), SDL's dummy video driver (a window that is never
 shown; ``--window`` opens a real one) and a key script registered with
 :mod:`fmri_gym.keys` the way the gamepad is (:func:`~fmri_gym.keys
 .register_event_source` for the presses, :func:`~fmri_gym.keys
@@ -104,17 +104,17 @@ def script_for(curriculum_path: str, rate: float, seed: int) -> KeyScript:
 
 
 def use_rig(data_root: str, has_audio: bool) -> str:
-    """Write a rig file for this process alone, in a temporary rigs folder.
+    """Write a rig file for this process alone, in a temporary folder.
 
-    :return: the rig's name.
+    :return: the rig file.
     """
-    os.environ["FMRI_GYM_RIGS"] = tempfile.mkdtemp(prefix="headless-rigs-")
+    path = os.path.join(tempfile.mkdtemp(prefix="headless-rigs-"), "test", "headless.json")
     rig.save({**{k: "headless" for k in rig.FIELDS}, "site": "test", "rig": "headless",
               "pi": "TT", "modality": "behav", "notes": "",
               "screen": {"size": "640x480", "is_fullscreen": False, "monitor": 0,
                          "has_vsync": False},
-              "has_pad": False, "has_audio": has_audio, "data_root": data_root})
-    return "test/headless"
+              "has_pad": False, "has_audio": has_audio, "data_root": data_root}, path)
+    return path
 
 
 def main() -> None:
