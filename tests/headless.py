@@ -130,20 +130,39 @@ def main() -> None:
                    help="open a real window (SDL's default driver) instead of the dummy one")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--no-audio", action="store_true", help="for a machine without an output")
+    p.add_argument("--fake-audio", action="store_true",
+                   help="play into a sound card on the perf_counter clock (tests.tap), for a "
+                   "machine without an output that should still play and log the sound")
+    p.add_argument("--tap", metavar="JSON",
+                   help="write what the window drew and the speakers played here (tests.tap)")
+    p.add_argument("--run", type=int, default=1, help="the run number (--run of fmri-play)")
+    p.add_argument("--resume", action="store_true", help="pass --resume to fmri-play")
     args = p.parse_args()
+    if args.no_audio and args.fake_audio:
+        p.error("--no-audio and --fake-audio: give one")
 
+    tap = None
+    if args.fake_audio:
+        from tests.tap import use_fake_sound_card
+        use_fake_sound_card()
+    if args.tap:
+        from tests.tap import Tap
+        tap = Tap()
+        tap.install()
     script = script_for(args.curriculum, args.rate, args.seed)
     keys.register_event_source(script.pump)
     keys.register_held_source(script.held)
     name = use_rig(args.data_root, has_audio=not args.no_audio)
     sys.argv = ["fmri-play", "--curriculum", args.curriculum, "--subject", "sub-test",
-                "--ses", "1", "--run", "1", "--rig", name, "--dummy-trigger",
-                "--duration", str(args.duration), "--end-fixation", str(args.end_fixation)]
+                "--ses", "1", "--run", str(args.run), "--rig", name, "--dummy-trigger",
+                "--duration", str(args.duration), "--end-fixation", str(args.end_fixation)] + ["--resume"] * args.resume
     import fmri_play
     try:
         fmri_play.main()
     finally:
         print(f"headless: {script.presses} presses scripted", file=sys.stderr)
+        if tap is not None:
+            tap.save(args.tap)
 
 
 if __name__ == "__main__":

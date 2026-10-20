@@ -1,6 +1,6 @@
 """Every selected backend, through the chain a session depends on.
 
-Four checks per backend, each on the configs that stand for it (``tests/backends.py``):
+The checks per backend, each on the configs that stand for it (``tests/backends.py``):
 
 1. **playable** -- the adapter builds from the phase, resets on a seed, steps
    the phase's own keys, and what it hands the loop is what the loop takes:
@@ -13,8 +13,21 @@ Four checks per backend, each on the configs that stand for it (``tests/backends
 3. **replays** -- that log, rebuilt in a second process under another hash
    seed, matches bit for bit (``tests/verify_replay.py``).
 4. **runs** -- the real ``fmri-play`` loop plays the config headless, with a
-   key script at the keyboard, and leaves a run folder a subject's would look like
-   (``tests/headless.py``).
+   key script at the keyboard, and leaves a run folder a subject's would look
+   like (``tests/headless.py``). The run is tapped (``tests/tap.py``) and held
+   against its own log: every logged frame is the frame on screen when it was
+   logged, every logged chunk of sound the PCM handed to the speakers, and
+   every chunk the speakers started played the samples queued for it. Its log,
+   not only the recorder's, replays bit for bit.
+5. **resumes** -- a second run of the same config with ``--resume`` carries on
+   the block the first run's clock stopped: its first picture is the one the
+   first run ended on, it replays, and it is the stopped episode played on --
+   the first run's actions and then its own, stepped in one go from the seed,
+   give its frames.
+
+A machine without a sound card (``--no-audio``, CI) plays the headless runs
+into a fake one (:class:`tests.tap.FakeOutputStream`), so their sound is still
+played, logged and checked.
 """
 
 from __future__ import annotations
@@ -36,8 +49,8 @@ from fmri_gym.logging import (
     AUDIO_FILENAME, EVENTS_FILENAME, FRAMES_FILENAME, _json_default, read_audio, read_events,
     read_frames,
 )
-from tests import verify_replay
-from tests.backends import REPO, game_phases
+from tests import tap, verify_replay
+from tests.backends import BACKENDS, REPO, game_phases
 from tests.conftest import write_curriculum
 
 OUTCOMES = {"playing", "terminated", "truncated", "won", "lost"}
@@ -187,7 +200,21 @@ def test_replays_bit_exact(recorded):
     assert "PASS" in done.stdout
 
 
-# --- the real loop, headless -------------------------------------------------
+# --- the real loop, headless, held against its log ----------------------------
+
+@dataclass
+class Session:
+    """One smoke config's first game phase, played through ``fmri-play`` by a key script."""
+
+    backend: str
+    config: Path
+    data_root: Path
+    #: the run's folder
+    run: Path
+    #: what the window drew and the speakers played (:meth:`tests.tap.Tap.report`)
+    tap: dict
+    has_audio: bool
+
 
 def _audio_output_here() -> bool:
     try:
@@ -198,34 +225,121 @@ def _audio_output_here() -> bool:
         return False
 
 
-def test_headless_run(smoke_config, plan, tmp_path):
-    phase = game_phases(REPO / smoke_config.path)[0]
-    config = write_curriculum([{"type": "fixation", "duration": 0.5, "include_on_resume": True},
-                               phase, {"type": "fixation", "duration": 0.5}],
-                              tmp_path / f"{Path(smoke_config.path).stem}.json")
-    no_audio = plan.no_audio or not _audio_output_here()
+def _play(config: Path, data_root: Path, plan, tap: Path, backend: str, *more: str) -> Session:
+    """Play ``config`` headless into ``data_root``, tapped; fail with its stderr if it fails."""
+    # A machine without an output (CI), or told to keep off it, plays into a
+    # fake card, so the sound is still played, logged and checked.
+    fake = plan.no_audio or not _audio_output_here()
     cmd = [sys.executable, "-m", "tests.headless", "--curriculum", str(config),
-           "--data-root", str(tmp_path / "data"), "--duration", str(plan.run_seconds)]
-    cmd += ["--no-audio"] * no_audio + ["--window"] * plan.has_window
+           "--data-root", str(data_root), "--duration", str(plan.run_seconds),
+           "--tap", str(tap), *more]
+    window = plan.has_window or BACKENDS[backend].needs_display
+    cmd += ["--fake-audio"] * fake + ["--window"] * window
     env = {**os.environ}
-    if not plan.has_window:
+    if not window:
         env["SDL_VIDEODRIVER"] = "dummy"
     done = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True,
                           timeout=plan.run_seconds + 180, env=env)
     assert done.returncode == 0, f"fmri-play exited {done.returncode}:\n{done.stderr[-3000:]}"
+    runs = sorted(data_root.glob("sub-test/ses-001/beh/*/manifest.json"))
+    return Session(backend, config, data_root, runs[-1].parent, json.loads(tap.read_text()),
+                   not fake)
 
-    manifests = list((tmp_path / "data").glob("sub-test/ses-001/beh/*/manifest.json"))
-    assert len(manifests) == 1, f"expected one run folder, found {manifests}"
-    manifest = json.loads(manifests[0].read_text())
+
+@pytest.fixture
+def session(smoke_config, plan, tmp_path_factory, request) -> Session:
+    """The smoke config's first game phase as configured, which the run's clock stops part-way."""
+    cache = request.config.fmri_sessions
+    if smoke_config.path not in cache:
+        root = tmp_path_factory.mktemp(f"run-{Path(smoke_config.path).stem}")
+        phase = game_phases(REPO / smoke_config.path)[0]
+        config = write_curriculum([{"type": "fixation", "duration": 0.5,
+                                    "include_on_resume": True}, phase,
+                                   {"type": "fixation", "duration": 0.5}],
+                                  root / f"{Path(smoke_config.path).stem}.json")
+        cache[smoke_config.path] = _play(config, root / "data", plan, root / "tap-1.json",
+                                         smoke_config.backend)
+    return cache[smoke_config.path]
+
+
+def _game_block(run: Path) -> Path:
+    manifest = json.loads((run / "manifest.json").read_text())
     games = [p for p in manifest["phases"] if p.get("type") == "game"]
     assert len(games) == 1, f"the game phase did not finish logging: {manifest['phases']}"
+    return run / games[0]["data_dir"].split("/")[-1]
+
+
+def test_headless_run(session):
+    manifest = json.loads((session.run / "manifest.json").read_text())
+    games = [p for p in manifest["phases"] if p.get("type") == "game"]
     assert any(p.get("end_of_run") for p in manifest["phases"]), "no closing fixation was logged"
-    assert games[0]["n_frames"] > 0, "the game block logged no frame: were the keys read?"
-    block = manifests[0].parent / games[0]["data_dir"].split("/")[-1]
+    assert games and games[0]["n_frames"] > 0, "the game block logged no frame: were the keys read?"
+    block = _game_block(session.run)
     assert (block / EVENTS_FILENAME).exists() and (block / FRAMES_FILENAME).exists()
     events = read_events(str(block))
     frames = [e for e in events if e["type"] == "frame"]
     assert len(frames) == games[0]["n_frames"]
     assert any(e["type"] == "input_event" for e in events), "no key press was logged"
-    if not no_audio and any(e.get("audio_chunk", -1) >= 0 for e in frames):
+    if any(e.get("audio_chunk", -1) >= 0 for e in frames):
         assert (block / AUDIO_FILENAME).exists(), "sound was played but audio.h5 is missing"
+
+
+def test_headless_log_is_what_was_shown(session):
+    """Every logged frame is the one on screen when it was logged; every chunk the PCM queued."""
+    problems = tap.compare(str(_game_block(session.run)), session.tap)
+    assert not problems, "\n".join(problems[:10])
+
+
+def test_headless_sound_is_what_was_queued(session):
+    """Each chunk the speakers started played, sample for sample, what was queued for it."""
+    played = session.tap["played"]
+    if not played["chunks"]:
+        pytest.skip("the block played no sound")
+    assert played["mismatched_chunks"] == 0, (
+        f"{played['mismatched_chunks']} of {played['chunks']} chunks played other samples "
+        f"than were queued (first: {played['first_mismatch']})")
+
+
+def test_headless_replays(session):
+    """The real loop's log, not only the recorder's, rebuilds bit for bit in a second process."""
+    done = verify_replay.check_in_second_process(str(session.run))
+    assert done.returncode == 0, (
+        f"the headless run does not replay:\n{done.stdout}\n{done.stderr[-2000:]}")
+
+
+@pytest.fixture
+def resumed(session, plan, request) -> Session:
+    """A second run of the same config with ``--resume``, carrying on the block the first stopped."""
+    end = read_events(str(_game_block(session.run)))[-1]
+    if not end["block_did_not_finish"]:
+        pytest.skip("the first run finished its block: there is nothing to carry on")
+    cache = request.config.fmri_resumed
+    if session.config not in cache:
+        cache[session.config] = _play(session.config, session.data_root, plan,
+                                      session.config.parent / "tap-2.json", session.backend,
+                                      "--run", "2", "--resume")
+    return cache[session.config]
+
+
+def test_resume(session, resumed):
+    """``--resume`` carries the stopped block on: the same picture, then the same game."""
+    stopped = _game_block(session.run)
+    manifest = json.loads((resumed.run / "manifest.json").read_text())
+    assert manifest["resumed_from"]["index"] == 1, manifest["resumed_from"]
+    ends = [e for e in read_events(str(stopped)) if e["type"] == "episode_end"]
+    if not ends or ends[-1]["outcome"] != "playing":
+        pytest.skip("the first run stopped between episodes: no episode to carry on")
+    block = _game_block(resumed.run)
+    start = next(e for e in read_events(str(block)) if e["type"] == "episode_start")
+    if start["initial_state"] is None:
+        pytest.skip(f"{read_events(str(block))[0]['backend']} keeps no savestate: the episode "
+                    "the first run stopped in starts over")
+    last = max(session.tap["logged"], key=int)
+    assert resumed.tap["draws"][0] == session.tap["logged"][last][1], (
+        "the resumed episode's first picture is not the one the stopped run ended on")
+    done = verify_replay.check_in_second_process(str(resumed.run))
+    assert done.returncode == 0, f"the resumed run does not replay:\n{done.stdout}"
+    done = verify_replay.check_in_second_process(str(session.run), str(resumed.run))
+    assert done.returncode == 0, (
+        f"the resumed run is not the stopped game played on:\n{done.stdout}\n"
+        f"{done.stderr[-2000:]}")

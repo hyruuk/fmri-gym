@@ -13,6 +13,7 @@ and why CI cannot run it, if it cannot.
 from __future__ import annotations
 
 import importlib.util
+import os
 import platform
 import shutil
 from dataclasses import dataclass
@@ -36,6 +37,8 @@ class Backend:
     :ivar external: the ``external/<name>`` checkout it reads, if any.
     :ivar marker: a file the checkout must hold, relative to it.
     :ivar ci: why CI cannot run it; ``None`` when it can.
+    :ivar needs_display: its engine draws in a window of its own, so a headless
+        run gives it a real display (SDL's dummy driver would reach the engine too).
     """
 
     name: str
@@ -46,6 +49,7 @@ class Backend:
     external: str | None = None
     marker: str = ""
     ci: str | None = None
+    needs_display: bool = False
 
     def installed(self) -> bool:
         """Whether the backend's package imports here."""
@@ -85,6 +89,8 @@ def _stk() -> str | None:
     """stk needs the Linux x86_64 game pack and a real GL display."""
     if platform.system() == "Linux" and platform.machine() == "x86_64":
         return None
+    if os.path.exists(os.environ.get("STK_ENV_BIN", "")):
+        return None
     return (f"supertuxkart-gym has no game pack for {platform.system()} {platform.machine()}; "
             "STK_ENV_BIN names a binary of your own")
 
@@ -122,7 +128,8 @@ BACKENDS: dict[str, Backend] = {b.name: b for b in (
             gym_dirs=("aigamestore", "replay_state")),
     Backend("arc3", "arc3", "arc3_gym", (_C + "arc3/ls20.json",), gym_dirs=("arc3",)),
     Backend("stk", "stk", "stk_gym", (_C + "stk/hacienda.json",), gym_dirs=("replay_state",),
-            ci="the game pack is Linux x86_64 only and renders through a real GL display"),
+            ci="the game pack is Linux x86_64 only and renders through a real GL display",
+            needs_display=True),
 )}
 
 #: The backends whose headless runs stand for the run loop when only core files changed:
