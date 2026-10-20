@@ -15,7 +15,7 @@ check and runs the long sweeps, where the default plays the backend's smoke
 configs only. The headless runs of the real loop are the slow part: a core
 change under ``--changed`` plays them for the backends it touches directly
 and for :data:`~tests.backends.LOOP_SAMPLE`, not for every backend, unless
-``--thorough``. ``--window`` runs them in a real window. ``--no-audio`` keeps the headless runs off the sound device, for
+``--thorough``. ``--window`` runs them in a real window. ``--no-audio`` keeps the headless runs off the sound device (they play into a fake card), for
 a machine without one. The options themselves are declared in the repo root's
 ``conftest.py``, which says why they cannot live here.
 """
@@ -91,6 +91,8 @@ def _plan(config: pytest.Config) -> Plan:
 def pytest_configure(config: pytest.Config) -> None:
     config.fmri_plan = _plan(config)
     config.fmri_recordings = {}
+    config.fmri_sessions = {}
+    config.fmri_resumed = {}
 
 
 def pytest_report_header(config: pytest.Config) -> list[str]:
@@ -113,8 +115,7 @@ def pytest_report_header(config: pytest.Config) -> list[str]:
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     plan: Plan = metafunc.config.fmri_plan
     if "smoke_config" in metafunc.fixturenames:
-        backends = plan.headless if metafunc.function.__name__ == "test_headless_run" \
-            else plan.selected
+        backends = plan.headless if "session" in metafunc.fixturenames else plan.selected
         pairs = [(b, c) for b in backends for c in BACKENDS[b].smoke]
         metafunc.parametrize("smoke_config", pairs, indirect=True,
                              ids=[f"{b}/{Path(c).stem}" for b, c in pairs])

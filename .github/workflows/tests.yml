@@ -27,7 +27,8 @@ concurrency:
 
 env:
   UV_PYTHON: "3.12"
-  # pygame opens a window in the headless runs; PortAudio is never opened (--no-audio).
+  # pygame opens a window in the headless runs, on SDL's dummy driver. PortAudio is never
+  # opened: --no-audio plays the sound into tests/tap.py's fake card, where it is still checked.
   SDL_VIDEODRIVER: dummy
   SDL_AUDIODRIVER: dummy
   PYTHONUNBUFFERED: "1"

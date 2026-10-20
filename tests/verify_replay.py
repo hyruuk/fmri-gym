@@ -58,11 +58,16 @@ def record(curriculum: str, outdir: str, max_frames: int, n_episodes: int) -> No
                     "--n-episodes", str(n_episodes)], check=True, env=env, cwd=REPO)
 
 
-def check_run(outdir: str) -> bool:
-    """Replay and compare every block under ``outdir``; print one line per block."""
+def _game_blocks(outdir: str) -> list[Path]:
+    """The block folders of a run, in order."""
     from fmri_gym.logging import EVENTS_FILENAME
 
-    blocks = sorted(p.parent for p in Path(outdir).glob(f"block-*/{EVENTS_FILENAME}"))
+    return sorted(p.parent for p in Path(outdir).glob(f"block-*/{EVENTS_FILENAME}"))
+
+
+def check_run(outdir: str) -> bool:
+    """Replay and compare every block under ``outdir``; print one line per block."""
+    blocks = _game_blocks(outdir)
     if not blocks:
         raise FileNotFoundError(f"no block folders under {outdir}")
     ok = True
@@ -108,6 +113,49 @@ def check_block(block: str) -> dict[str, Any]:
     finally:
         adapter.close()
     tally["pass"] = tally["frame_mismatches"] == 0 and tally["anchor_mismatches"] == 0
+    return tally
+
+
+def check_resumed(stopped: str, resumed: str) -> dict[str, Any]:
+    """Play a stopped episode on into the run that resumed it, in one go, against the resumed log.
+
+    A resumed episode starts from the savestate the stopped run ended on,
+    restored over a reset with its own seed, and :func:`check_block` shows
+    the resumed block replays from that savestate. This shows the savestate
+    held the whole game: the stopped episode is replayed from its own seed
+    and actions, and the resumed episode's actions are stepped straight on
+    from there, with no savestate in between, so a restore that left anything
+    behind (an RNG, a timer, a step count) shows as a mismatch.
+
+    :param stopped: the block the earlier run stopped.
+    :param resumed: the block that carried it on.
+    :return: the same counts as :func:`check_block`.
+    """
+    from fmri_gym.adapters import get_adapter
+    from fmri_gym.logging import read_events, read_frames
+    from fmri_gym.replay import reconstruct_episode
+
+    events = read_events(resumed)
+    first = [e for e in events if e["type"] == "frame" and e["episode_id"] == 0]
+    # What an adapter logs on an episode's first frame only (the level's
+    # geometry, say) the resumed episode logs and the played-on one does not.
+    before = [e for e in read_events(stopped) if e["type"] == "frame"]
+    if first and before:
+        once = set(first[0]["variables"]) - set(before[-1]["variables"])
+        first[0] = {**first[0], "variables": {k: v for k, v in first[0]["variables"].items()
+                                              if k not in once}}
+    frames, index = read_frames(resumed)
+    pixels = {int(i): frames[k] for k, i in enumerate(index)}
+    tally = {"frames": len(first), "frame_mismatches": 0, "anchors": 0, "anchor_mismatches": 0,
+             "audio_chunks": 0, "first_mismatch": None}
+    adapter = get_adapter(events[0]["backend"], events[0]["phase"])
+    try:
+        reconstruct_episode(stopped, None, adapter=adapter)
+        tally["frame_mismatches"] = _step_and_compare(adapter, first, pixels,
+                                                      _read_audio(resumed), tally)
+    finally:
+        adapter.close()
+    tally["pass"] = tally["frame_mismatches"] == 0
     return tally
 
 
@@ -222,13 +270,16 @@ def _report(name: str, result: dict) -> str:
     return line
 
 
-def check_in_second_process(outdir: str) -> subprocess.CompletedProcess:
+def check_in_second_process(outdir: str, resumed: str | None = None) -> subprocess.CompletedProcess:
     """Run ``--check`` on ``outdir`` in a fresh interpreter under another hash seed.
 
+    :param resumed: a run folder that resumed ``outdir``'s last block: run
+        ``--resumed`` on the two instead.
     :return: the finished process (its ``stdout`` holds the PASS/FAIL lines).
     """
     # A different hash seed from the recording's, so hash-order dependence shows.
-    return subprocess.run([sys.executable, __file__, "--check", outdir], check=False,
+    args = ["--check", outdir] if resumed is None else ["--resumed", outdir, resumed]
+    return subprocess.run([sys.executable, __file__, *args], check=False,
                           env={**os.environ, "PYTHONHASHSEED": "2"}, cwd=REPO,
                           capture_output=True, text=True)
 
@@ -237,12 +288,20 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--curriculum", help="record this curriculum's game blocks, then check them")
     p.add_argument("--check", metavar="RUN_DIR", help="check an existing run folder instead")
+    p.add_argument("--resumed", nargs=2, metavar=("STOPPED_RUN", "RESUMED_RUN"),
+                   help="check that RESUMED_RUN's first block carries on STOPPED_RUN's last "
+                   "block as if it had never stopped")
     p.add_argument("--outdir", help="where to record (default: a temporary folder)")
     p.add_argument("--max-frames", type=int, default=300)
     p.add_argument("--n-episodes", type=int, default=2)
     args = p.parse_args()
-    if bool(args.curriculum) == bool(args.check):
-        p.error("give --curriculum or --check, not both")
+    if sum(map(bool, (args.curriculum, args.check, args.resumed))) != 1:
+        p.error("give one of --curriculum, --check and --resumed")
+    if args.resumed:
+        stopped, resumed = (_game_blocks(run) for run in args.resumed)
+        result = check_resumed(str(stopped[-1]), str(resumed[0]))
+        print(_report(f"{stopped[-1].name} -> {resumed[0].name}", result))
+        sys.exit(0 if result["pass"] else 1)
 
     if args.check:
         sys.exit(0 if check_run(args.check) else 1)

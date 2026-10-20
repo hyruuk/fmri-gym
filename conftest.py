@@ -27,7 +27,8 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     g.addoption("--thorough", action="store_true",
                 help="every config of a selected backend, and the long sweeps")
     g.addoption("--no-audio", action="store_true",
-                help="headless runs leave the sound device alone (CI, or no output here)")
+                help="headless runs leave the sound device alone and play into a fake "
+                     "card (CI, or no output here)")
     g.addoption("--frames", type=int, default=120,
                 help="frames per episode the recordings play (default 120)")
     g.addoption("--run-seconds", type=float, default=8.0,

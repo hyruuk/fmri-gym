@@ -28,6 +28,9 @@ Read the summary. A skip says what this machine lacks and how to get it (`uv syn
   ```
   The usual culprits are listed in the `add-backend` skill (hash order, a `render()` that draws from the engine's RNG, a reused buffer logged late).
 - **runs** failed: the real loop could not start or logged nothing. Its stderr is in the assertion message; reproduce with `uv run python -m tests.headless --curriculum <config> --data-root /tmp/h --duration 25` and look in the run folder it prints.
+- **log is what was shown / sound is what was queued** failed: the real loop logged something other than what the window drew or the speakers got (a frame logged from a buffer the engine had already changed, a chunk numbered differently in the frame lines and in `audio.h5`). The tap's record is `tap-1.json` beside the run; reproduce with `tests.headless ... --tap /tmp/h/tap.json --fake-audio` and `tests.tap.compare`.
+- **headless replays** failed but **replays** passed: the real loop and the recorder (`agents/agent_play.py`) drive the adapter differently (the order of `render`/`sound`/`capture`, the reset frame, an episode's start). `uv run python -m tests.verify_replay --check <run folder>` gives the first mismatch.
+- **resume** failed: on its first picture, the adapter's `restore` leaves the screen behind (an emulator's frame buffer); on the replay, the resumed block does not rebuild from its `initial_state`; on "the stopped game played on", the savestate left something out (an RNG, a timer, a step count): `uv run python -m tests.verify_replay --resumed <stopped run> <resumed run>`.
 
 ## What CI runs
 
