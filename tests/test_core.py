@@ -336,3 +336,9 @@ def test_a_check_that_broke_part_way_is_reported_not_crashed_on():
     half = {"rig_check": {"frames": {"blocks": []}}}      # it broke before refresh_rate
     note = _html_section(_html_frames, half, ".", {"status": "fail", "why": "KeyError: 'keys'"})
     assert "stopped before it finished" in note and "KeyError" in note
+
+
+def test_claude_md_imports_agents_md():
+    """Claude Code reads AGENTS.md on its own only while no CLAUDE.md exists: the import keeps it."""
+    lines = (Path(__file__).resolve().parents[1] / "CLAUDE.md").read_text().splitlines()
+    assert lines[0] == "@AGENTS.md", "CLAUDE.md must start with the line @AGENTS.md"
