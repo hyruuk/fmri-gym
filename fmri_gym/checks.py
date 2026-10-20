@@ -55,7 +55,9 @@ an earlier version still line up.
 rig file, in ``measured/<rig>-<n>.json`` (:func:`file_measured`), ``n`` one
 more than the last, when it measured any latency: the latencies -- flip to light at the screen, flip to the
 sound card, sound card to the ear -- with every check's summary, the verdicts,
-the rig file as played and the machine. The rig file is the rig's settings,
+the rig file as played, the software and the machine (:func:`machine`:
+processor, memory, displays, GPUs, sound and input devices, what is plugged
+into USB). The rig file is the rig's settings,
 shared; these are one machine's measurements, and stay on it (``.gitignore``).
 A run on a rig with none says so, and the first run of a session, on a
 terminal, offers to run a check first (:func:`offer_check`)::
@@ -228,7 +230,7 @@ def finish(run: Run, session: int) -> bool:
              start_time=datetime.datetime.fromtimestamp(started).astimezone()
              .isoformat(timespec="seconds"),
              versions={**m.get("versions", {}), **versions()},
-             platform=platform_info())
+             platform=platform_info(), machine=machine())
     data_root = run.config.rig.data_root
     write_outputs(run.outdir, m, data_root)
     file_measured(m, run.outdir, run.config.rig.path)
@@ -1331,6 +1333,147 @@ def platform_info() -> dict[str, str]:
             "hostname": socket.gethostname()}
 
 
+def machine() -> dict[str, Any]:
+    """The machine a check ran on, and what is plugged into it: for provenance, and to
+    tell two rigs (or one rig before and after a change) apart when their numbers differ.
+
+    Each part is read from the operating system without new dependencies, and is
+    ``None`` (or empty) where the system does not say.
+    """
+    displays, inputs = _pygame_devices()
+    return {**platform_info(), "python": platform.python_version(), "cpu": _cpu(),
+            "cores": os.cpu_count(), "memory_gb": _memory_gb(), "displays": displays,
+            "gpus": _gpus(), "audio_devices": _audio_devices(),
+            "input_devices": inputs, "usb_devices": _usb_devices()}
+
+
+def _pygame_devices() -> tuple[list[dict[str, Any]], list[str]]:
+    """The monitors and the input devices, read with pygame's display up (it opens no
+    window); pygame's display is left as it was found."""
+    was_up = pygame.display.get_init()
+    try:
+        pygame.display.init()
+        displays = _displays()
+        pygame.joystick.init()
+        settled = time.monotonic() + 0.5  # controllers arrive as events, ~0.1 s after init
+        while time.monotonic() < settled:
+            pygame.event.pump()
+            time.sleep(0.05)
+    except pygame.error:  # no screen here: no monitor to list
+        displays = []
+    try:
+        return displays, input_devices()
+    finally:
+        if not was_up:
+            pygame.joystick.quit()
+            pygame.display.quit()
+
+
+def _run(*command: str) -> str:
+    """A system tool's output; empty when it is missing, fails or hangs."""
+    try:
+        out = subprocess.run(command, capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return out.stdout if out.returncode == 0 else ""
+
+
+def _cpu() -> str | None:
+    if sys.platform == "darwin":
+        return _run("sysctl", "-n", "machdep.cpu.brand_string").strip() or None
+    if os.path.exists("/proc/cpuinfo"):
+        with open("/proc/cpuinfo") as f:
+            model = re.search(r"^model name\s*:\s*(.+)$", f.read(), re.MULTILINE)
+        if model:
+            return model[1].strip()
+    return platform.processor() or None
+
+
+def _memory_gb() -> float | None:
+    try:
+        return round(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 2**30, 1)
+    except (ValueError, OSError, AttributeError):
+        return None
+
+
+def _displays() -> list[dict[str, Any]]:
+    """Every monitor the system has, its desktop size and refresh rate."""
+    sizes = pygame.display.get_desktop_sizes()
+    rates = (pygame.display.get_desktop_refresh_rates()
+             if hasattr(pygame.display, "get_desktop_refresh_rates") else [None] * len(sizes))
+    return [{"size": f"{w}x{h}", "refresh_hz": rate} for (w, h), rate in zip(sizes, rates)]
+
+
+def _gpus() -> list[str]:
+    if sys.platform == "darwin":
+        out = _run("system_profiler", "SPDisplaysDataType", "-json")
+        try:
+            return [g.get("sppci_model", g.get("_name", "?"))
+                    for g in json.loads(out)["SPDisplaysDataType"]] if out else []
+        except (ValueError, KeyError, TypeError):
+            return []
+    lines = _run("lspci", "-mm").splitlines()
+    return [line for line in lines if re.search(r'"(VGA|3D|Display)', line)]
+
+
+def _audio_devices() -> list[dict[str, Any]]:
+    """Every sound device, with its channels and default rate, the defaults marked."""
+    try:
+        import sounddevice
+        devices = sounddevice.query_devices()
+        default_in, default_out = sounddevice.default.device
+    except Exception:  # noqa: BLE001 -- no PortAudio: nothing to list
+        return []
+    return [{"name": d["name"], "hostapi": sounddevice.query_hostapis(d["hostapi"])["name"],
+             "inputs": d["max_input_channels"], "outputs": d["max_output_channels"],
+             "default_samplerate": d["default_samplerate"],
+             "default": [k for k, i in (("input", default_in), ("output", default_out))
+                         if i == d["index"]]}
+            for d in devices]
+
+
+def _usb_devices() -> list[str]:
+    """What is plugged into USB: maker, product and vendor:product ids."""
+    if os.path.isdir("/sys/bus/usb/devices"):
+        devices = sorted(glob.glob("/sys/bus/usb/devices/*"))
+        return [f"{_sysfs(d, 'manufacturer')} {_sysfs(d, 'product')} "
+                f"({_sysfs(d, 'idVendor')}:{_sysfs(d, 'idProduct')})".strip()
+                for d in devices if _sysfs(d, "product")]
+    if sys.platform == "darwin":
+        # macOS 15 moved the USB tree to SPUSBHostDataType; earlier ones have SPUSBDataType.
+        for kind in ("SPUSBHostDataType", "SPUSBDataType"):
+            out = _run("system_profiler", kind, "-json")
+            try:
+                devices = _usb_items(json.loads(out)[kind]) if out else []
+            except (ValueError, KeyError, TypeError):
+                devices = []
+            if devices:
+                return devices
+    return []
+
+
+def _sysfs(device: str, name: str) -> str:
+    """One attribute of a Linux USB device; empty when it has none."""
+    try:
+        with open(os.path.join(device, name)) as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def _usb_items(items: list[dict]) -> list[str]:
+    """The devices in macOS's USB tree, depth first (either report's keys)."""
+    out = []
+    for item in items:
+        vendor = item.get("vendor_id", item.get("USBDeviceKeyVendorID"))
+        product = item.get("product_id", item.get("USBDeviceKeyProductID"))
+        if vendor or product:
+            maker = item.get("manufacturer", item.get("USBDeviceKeyVendorName", ""))
+            out.append(f"{maker} {item.get('_name', '?')} ({vendor}:{product})".strip())
+        out += _usb_items(item.get("_items", []))
+    return out
+
+
 def measured(m: dict, folder: str) -> dict[str, Any]:
     """What a rig check measured on its rig, as filed beside the rig file.
 
@@ -1358,7 +1501,7 @@ def measured(m: dict, folder: str) -> dict[str, Any]:
             "latency": {"flip_to_photon": latency("photodiode", "offset"),
                         "flip_to_dac": latency("audio", "click_dac_offset"),
                         "dac_to_ear": latency("audio", "acoustic_offset")},
-            "rig_check": m["rig_check"], "rig": m["rig"], "platform": m["platform"],
+            "rig_check": m["rig_check"], "rig": m["rig"], "machine": m["machine"],
             "versions": m["versions"]}
 
 

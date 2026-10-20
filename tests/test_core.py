@@ -344,7 +344,7 @@ def test_each_check_files_its_measurements_beside_the_rig_under_a_new_number(tmp
          "failed_tests": "audio", "run": {"label": "sub-rig_task-rigcheck_run-01"},
          "tests": {"photodiode": {"status": "pass"}, "audio": {"status": "fail"}},
          "rig_check": {"photodiode": {"offset": offset, "acoustic_offset": offset}},
-         "rig": {"path": "laptop.json"}, "platform": {}, "versions": {}}
+         "rig": {"path": "laptop.json"}, "machine": {}, "versions": {}}
     rig_path = str(tmp_path / "laptop.json")
     first = file_measured(m, "run1", rig_path)
     second = file_measured(m, "run2", rig_path)
@@ -356,6 +356,17 @@ def test_each_check_files_its_measurements_beside_the_rig_under_a_new_number(tmp
     m["tests"]["photodiode"]["status"] = "fail"   # no latency left: nothing filed
     assert file_measured(m, "run3", rig_path) is None
     assert len(list((tmp_path / "measured").iterdir())) == 2
+
+
+def test_the_machine_is_described_and_pygame_left_as_it_was():
+    import pygame
+
+    from fmri_gym.checks import machine
+    pygame.quit()
+    m = machine()
+    assert {"cpu", "memory_gb", "displays", "gpus", "audio_devices", "input_devices",
+            "usb_devices", "system", "hostname"} <= set(m)
+    assert not pygame.display.get_init()
 
 
 def test_a_run_on_a_rig_never_measured_says_so_and_offers_a_check_once_a_session(
