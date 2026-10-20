@@ -107,6 +107,8 @@ The worst outcome this code can produce is not a crash. It is a session that run
 
 The checklist for a new backend and the traps that make one look fine and replay wrong are the `add-backend` skill. The suite is `uv run pytest --changed` before every push and runs on every pull request marked ready for review (the `testing` skill; `tests/README.md`). A backend is not done until its block replays bit for bit in a second process: `uv run python -m tests.verify_replay --curriculum <config>` is the check, and the suite runs it on every backend it selects. The road from a branch to a merged PR, and what the description must say, is the `pull-request` skill.
 
+A pull request is written for a reviewer who will check it by hand. Its title names the new behaviour, never the old one or how it was found. Its description says, each under its own heading: what happened before, why that was a problem, what happens now, why that solves it, how it was verified, and how a reviewer can see the before and the after for themselves, with the exact commands. Keep the before and the after in their own sections, so no sentence mixes the two.
+
 ## Widely accepted references
 
 - [PEP 8 — Style Guide for Python Code](https://peps.python.org/pep-0008/)
