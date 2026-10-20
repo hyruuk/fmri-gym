@@ -49,7 +49,14 @@ numbers, charts, this rig's previous checks; one offline file),
 ``report.md``, and ``rigcheck.tsv`` -- one row of fixed columns
 (:data:`COLUMNS`) with its BIDS sidecar. The data root's ``rigchecks.tsv``
 holds every check filed there, read from their manifests, so checks filed by
-an earlier version still line up::
+an earlier version still line up.
+
+**What the rig measured.** Every check also files its measurements beside the
+rig file, in ``measured/<rig>-<n>.json`` (:func:`file_measured`), ``n`` one
+more than the last: the latencies -- flip to light at the screen, flip to the
+sound card, sound card to the ear -- with every check's summary, the verdicts,
+the rig file as played and the machine. The rig file is the rig's settings,
+shared; these are one machine's measurements, and stay on it (``.gitignore``)::
 
     python -m fmri_gym.checks rig --rig configs/rigs/<site>/<rig>.json   # fill in / update a rig file
     python -m fmri_gym.checks report <run folder>...   # re-file checks already run
@@ -182,6 +189,7 @@ def finish(run: Run, session: int) -> bool:
              platform=platform_info())
     data_root = run.config.rig.data_root
     write_outputs(run.outdir, m, data_root)
+    file_measured(m, run.outdir, run.config.rig.path)
     print(f"rig check {'PASS' if m['status'] == 'pass' else 'FAIL (' + m['failed_tests'] + ')'}"
           f": {os.path.join(run.outdir, 'report.html')} "
           f"(all checks: {os.path.join(data_root, 'rigchecks.tsv')})", file=sys.stderr)
@@ -1108,6 +1116,10 @@ COLUMNS: list[tuple[str, tuple[str, ...], str, str | None]] = [
     ("sound_max_ms", ("rig_check", "photodiode", "sound_offset", "max_ms"), "Flip to sound, max", "ms"),
     ("sound_drift_ms_per_min", ("rig_check", "photodiode", "sound_offset", "drift_ms_per_min"),
      "Flip to sound, trend over the run (runs of a minute or more)", "ms/min"),
+    ("acoustic_median_ms", ("rig_check", "photodiode", "acoustic_offset", "median_ms"),
+     "DAC to sound at the microphone (amplifier, tubes, earphones), median", "ms"),
+    ("acoustic_sd_ms", ("rig_check", "photodiode", "acoustic_offset", "sd_ms"),
+     "DAC to sound, SD", "ms"),
     ("av_median_ms", ("rig_check", "photodiode", "av_offset", "median_ms"),
      "Photodiode to sound (audio behind video), median", "ms"),
     ("av_sd_ms", ("rig_check", "photodiode", "av_offset", "sd_ms"), "Photodiode to sound, SD", "ms"),
@@ -1277,6 +1289,64 @@ def platform_info() -> dict[str, str]:
             "hostname": socket.gethostname()}
 
 
+def measured(m: dict, folder: str) -> dict[str, Any]:
+    """What a rig check measured on its rig, as filed beside the rig file.
+
+    ``latency`` holds when what a frame shows reaches the participant, from its
+    flip: each the check's summary of its offsets (median, spread, count), and
+    ``None`` when the check could not measure it (no photodiode, no microphone,
+    a diode read in the MEG/EEG recording) or its test did not pass. The rest is
+    how it was measured and on what: the check, its verdicts, every check's
+    summary, the rig file as it played, the machine and the software.
+
+    :param m: the check's manifest, filed (:func:`write_outputs`).
+    :param folder: the check's run folder.
+    """
+    photodiode = m["rig_check"].get("photodiode", {})
+
+    def latency(test: str, key: str) -> dict | None:
+        summary = photodiode.get(key)
+        passed = m["tests"].get(test, {}).get("status") == "pass"
+        return summary if passed and summary and "median_ms" in summary else None
+
+    return {"date": m["start_time"],
+            "check": {"folder": folder, "label": m["run"]["label"], "task": m["task"],
+                      "status": m["status"], "failed_tests": m["failed_tests"],
+                      "tests": m["tests"]},
+            "latency": {"flip_to_photon": latency("photodiode", "offset"),
+                        "flip_to_dac": latency("audio", "click_dac_offset"),
+                        "dac_to_ear": latency("audio", "acoustic_offset")},
+            "rig_check": m["rig_check"], "rig": m["rig"], "platform": m["platform"],
+            "versions": m["versions"]}
+
+
+def measured_path(rig_path: str) -> str:
+    """Where the next check on the rig file at ``rig_path`` files its measurements:
+    ``measured/<rig>-<n>.json`` beside it, ``n`` one more than the highest there."""
+    folder = os.path.join(os.path.dirname(rig_path), "measured")
+    rig = os.path.splitext(os.path.basename(rig_path))[0]
+    names = (os.path.basename(f)
+             for f in glob.glob(os.path.join(folder, f"{glob.escape(rig)}-*.json")))
+    taken = [int(n[1]) for name in names
+             if (n := re.fullmatch(rf"{re.escape(rig)}-(\d+)\.json", name))]
+    return os.path.join(folder, f"{rig}-{max(taken, default=0) + 1}.json")
+
+
+def file_measured(m: dict, folder: str, rig_path: str) -> str:
+    """Write what the check measured beside the rig file, under the next free number.
+
+    :param m: the check's manifest, filed.
+    :param folder: the check's run folder.
+    :param rig_path: the rig file the check played on.
+    :return: the file written.
+    """
+    path = measured_path(rig_path)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    _write_json(path, measured(m, folder))
+    print(f"rig check: what it measured on the rig: {path}", file=sys.stderr)
+    return path
+
+
 def _write_json(path: str, obj: Any) -> None:
     with open(path, "w") as f:
         json.dump(obj, f, indent=2, default=str)
@@ -1401,6 +1471,7 @@ def _md_audio(p: dict) -> list[str]:
              f"{'on input 1' if p.get('mic') else 'none'}"]
     return lines + _md_offsets(p, (("click_dac_offset", "flip → click at the DAC"),
                                 ("sound_offset", "flip → sound at the microphone"),
+                                ("acoustic_offset", "DAC → sound at the microphone"),
                                 ("av_offset", "photodiode → sound")))
 
 

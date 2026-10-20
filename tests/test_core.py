@@ -337,6 +337,24 @@ def test_a_check_that_broke_part_way_is_reported_not_crashed_on():
     assert "stopped before it finished" in note and "KeyError" in note
 
 
+def test_each_check_files_its_measurements_beside_the_rig_under_a_new_number(tmp_path):
+    from fmri_gym.checks import file_measured
+    offset = {"median_ms": 12.0, "sd_ms": 0.3, "n_matched": 10, "n": 10}
+    m = {"start_time": "2026-10-20T10:00:00", "task": "rigcheck", "status": "fail",
+         "failed_tests": "audio", "run": {"label": "sub-rig_task-rigcheck_run-01"},
+         "tests": {"photodiode": {"status": "pass"}, "audio": {"status": "fail"}},
+         "rig_check": {"photodiode": {"offset": offset, "acoustic_offset": offset}},
+         "rig": {"path": "laptop.json"}, "platform": {}, "versions": {}}
+    rig_path = str(tmp_path / "laptop.json")
+    first = file_measured(m, "run1", rig_path)
+    second = file_measured(m, "run2", rig_path)
+    assert first == str(tmp_path / "measured" / "laptop-1.json")
+    assert second == str(tmp_path / "measured" / "laptop-2.json")
+    latency = json.loads(Path(second).read_text())["latency"]
+    assert latency["flip_to_photon"]["median_ms"] == 12.0
+    assert latency["dac_to_ear"] is None          # its test failed
+
+
 def test_claude_md_imports_agents_md():
     """Claude Code reads AGENTS.md on its own only while no CLAUDE.md exists: the import keeps it."""
     lines = (Path(__file__).resolve().parents[1] / "CLAUDE.md").read_text().splitlines()
