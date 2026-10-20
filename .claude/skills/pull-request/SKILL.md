@@ -18,12 +18,28 @@ uv run ruff check fmri_gym fmri_play.py agents tests gym/*/tests
 
 Both clean, or the PR says which backend you could not play here and why (the summary's skip line is the sentence to quote). The `testing` skill explains the options and how to read a failure. Commit messages carry the reasoning behind a change; the code, the docstrings and the configs describe the present only (AGENTS.md, rule 3).
 
+## The title
+
+The title names what the branch makes true, in the present tense: "A muted rig logs the game's sound", "ALE: a resumed episode opens where the stopped one ended". It does not name the old behaviour ("Fix missing audio"), the symptom ("audio.h5 missing"), or how the bug was found.
+
 ## The description
 
-- What changed and why, in a few sentences.
-- **Core changes, listed.** An edit to `run.py`, `display.py`, `keys.py`, `logging.py`, `adapters/base.py` or `adapters/keymap.py` is the part a reviewer must read closely (AGENTS.md, rule 2): name the file, say it is additive and default-off and names no backend.
-- **What was played.** Which backends the local suite ran, which it skipped and why, and what you ran by hand (`uv run fmri-play ... --dummy-trigger`).
-- A new backend: its config, how it installs, and that `tests/backends.py` has its row.
+A reviewer has to be able to follow the change without reading the diff first, and to reproduce both sides of it on their own machine. Write these six sections, in this order, each under its own heading. Keep the before and the after in their own sections: a paragraph that mixes "used to" and "now" is the thing to avoid.
+
+1. **Before.** What the code did, observably: what a run wrote, showed or played. Use concrete facts (a file that is missing, a frame that is wrong, a number), not adjectives.
+2. **Why that was a problem.** What it costs a session or an analysis: data lost, a subject shown the wrong thing, a log that cannot be trusted. Name the rule it broke if there is one (AGENTS.md rule 4, say).
+3. **Now.** What the code does after this branch, observably, in the same terms as *Before*, so the two can be read side by side. Then the files changed and how. List core changes (`run.py`, `display.py`, `keys.py`, `logging.py`, `adapters/base.py`, `adapters/keymap.py`), and say whether each is additive and default-off and names no backend (AGENTS.md, rule 2).
+4. **Why that solves it.** The causal link from the change to the problem going away, in a few sentences, including what it deliberately leaves alone.
+5. **How it was verified.** What you ran and what came out: the tests added, the backends the suite played and skipped (with the reason), the runs made by hand, with their numbers.
+6. **See it yourself.** Steps a person can paste, for the before and for the after, each producing the output that shows the difference:
+   - which ref to check out, for each side (`git switch --detach origin/main`, `git switch --detach origin/<branch>`), or a worktree for each;
+   - what to sync on each side, by extra (`uv sync --extra vizdoom`), and the submodules or game files it needs;
+   - the exact commands, with every path spelled out and nothing left as `<config>`;
+   - what to look for in the output on each side: the line, the file, the number that differs.
+
+   Run these steps yourself, on both refs, before posting them. A step that does not work as written is worse than none. If they need something the reviewer may lack (a sound card, a GL display, a ROM), say so and give the closest substitute.
+
+Also in the description: the backends the suite could not play here and why (quote the summary's skip line), and for a new backend, its config, how it installs, and that `tests/backends.py` has its row.
 
 ## Draft, ready, CI
 
