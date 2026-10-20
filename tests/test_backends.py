@@ -248,11 +248,15 @@ def _play(config: Path, data_root: Path, plan, tap: Path, backend: str, *more: s
 
 @pytest.fixture
 def session(smoke_config, plan, tmp_path_factory, request) -> Session:
-    """The smoke config's first game phase as configured, which the run's clock stops part-way."""
+    """The smoke config's first game phase, which the run's clock stops part-way.
+
+    The phase is played as configured, but for its ``duration``: one longer
+    than the run, so the run stops the block and a second run can resume it.
+    """
     cache = request.config.fmri_sessions
     if smoke_config.path not in cache:
         root = tmp_path_factory.mktemp(f"run-{Path(smoke_config.path).stem}")
-        phase = game_phases(REPO / smoke_config.path)[0]
+        phase = {**game_phases(REPO / smoke_config.path)[0], "duration": 3600}
         config = write_curriculum([{"type": "fixation", "duration": 0.5,
                                     "include_on_resume": True}, phase,
                                    {"type": "fixation", "duration": 0.5}],
