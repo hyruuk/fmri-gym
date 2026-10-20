@@ -30,8 +30,12 @@ SWMR mode makes a flushed frame durable the way a flushed line is.
 ``audio.h5`` holds ``samples``, every :meth:`Logger.log_audio` chunk
 concatenated, and ``chunk_len`` ``(n_chunks,)``, so a chunk's offset into
 ``samples`` is a running sum of the ones before it. ``onset_chunk``/
-``onset_time`` and the ``delay_ms``/``resyncs``/``trimmed_samples`` attrs land
-at :meth:`Logger.close_block`, from :meth:`~.audio.Audio.block_log`.
+``onset_time``, ``stretched_chunk``/``stretched_len`` and the
+``delay_ms``/``resyncs``/``trimmed_samples`` attrs land at
+:meth:`Logger.close_block`, from :meth:`~.audio.Audio.block_log`. A chunk in
+``stretched_chunk`` was played resampled to its ``stretched_len`` samples
+(:func:`~.audio._resample`), to keep the sound on the display's clock; every
+other chunk played as it is stored.
 """
 
 from __future__ import annotations
@@ -294,6 +298,10 @@ def _writer_main(q: mp.Queue) -> None:
                 f.attrs["trimmed_samples"] = a["trimmed_samples"]
                 f.create_dataset("onset_chunk", data=[o[0] for o in a["onsets"]], dtype="int64")
                 f.create_dataset("onset_time", data=[o[1] for o in a["onsets"]], dtype="float64")
+                f.create_dataset("stretched_chunk", data=[c for c, _ in a["stretched"]],
+                                 dtype="int64")
+                f.create_dataset("stretched_len", data=[n for _, n in a["stretched"]],
+                                 dtype="int64")
         elif op == "close":
             for handles in (lines, h5, audio):
                 fh = handles.pop(block, None)

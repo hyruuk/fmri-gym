@@ -112,7 +112,7 @@ def open_stream(block_size: int):
     :return: ``(stream, log)``.
     """
     _opened.clear()
-    log = {"onsets": [], "resyncs": 0, "trimmed": 0}
+    log = {"onsets": [], "resyncs": 0, "trimmed": 0, "stretched": []}
     stream = _audio.SoundDeviceGameBlockStream(
         RATE, block_size, 1, DTYPE, device=None, max_offset=MAX_OFFSET, log=log)
     stream.play()
@@ -267,3 +267,16 @@ def test_muted_output_numbers_chunks_for_the_log():
         numbers.append(out.last_chunk)
     assert numbers == [0, -1, 1, 2]
     assert out.block_log() is None, "a muted output has no onsets to report"
+
+
+def test_stretched_chunks_are_logged_as_played():
+    """A chunk the stream resamples is logged with the length it played, so the log can rebuild it."""
+    stream, log = open_stream(256)
+    stream._error = 400.0                   # gapless sound running well ahead of its onsets
+    for k in range(3):
+        stream.put(chunk(k, 1260), 0.0, k)
+    assert log["stretched"], "the error should have stretched a chunk"
+    queued = {number: pcm for pcm, _, number in stream._blocks}
+    for k, n in log["stretched"]:
+        assert len(queued[k]) == n
+        assert np.array_equal(queued[k], _audio._resample(chunk(k, 1260), n))

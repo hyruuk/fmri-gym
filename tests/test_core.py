@@ -54,7 +54,8 @@ def test_logger_round_trip(tmp_path):
         logger.log_audio(Sound(chunks[i], 44100.0) if i < 2 else None)
     logger.log(type="episode_end", episode_id=0, outcome="truncated", score=1.5)
     logger.close_block(n_episodes=1, n_frames=3, extra=None,
-                       audio=AudioBlockLog(onsets=[], delay_ms=0.0, resyncs=0, trimmed_samples=0))
+                       audio=AudioBlockLog(onsets=[], delay_ms=0.0, resyncs=0, trimmed_samples=0,
+                                         stretched=[]))
     logger.log_phase({"index": 0, "type": "game", "data_dir": name})
     manifest = json.loads(Path(logger.save_manifest()).read_text())
     logger.close()
