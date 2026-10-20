@@ -93,6 +93,11 @@ class AudioBlockLog:
     resyncs: int
     #: samples cut from chunks that were already late when placed
     trimmed_samples: int
+    #: ``(chunk, samples)``: each chunk the stream resampled to follow the
+    #: display's clock, and how many samples it played instead of the ones
+    #: logged (:func:`_resample` of the logged PCM to that length is what
+    #: played); every other chunk played as logged
+    stretched: list[tuple[int, int]]
 
     def in_run_time(self, from_perf: Callable[[float], float]) -> AudioBlockLog:
         """The same log with every onset converted by ``from_perf`` (the run's clock)."""
@@ -206,7 +211,8 @@ class SoundDeviceGameBlockStream:
         :param max_offset: seconds the smoothed onset error of gapless sound may
             reach before a resync (:attr:`max_offset`, changeable).
         :param log: where the callback records ``onsets`` (``(chunk, perf_counter
-            start)`` pairs), ``resyncs`` and ``trimmed`` samples; owned by
+            start)`` pairs), ``resyncs``, ``trimmed`` samples and the
+            ``stretched`` chunks (``(chunk, samples played)``); owned by
             :class:`Audio`, so a block's log survives the stream being reopened.
         """
         self.rate = sample_rate
@@ -321,7 +327,10 @@ class SoundDeviceGameBlockStream:
         self._carry += max(-_MAX_STRETCH * n, min(_MAX_STRETCH * n, _GAIN * self._error))
         extra = round(self._carry)
         self._carry -= extra
-        pcm = _resample(block, n + extra) if extra else block.copy(order="C")
+        pcm = block.copy(order="C")
+        if extra:
+            pcm = _resample(block, n + extra)
+            self.log["stretched"].append((chunk, n + extra))
         self._blocks.append((pcm, onset - self.clock_offset, chunk))
 
     def play(self) -> None:
@@ -378,7 +387,7 @@ class Audio:
         #: number of the chunk queued by the latest :meth:`play` (-1: none), for the log.
         self.last_chunk = -1
         self._queued = 0                    # chunks queued in this block
-        self._log: dict[str, Any] = {"onsets": [], "resyncs": 0, "trimmed": 0}
+        self._log: dict[str, Any] = {"onsets": [], "resyncs": 0, "trimmed": 0, "stretched": []}
         self._sound_s = 0.0                 # sound produced by the checked steps
         self._steps = 0
         if enabled:
@@ -442,7 +451,7 @@ class Audio:
         self._max_offset = _MAX_OFFSET + (flip_period or 0.0) / 2
         self._period, self._sound_s, self._steps = frame_period, 0.0, 0
         self._queued = 0
-        self._log = {"onsets": [], "resyncs": 0, "trimmed": 0}
+        self._log = {"onsets": [], "resyncs": 0, "trimmed": 0, "stretched": []}
         if self.stream is not None:
             self.stream.max_offset = self._max_offset
             self.stream.log = self._log
@@ -452,7 +461,8 @@ class Audio:
         if not self._queued or not self.enabled:
             return None
         return AudioBlockLog(list(self._log["onsets"]), self.delay * 1000,
-                             self._log["resyncs"], self._log["trimmed"])
+                             self._log["resyncs"], self._log["trimmed"],
+                             list(self._log["stretched"]))
 
     def _check_rate(self, sound: Sound) -> None:
         """Add one step's sound to the block's rate check; raise once it is off.
