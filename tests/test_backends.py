@@ -263,13 +263,17 @@ def _fake_card(plan) -> bool:
 def session(smoke_config, plan, tmp_path_factory, request) -> Session:
     """The smoke config's first game phase, which the run's clock stops part-way.
 
-    The phase is played as configured, but for its ``duration``: one longer
-    than the run, so the run stops the block and a second run can resume it.
+    The phase is played as configured but for two settings, so the run's
+    clock stops the block mid-episode and a second run has an episode to
+    resume: a ``duration`` longer than the run, and no outcome screen
+    (``show_outcome_duration: 0``), which would otherwise leave seconds
+    between two episodes for the clock to land in.
     """
     cache = request.config.fmri_sessions
     if smoke_config.path not in cache:
         root = tmp_path_factory.mktemp(f"run-{Path(smoke_config.path).stem}")
-        phase = {**game_phases(REPO / smoke_config.path)[0], "duration": 3600}
+        phase = {**game_phases(REPO / smoke_config.path)[0], "duration": 3600,
+                 "show_outcome_duration": 0}
         config = write_curriculum([{"type": "fixation", "duration": 0.5,
                                     "include_on_resume": True}, phase,
                                    {"type": "fixation", "duration": 0.5}],
