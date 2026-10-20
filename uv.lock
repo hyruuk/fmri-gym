@@ -746,6 +746,7 @@ dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pygame-ce" },
+    { name = "replay-state-gym" },
     { name = "setuptools" },
     { name = "sounddevice" },
 ]
@@ -787,9 +788,11 @@ all = [
 ]
 arc3 = [
     { name = "arc3-gym", marker = "python_full_version >= '3.12'" },
+    { name = "replay-state-gym" },
 ]
 baba = [
     { name = "baba-gym" },
+    { name = "replay-state-gym" },
 ]
 baba-auto = [
     { name = "baba-auto-gym" },
@@ -900,7 +903,10 @@ requires-dist = [
     { name = "pyparallel", marker = "extra == 'triggers'" },
     { name = "pyserial", marker = "extra == 'triggers'" },
     { name = "pyside6-essentials", marker = "extra == 'gui'", specifier = ">=6.6" },
+    { name = "replay-state-gym", editable = "gym/replay_state" },
     { name = "replay-state-gym", marker = "extra == 'aigamestore'", editable = "gym/replay_state" },
+    { name = "replay-state-gym", marker = "extra == 'arc3'", editable = "gym/replay_state" },
+    { name = "replay-state-gym", marker = "extra == 'baba'", editable = "gym/replay_state" },
     { name = "replay-state-gym", marker = "extra == 'baba-auto'", editable = "gym/replay_state" },
     { name = "replay-state-gym", marker = "extra == 'coom'", editable = "gym/replay_state" },
     { name = "replay-state-gym", marker = "extra == 'minihack'", editable = "gym/replay_state" },
