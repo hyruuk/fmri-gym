@@ -11,11 +11,11 @@
           "Some things turn as they move. Steer the rules into place.",
           "",
           "Controls:",
-          "   ARROWS   move",
-          "   SPACE    wait a turn",
-          "   hold X   pause menu (restart / give up / resume)",
+          "   [ARROWS]   move",
+          "   [SPACE]    wait a turn",
+          "   hold [X]   pause menu (restart / give up / resume)",
           "",
-          "(press SPACE to start)"
+          "(press [SPACE] to start)"
         ]
       }
     },

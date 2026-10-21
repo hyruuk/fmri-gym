@@ -18,12 +18,12 @@ Requires OpenAL (Ubuntu: `sudo apt install libopenal1`). Native stereo PCM at 44
 
 | file | scenario | execute button, key |
 |---|---|---|
-| `arms_dealer.json` | Arms Dealer | SPEED, LSHIFT |
+| `arms_dealer.json` | Arms Dealer | SPEED, SPACE |
 | `chainsaw.json` | Chainsaw | ATTACK, SPACE |
-| `floor_is_lava.json` | Floor is Lava | SPEED, LSHIFT |
-| `health_gathering.json` | Health Gathering | SPEED, LSHIFT |
-| `hide_and_seek.json` | Hide and Seek | SPEED, LSHIFT |
+| `floor_is_lava.json` | Floor is Lava | SPEED, SPACE |
+| `health_gathering.json` | Health Gathering | SPEED, SPACE |
+| `hide_and_seek.json` | Hide and Seek | SPEED, SPACE |
 | `parkour.json` | Parkour | JUMP, SPACE |
 | `pitfall.json` | Pitfall | JUMP, SPACE |
-| `raise_the_roof.json` | Raise the Roof | USE, E |
+| `raise_the_roof.json` | Raise the Roof | USE, SPACE |
 | `run_and_gun.json` | Run and Gun | ATTACK, SPACE |
