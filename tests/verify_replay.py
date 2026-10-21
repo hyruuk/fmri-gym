@@ -108,8 +108,8 @@ def check_block(block: str) -> dict[str, Any]:
             tally["frame_mismatches"] += _step_and_compare(adapter, episode, pixels, audio, tally)
             _check_anchors(adapter, episode, pixels, tally)
 
-        if end_state and lines:
-            _check_end_state(adapter, end_state, lines[-1], pixels, tally)
+        if end_state:
+            _check_end_state(block, adapter, end_state, events, pixels, tally)
     finally:
         adapter.close()
     tally["pass"] = tally["frame_mismatches"] == 0 and tally["anchor_mismatches"] == 0
@@ -189,13 +189,31 @@ def _check_anchors(adapter: Any, episode: list[dict], pixels: dict, tally: dict)
                                                         None, tally)
 
 
-def _check_end_state(adapter: Any, state: str, last: dict, pixels: dict, tally: dict) -> None:
-    """Restore the block's end state and compare it with the block's last frame."""
+def _check_end_state(block: str, adapter: Any, state: str, events: list[dict], pixels: dict,
+                     tally: dict) -> None:
+    """Restore the block's end state and compare it with the picture the block ended on.
+
+    That is its last frame, or, when the block ran out between an episode's
+    reset and its first step, that episode's reset.
+    """
+    from fmri_gym.replay import reconstruct_episode
+
+    last = [e for e in events if e["type"] in ("episode_start", "frame")][-1]
+    if last["type"] == "frame":
+        expected, where = pixels[last["frame"]], None
+    else:
+        reconstruct_episode(block, last["episode_id"], adapter=adapter, n_actions=0)
+        expected, where = np.asarray(adapter.render()), f"episode {last['episode_id']} reset"
     adapter.restore(zlib.decompress(base64.b64decode(state)))
     tally["anchors"] += 1
-    if not np.array_equal(np.asarray(adapter.render()), pixels[last["frame"]]):
-        tally["anchor_mismatches"] += 1
-        _note(tally, last, "pixels differ after restoring the block's end state")
+    if np.array_equal(np.asarray(adapter.render()), expected):
+        return
+    tally["anchor_mismatches"] += 1
+    what = "pixels differ after restoring the block's end state"
+    if where is None:
+        _note(tally, last, what)
+    elif tally["first_mismatch"] is None:
+        tally["first_mismatch"] = f"{where}: {what}"
 
 
 def _step_and_compare(adapter: Any, lines: list[dict], pixels: dict,
