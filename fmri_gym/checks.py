@@ -49,7 +49,18 @@ numbers, charts, this rig's previous checks; one offline file),
 ``report.md``, and ``rigcheck.tsv`` -- one row of fixed columns
 (:data:`COLUMNS`) with its BIDS sidecar. The data root's ``rigchecks.tsv``
 holds every check filed there, read from their manifests, so checks filed by
-an earlier version still line up::
+an earlier version still line up.
+
+**What the rig measured.** Every check also files its measurements beside the
+rig file, in ``measured/<rig>-<n>.json`` (:func:`file_measured`), ``n`` one
+more than the last, when it measured any latency: the latencies -- flip to light at the screen, flip to the
+sound card, sound card to the ear -- with every check's summary, the verdicts,
+the rig file as played, the software and the machine (:func:`machine`:
+processor, memory, displays, GPUs, sound and input devices, what is plugged
+into USB). The rig file is the rig's settings,
+shared; these are one machine's measurements, and stay on it (``.gitignore``).
+A run on a rig with none says so, and the first run of a session, on a
+terminal, offers to run a check first (:func:`offer_check`)::
 
     python -m fmri_gym.checks rig --rig configs/rigs/<site>/<rig>.json   # fill in / update a rig file
     python -m fmri_gym.checks report <run folder>...   # re-file checks already run
@@ -72,6 +83,7 @@ import subprocess
 import sys
 import time
 from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Sequence
 
 import gymnasium as gym
@@ -80,6 +92,7 @@ import pygame
 from gymnasium import spaces
 
 from . import pad
+from .bids import has_session, next_session
 from .config import rig as rig_file
 from .config.phases import (CHECK_PHASES, CheckControls, CheckDisplay, CheckFrames, CheckPhase,
                             CheckPhotodiode, CheckTriggers, GamePhase)
@@ -92,9 +105,14 @@ from .run import _wait_for_duration
 from .triggers import LIFECYCLE_EVENTS, Codes, TriggerError, Triggers
 
 if TYPE_CHECKING:
+    from .config.run import RunConfig
     from .run import Run
 
 
+#: The rig checks a run on a rig never measured offers to play first, by the key that picks one.
+_RIG_CHECKS = {key: str(Path(__file__).resolve().parents[1] / "configs" / "curricula" / "checks"
+                        / name)
+               for key, name in (("q", "rig-check.json"), ("l", "rig-check-long.json"))}
 #: The check phases' types, as a manifest's phase entries name them.
 CHECK_TYPES = tuple(c.type for c in CHECK_PHASES)
 #: Seconds each check's verdict stays on screen.
@@ -154,6 +172,39 @@ def _ask_triggers(rig: rig_file.RigConfig) -> rig_file.RigConfig:
     return rig_file.RigConfig.open(where)
 
 
+def offer_check(config: RunConfig) -> None:
+    """Before a run that is not a rig check: say so when its rig has never been measured,
+    and before the session's first run, on a terminal, offer to measure it first, as a
+    rig check run of its own.
+
+    :param config: the run.
+    """
+    rig = config.rig
+    if measured_files(rig.path):
+        return
+    print(f"WARNING: {rig.path} has never been measured: no rig check has filed when a "
+          "frame's light and sound reach the participant on it", file=sys.stderr)
+    if has_session(rig.data_root, config.subject, config.ses):
+        return
+    args = ["--subject", "sub-rig", "--ses", str(next_session(rig.data_root, "sub-rig")),
+            "--run", "1", "--rig", rig.path]
+    if not sys.stdin.isatty():
+        curriculum = os.path.relpath(_RIG_CHECKS["l"])
+        print("  measure it: uv run fmri-play " + " ".join(args + ["--curriculum", curriculum]),
+              file=sys.stderr)
+        return
+    try:
+        answer = input("Run a rig check first? [q]uick (under a minute), [l]ong (about 25 "
+                       "minutes), Enter to go on without: ").strip().lower()
+    except EOFError:  # Ctrl+D: nothing typed
+        answer = ""
+    if answer not in _RIG_CHECKS:
+        return
+    subprocess.run([sys.executable, "-m", "fmri_play", *args,
+                    "--curriculum", _RIG_CHECKS[answer]], check=False)
+    print(f"rig check done; the run starts on {rig.path}", file=sys.stderr)
+
+
 def finish(run: Run, session: int) -> bool:
     """File the rig check: the tests in the manifest, the report, the pooling row, and
     the rig's data root's ``rigchecks.tsv``, rebuilt.
@@ -179,9 +230,10 @@ def finish(run: Run, session: int) -> bool:
              start_time=datetime.datetime.fromtimestamp(started).astimezone()
              .isoformat(timespec="seconds"),
              versions={**m.get("versions", {}), **versions()},
-             platform=platform_info())
+             platform=platform_info(), machine=machine())
     data_root = run.config.rig.data_root
     write_outputs(run.outdir, m, data_root)
+    file_measured(m, run.outdir, run.config.rig.path)
     print(f"rig check {'PASS' if m['status'] == 'pass' else 'FAIL (' + m['failed_tests'] + ')'}"
           f": {os.path.join(run.outdir, 'report.html')} "
           f"(all checks: {os.path.join(data_root, 'rigchecks.tsv')})", file=sys.stderr)
@@ -1108,6 +1160,10 @@ COLUMNS: list[tuple[str, tuple[str, ...], str, str | None]] = [
     ("sound_max_ms", ("rig_check", "photodiode", "sound_offset", "max_ms"), "Flip to sound, max", "ms"),
     ("sound_drift_ms_per_min", ("rig_check", "photodiode", "sound_offset", "drift_ms_per_min"),
      "Flip to sound, trend over the run (runs of a minute or more)", "ms/min"),
+    ("acoustic_median_ms", ("rig_check", "photodiode", "acoustic_offset", "median_ms"),
+     "DAC to sound at the microphone (amplifier, tubes, earphones), median", "ms"),
+    ("acoustic_sd_ms", ("rig_check", "photodiode", "acoustic_offset", "sd_ms"),
+     "DAC to sound, SD", "ms"),
     ("av_median_ms", ("rig_check", "photodiode", "av_offset", "median_ms"),
      "Photodiode to sound (audio behind video), median", "ms"),
     ("av_sd_ms", ("rig_check", "photodiode", "av_offset", "sd_ms"), "Photodiode to sound, SD", "ms"),
@@ -1277,6 +1333,214 @@ def platform_info() -> dict[str, str]:
             "hostname": socket.gethostname()}
 
 
+def machine() -> dict[str, Any]:
+    """The machine a check ran on, and what is plugged into it: for provenance, and to
+    tell two rigs (or one rig before and after a change) apart when their numbers differ.
+
+    Each part is read from the operating system without new dependencies, and is
+    ``None`` (or empty) where the system does not say.
+    """
+    displays, inputs = _pygame_devices()
+    return {**platform_info(), "python": platform.python_version(), "cpu": _cpu(),
+            "cores": os.cpu_count(), "memory_gb": _memory_gb(), "displays": displays,
+            "gpus": _gpus(), "audio_devices": _audio_devices(),
+            "input_devices": inputs, "usb_devices": _usb_devices()}
+
+
+def _pygame_devices() -> tuple[list[dict[str, Any]], list[str]]:
+    """The monitors and the input devices, read with pygame's display up (it opens no
+    window); pygame's display is left as it was found."""
+    was_up = pygame.display.get_init()
+    try:
+        pygame.display.init()
+        displays = _displays()
+        pygame.joystick.init()
+        settled = time.monotonic() + 0.5  # controllers arrive as events, ~0.1 s after init
+        while time.monotonic() < settled:
+            pygame.event.pump()
+            time.sleep(0.05)
+    except pygame.error:  # no screen here: no monitor to list
+        displays = []
+    try:
+        return displays, input_devices()
+    finally:
+        if not was_up:
+            pygame.joystick.quit()
+            pygame.display.quit()
+
+
+def _run(*command: str) -> str:
+    """A system tool's output; empty when it is missing, fails or hangs."""
+    try:
+        out = subprocess.run(command, capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return out.stdout if out.returncode == 0 else ""
+
+
+def _cpu() -> str | None:
+    if sys.platform == "darwin":
+        return _run("sysctl", "-n", "machdep.cpu.brand_string").strip() or None
+    if os.path.exists("/proc/cpuinfo"):
+        with open("/proc/cpuinfo") as f:
+            model = re.search(r"^model name\s*:\s*(.+)$", f.read(), re.MULTILINE)
+        if model:
+            return model[1].strip()
+    return platform.processor() or None
+
+
+def _memory_gb() -> float | None:
+    try:
+        return round(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 2**30, 1)
+    except (ValueError, OSError, AttributeError):
+        return None
+
+
+def _displays() -> list[dict[str, Any]]:
+    """Every monitor the system has, its desktop size and refresh rate."""
+    sizes = pygame.display.get_desktop_sizes()
+    rates = (pygame.display.get_desktop_refresh_rates()
+             if hasattr(pygame.display, "get_desktop_refresh_rates") else [None] * len(sizes))
+    return [{"size": f"{w}x{h}", "refresh_hz": rate} for (w, h), rate in zip(sizes, rates)]
+
+
+def _gpus() -> list[str]:
+    if sys.platform == "darwin":
+        out = _run("system_profiler", "SPDisplaysDataType", "-json")
+        try:
+            return [g.get("sppci_model", g.get("_name", "?"))
+                    for g in json.loads(out)["SPDisplaysDataType"]] if out else []
+        except (ValueError, KeyError, TypeError):
+            return []
+    lines = _run("lspci", "-mm").splitlines()
+    return [line for line in lines if re.search(r'"(VGA|3D|Display)', line)]
+
+
+def _audio_devices() -> list[dict[str, Any]]:
+    """Every sound device, with its channels and default rate, the defaults marked."""
+    try:
+        import sounddevice
+        devices = sounddevice.query_devices()
+        default_in, default_out = sounddevice.default.device
+    except Exception:  # noqa: BLE001 -- no PortAudio: nothing to list
+        return []
+    return [{"name": d["name"], "hostapi": sounddevice.query_hostapis(d["hostapi"])["name"],
+             "inputs": d["max_input_channels"], "outputs": d["max_output_channels"],
+             "default_samplerate": d["default_samplerate"],
+             "default": [k for k, i in (("input", default_in), ("output", default_out))
+                         if i == d["index"]]}
+            for d in devices]
+
+
+def _usb_devices() -> list[str]:
+    """What is plugged into USB: maker, product and vendor:product ids."""
+    if os.path.isdir("/sys/bus/usb/devices"):
+        devices = sorted(glob.glob("/sys/bus/usb/devices/*"))
+        return [f"{_sysfs(d, 'manufacturer')} {_sysfs(d, 'product')} "
+                f"({_sysfs(d, 'idVendor')}:{_sysfs(d, 'idProduct')})".strip()
+                for d in devices if _sysfs(d, "product")]
+    if sys.platform == "darwin":
+        # macOS 15 moved the USB tree to SPUSBHostDataType; earlier ones have SPUSBDataType.
+        for kind in ("SPUSBHostDataType", "SPUSBDataType"):
+            out = _run("system_profiler", kind, "-json")
+            try:
+                devices = _usb_items(json.loads(out)[kind]) if out else []
+            except (ValueError, KeyError, TypeError):
+                devices = []
+            if devices:
+                return devices
+    return []
+
+
+def _sysfs(device: str, name: str) -> str:
+    """One attribute of a Linux USB device; empty when it has none."""
+    try:
+        with open(os.path.join(device, name)) as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def _usb_items(items: list[dict]) -> list[str]:
+    """The devices in macOS's USB tree, depth first (either report's keys)."""
+    out = []
+    for item in items:
+        vendor = item.get("vendor_id", item.get("USBDeviceKeyVendorID"))
+        product = item.get("product_id", item.get("USBDeviceKeyProductID"))
+        if vendor or product:
+            maker = item.get("manufacturer", item.get("USBDeviceKeyVendorName", ""))
+            out.append(f"{maker} {item.get('_name', '?')} ({vendor}:{product})".strip())
+        out += _usb_items(item.get("_items", []))
+    return out
+
+
+def measured(m: dict, folder: str) -> dict[str, Any]:
+    """What a rig check measured on its rig, as filed beside the rig file.
+
+    ``latency`` holds when what a frame shows reaches the participant, from its
+    flip: each the check's summary of its offsets (median, spread, count), and
+    ``None`` when the check could not measure it (no photodiode, no microphone,
+    a diode read in the MEG/EEG recording) or its test did not pass. The rest is
+    how it was measured and on what: the check, its verdicts, every check's
+    summary, the rig file as it played, the machine and the software.
+
+    :param m: the check's manifest, filed (:func:`write_outputs`).
+    :param folder: the check's run folder.
+    """
+    photodiode = m["rig_check"].get("photodiode", {})
+
+    def latency(test: str, key: str) -> dict | None:
+        summary = photodiode.get(key)
+        passed = m["tests"].get(test, {}).get("status") == "pass"
+        return summary if passed and summary and "median_ms" in summary else None
+
+    return {"date": m["start_time"],
+            "check": {"folder": folder, "label": m["run"]["label"], "task": m["task"],
+                      "status": m["status"], "failed_tests": m["failed_tests"],
+                      "tests": m["tests"]},
+            "latency": {"flip_to_photon": latency("photodiode", "offset"),
+                        "flip_to_dac": latency("audio", "click_dac_offset"),
+                        "dac_to_ear": latency("audio", "acoustic_offset")},
+            "rig_check": m["rig_check"], "rig": m["rig"], "machine": m["machine"],
+            "versions": m["versions"]}
+
+
+def measured_files(rig_path: str) -> list[str]:
+    """What the rig checks measured on the rig file at ``rig_path``, in the order they
+    were filed: ``measured/<rig>-<n>.json`` beside it, by ``n``."""
+    folder = os.path.join(os.path.dirname(rig_path), "measured")
+    rig = os.path.splitext(os.path.basename(rig_path))[0]
+    numbered = {}
+    for path in glob.glob(os.path.join(folder, f"{glob.escape(rig)}-*.json")):
+        n = re.fullmatch(rf"{re.escape(rig)}-(\d+)\.json", os.path.basename(path))
+        if n:
+            numbered[int(n[1])] = path
+    return [numbered[n] for n in sorted(numbered)]
+
+
+def file_measured(m: dict, folder: str, rig_path: str) -> str | None:
+    """Write what the check measured beside the rig file, under the next free number;
+    nothing when it measured no latency.
+
+    :param m: the check's manifest, filed.
+    :param folder: the check's run folder.
+    :param rig_path: the rig file the check played on.
+    :return: the file written, or ``None``.
+    """
+    values = measured(m, folder)
+    if not any(values["latency"].values()):
+        print("rig check: no latency measured (no photodiode or microphone read, or their "
+              "tests failed): nothing filed beside the rig", file=sys.stderr)
+        return None
+    rig = os.path.splitext(os.path.basename(rig_path))[0]
+    path = os.path.join(os.path.dirname(rig_path), "measured",
+                        f"{rig}-{len(measured_files(rig_path)) + 1}.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    _write_json(path, values)
+    print(f"rig check: what it measured on the rig: {path}", file=sys.stderr)
+    return path
+
+
 def _write_json(path: str, obj: Any) -> None:
     with open(path, "w") as f:
         json.dump(obj, f, indent=2, default=str)
@@ -1401,6 +1665,7 @@ def _md_audio(p: dict) -> list[str]:
              f"{'on input 1' if p.get('mic') else 'none'}"]
     return lines + _md_offsets(p, (("click_dac_offset", "flip → click at the DAC"),
                                 ("sound_offset", "flip → sound at the microphone"),
+                                ("acoustic_offset", "DAC → sound at the microphone"),
                                 ("av_offset", "photodiode → sound")))
 
 

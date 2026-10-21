@@ -534,8 +534,12 @@ def _readout(t: np.ndarray, x: np.ndarray, arrays: dict, summary: dict) -> None:
     arrays["sound_time"] = sound
     arrays["sound_offset_s"] = sound - on
     arrays["av_offset_s"] = sound - edges[idx]
+    # The part that is the hardware's: fmri-gym chooses its own flip-to-DAC delay
+    # at each start-up, the amplifier, tubes and earphones add the same every time.
+    arrays["acoustic_offset_s"] = sound - arrays["click_dac"]
     summary["sound_offset"] = summarize(arrays["sound_offset_s"], on)
     summary["av_offset"] = summarize(arrays["av_offset_s"], on)
+    summary["acoustic_offset"] = summarize(arrays["acoustic_offset_s"], on)
 
 
 def _missed(arrays: dict, key: str, noun: str = "flashes") -> str | None:
@@ -639,6 +643,7 @@ def _report(summary: dict, arrays: dict, outdir: str) -> None:
               "your recording with fmri_gym.photodiode.match_edges()")
     for key, label in (("click_dac_offset", "flip -> click at the DAC"),
                        ("sound_offset", "flip -> sound at the microphone"),
+                       ("acoustic_offset", "DAC -> sound at the microphone"),
                        ("av_offset", "photodiode -> sound (audio behind video)")):
         o = summary.get(key, {})
         if o.get("n_matched"):

@@ -337,6 +337,61 @@ def test_a_check_that_broke_part_way_is_reported_not_crashed_on():
     assert "stopped before it finished" in note and "KeyError" in note
 
 
+def test_each_check_files_its_measurements_beside_the_rig_under_a_new_number(tmp_path):
+    from fmri_gym.checks import file_measured
+    offset = {"median_ms": 12.0, "sd_ms": 0.3, "n_matched": 10, "n": 10}
+    m = {"start_time": "2026-10-20T10:00:00", "task": "rigcheck", "status": "fail",
+         "failed_tests": "audio", "run": {"label": "sub-rig_task-rigcheck_run-01"},
+         "tests": {"photodiode": {"status": "pass"}, "audio": {"status": "fail"}},
+         "rig_check": {"photodiode": {"offset": offset, "acoustic_offset": offset}},
+         "rig": {"path": "laptop.json"}, "machine": {}, "versions": {}}
+    rig_path = str(tmp_path / "laptop.json")
+    first = file_measured(m, "run1", rig_path)
+    second = file_measured(m, "run2", rig_path)
+    assert first == str(tmp_path / "measured" / "laptop-1.json")
+    assert second == str(tmp_path / "measured" / "laptop-2.json")
+    latency = json.loads(Path(second).read_text())["latency"]
+    assert latency["flip_to_photon"]["median_ms"] == 12.0
+    assert latency["dac_to_ear"] is None          # its test failed
+    m["tests"]["photodiode"]["status"] = "fail"   # no latency left: nothing filed
+    assert file_measured(m, "run3", rig_path) is None
+    assert len(list((tmp_path / "measured").iterdir())) == 2
+
+
+def test_the_machine_is_described_and_pygame_left_as_it_was():
+    import pygame
+
+    from fmri_gym.checks import machine
+    pygame.quit()
+    m = machine()
+    assert {"cpu", "memory_gb", "displays", "gpus", "audio_devices", "input_devices",
+            "usb_devices", "system", "hostname"} <= set(m)
+    assert not pygame.display.get_init()
+
+
+def test_a_run_on_a_rig_never_measured_says_so_and_offers_a_check_once_a_session(
+        tmp_path, capsys, monkeypatch):
+    from types import SimpleNamespace
+
+    from fmri_gym.checks import offer_check
+    from fmri_gym.config.rig import RigConfig
+    rig_path = tmp_path / "laptop.json"
+    rig_path.write_text(json.dumps({"data_root": str(tmp_path / "data")}))
+    run = SimpleNamespace(rig=RigConfig.open(str(rig_path)), subject="sub-01", ses=1)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    offer_check(run)
+    err = capsys.readouterr().err
+    assert "never been measured" in err and "rig-check-long.json" in err
+    (tmp_path / "data" / "sub-01" / "ses-001" / "beh").mkdir(parents=True)
+    offer_check(run)                              # the session has begun: warned, not offered
+    err = capsys.readouterr().err
+    assert "never been measured" in err and "rig-check-long.json" not in err
+    (tmp_path / "measured").mkdir()
+    (tmp_path / "measured" / "laptop-1.json").write_text("{}")
+    offer_check(run)
+    assert capsys.readouterr().err == ""
+
+
 def test_claude_md_imports_agents_md():
     """Claude Code reads AGENTS.md on its own only while no CLAUDE.md exists: the import keeps it."""
     lines = (Path(__file__).resolve().parents[1] / "CLAUDE.md").read_text().splitlines()

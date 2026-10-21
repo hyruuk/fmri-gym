@@ -97,6 +97,8 @@ def main() -> None:
     problems = run_config.problems()
     if problems:
         raise ValueError(f"{args.curriculum} on {rig.path}: " + "; ".join(problems))
+    if not do_rig_check:
+        checks.offer_check(run_config)
     run = Run.from_config(run_config)
     if do_rig_check:
         run.logger.set_extra("trigger_error", trigger_error)
