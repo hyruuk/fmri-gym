@@ -293,7 +293,10 @@ def _game_block(run: Path) -> Path:
 def test_headless_run(session):
     manifest = json.loads((session.run / "manifest.json").read_text())
     games = [p for p in manifest["phases"] if p.get("type") == "game"]
-    assert any(p.get("end_of_run") for p in manifest["phases"]), "no closing fixation was logged"
+    end = [p for p in manifest["phases"] if p.get("end_of_run")]
+    assert end, "no closing fixation was logged"
+    assert end[0]["offset"] <= max(manifest["duration"], end[0]["onset"]) + 0.05, \
+        f"the closing fixation ended at {end[0]['offset']:.2f} s, past --duration"
     assert games and games[0]["n_frames"] > 0, "the game block logged no frame: were the keys read?"
     block = _game_block(session.run)
     assert (block / EVENTS_FILENAME).exists() and (block / FRAMES_FILENAME).exists()
