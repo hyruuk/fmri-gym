@@ -18,7 +18,7 @@ fmri_gym/run.py                  CORE  one run's experiment loop: trigger, phase
 fmri_gym/display.py              CORE  one pygame window: frames, text, fixation
 fmri_gym/keys.py                 CORE  pygame keycode to key NAME ("LEFT", "SPACE")
 fmri_gym/logging.py              CORE  manifest.json + one crash-safe JSONL/HDF5 log per game block
-fmri_gym/replay.py                     replay an episode from a block's log; frame fields as arrays
+fmri_gym/replay.py               CORE  replay an episode from a block's log; frame fields as arrays
 fmri_gym/menu.py                 CORE  hold-a-key pause menu: reset / forfeit / resume (opt-in per phase)
 fmri_gym/adapters/base.py        CORE  EnvAdapter + FrameState: the seam
 fmri_gym/adapters/keymap.py      CORE  the phase's keys, one Keymap per action space
@@ -31,6 +31,8 @@ tests/                                 the suite: every backend played, logged, 
 .claude/skills/<NAME>/SKILL.md         the procedures (testing, add-backend, pull-request); .agents/skills links to them
 .github/workflows/tests.yml            CI: the suite on every pull request that is ready for review
 ```
+
+**Core** is every `fmri_gym/*.py` and `fmri_gym/config/*.py`, whether the table lists it or not (`audio.py`, `triggers.py`, `pad.py`, ...), plus the adapter seam, `adapters/base.py` and `adapters/keymap.py`. Every other file under `fmri_gym/adapters/` is a backend's.
 
 The core is engine-agnostic: `run.py` never imports a game engine, never touches `env.unwrapped`, and never mentions a game by name. Everything engine-specific goes through an `EnvAdapter`.
 
@@ -61,7 +63,7 @@ If you find yourself writing game rules, drawing a board, tracking a selection c
 
 ## Rule 2: changes to core libraries are a last resort, and stay generic
 
-Before editing `run.py`, `display.py`, `keys.py`, `logging.py`, `base.py`, or `keymap.py`, please try to solve the problem in your adapter. If you cannot:
+Before editing a core file (any `fmri_gym/*.py` or `fmri_gym/config/*.py`, `adapters/base.py` or `adapters/keymap.py`; see "The shape of the repo"), please try to solve the problem in your adapter. If you cannot:
 
 - Keep it **additive and default-off**, so no existing backend changes behaviour.
 - Keep it **nameless**: no `if backend == "rushhour"`, no game ids, no engine imports. This holds for the prose too -- a core file's comments and docstrings state the contract, they don't cite the backend that happens to use it.
