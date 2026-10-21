@@ -10,14 +10,18 @@ playable at the desk and in the scanner alike. :func:`pump` moves the events
 across; it registers with :func:`fmri_gym.keys.get_events`, which runs it
 before every read of the queue.
 
-The controls are the controller's own (:data:`CONTROLS`: the stick's four
-directions and the buttons Y B X LT A RT); which key each presses is the rig's
-(its file's ``"bindings"``, handed to :func:`init`), one map for every game
-played on the rig. A control with no binding presses nothing; a controller
-that types keys itself needs none. What is *not* the rig file's is the stick,
-which rests off centre, travels further one way than the other, and moves its
-centre between sessions; that is measured per rig by ``fmri-pad-calibrate``
-(below) into ``~/.config/fmri-gym/pad.json``, and checked in ``fmri-pad-scope``.
+The controls are a gamepad's (:data:`CONTROLS`: each stick's and the D-pad's
+four directions, Y B X A, LT RT, LB RB, START BACK), and a pad has the ones it
+has. Which raw button or axis is which control is its :class:`Layout`: SDL's,
+for a gamepad SDL knows (an Xbox controller, whose raw numbers differ by OS and
+connection), or the Current Designs pad's for any other joystick. Which key each
+control presses is the rig's (its file's ``"bindings"``, handed to :func:`init`),
+one map for every game played on the rig. A control with no binding presses
+nothing; a controller that types keys itself needs none. What is *not* the rig
+file's is the left stick, which rests off centre, travels further one way than
+the other, and moves its centre between sessions; that is measured per rig by
+``fmri-pad-calibrate`` (below) into ``~/.config/fmri-gym/pad.json``, applied
+only to the device it was measured on, and checked in ``fmri-pad-scope``.
 
 It turns itself on when a pad is plugged in, and a rig file's ``"has_pad": false`` leaves it off.
 """
@@ -34,26 +38,120 @@ import statistics
 import sys
 import time
 from collections import deque
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pygame
+from pygame._sdl2 import controller
 
 from .keys import KEYCODE_BY_NAME, register_event_source, register_held_source
 
-#: Each button's control, as printed on it. SDL numbers buttons from 0, one less
-#: than the HID report does: on the Current Designs pad that is y=0, b=1, x=2,
-#: LT=3, a=4, RT=5.
-BUTTON_CONTROLS: dict[int, str] = {0: "Y", 1: "B", 2: "X", 3: "LT", 4: "A", 5: "RT"}
-#: The stick's controls. Axis 0 is horizontal, 1 vertical; SDL reads up and
-#: left as negative.
-AXIS_CONTROLS: dict[tuple[int, str], str] = {
-    (0, "-"): "LEFT", (0, "+"): "RIGHT", (1, "-"): "UP", (1, "+"): "DOWN",
-}
-#: Every control a rig file's ``"bindings"`` can bind to a key.
-CONTROLS = ("UP", "DOWN", "LEFT", "RIGHT", *BUTTON_CONTROLS.values())
-_ARROWS = frozenset(AXIS_CONTROLS.values())
+#: The directions of the left stick, the right stick and the D-pad, each up, down, left, right.
+STICK = ("UP", "DOWN", "LEFT", "RIGHT")
+RIGHT_STICK = ("RS_UP", "RS_DOWN", "RS_LEFT", "RS_RIGHT")
+DPAD = ("DPAD_UP", "DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT")
+#: Every control a rig file's ``"bindings"`` can bind to a key; a pad has the ones it has.
+CONTROLS = (*STICK, "Y", "B", "X", "LT", "A", "RT", "LB", "RB", "START", "BACK",
+            *DPAD, *RIGHT_STICK)
+#: The sticks, by their axes: 0 and 1 the left stick, 2 and 3 the right (SDL's
+#: numbering of a gamepad's), each read up and left as negative.
+STICKS: dict[tuple[int, int], tuple[str, ...]] = {(0, 1): STICK, (2, 3): RIGHT_STICK}
 STICK_AXES = (0, 1)
+_DIRECTIONS = frozenset(STICK + RIGHT_STICK)
+
+
+@dataclass(frozen=True)
+class Layout:
+    """Which of a joystick's numbered buttons and axes is which control."""
+
+    name: str
+    buttons: dict[int, str]
+    axes: dict[int, int]            # its axis -> the stick axis it is (:data:`STICKS`)
+
+
+#: The Current Designs pad. SDL numbers buttons from 0, one less than the HID
+#: report does. It also reports two axes pinned at -1.0, which are no control.
+CURRENT_DESIGNS = Layout("Current Designs", {0: "Y", 1: "B", 2: "X", 3: "LT", 4: "A", 5: "RT"},
+                         {0: 0, 1: 1})
+#: A gamepad SDL knows the layout of (an Xbox controller, say), by SDL's names
+#: for its controls: its raw numbers differ by pad, OS and connection.
+GAMEPAD = Layout("SDL's gamepad layout", {
+    pygame.CONTROLLER_BUTTON_Y: "Y", pygame.CONTROLLER_BUTTON_B: "B",
+    pygame.CONTROLLER_BUTTON_X: "X", pygame.CONTROLLER_BUTTON_A: "A",
+    pygame.CONTROLLER_BUTTON_LEFTSHOULDER: "LB", pygame.CONTROLLER_BUTTON_RIGHTSHOULDER: "RB",
+    pygame.CONTROLLER_BUTTON_START: "START", pygame.CONTROLLER_BUTTON_BACK: "BACK",
+    pygame.CONTROLLER_BUTTON_DPAD_UP: "DPAD_UP", pygame.CONTROLLER_BUTTON_DPAD_DOWN: "DPAD_DOWN",
+    pygame.CONTROLLER_BUTTON_DPAD_LEFT: "DPAD_LEFT",
+    pygame.CONTROLLER_BUTTON_DPAD_RIGHT: "DPAD_RIGHT",
+}, {
+    pygame.CONTROLLER_AXIS_LEFTX: 0, pygame.CONTROLLER_AXIS_LEFTY: 1,
+    pygame.CONTROLLER_AXIS_RIGHTX: 2, pygame.CONTROLLER_AXIS_RIGHTY: 3,
+})
+#: A gamepad's analog triggers, which press their control past :data:`_TRIGGER_ON`.
+GAMEPAD_TRIGGERS: dict[int, str] = {
+    pygame.CONTROLLER_AXIS_TRIGGERLEFT: "LT", pygame.CONTROLLER_AXIS_TRIGGERRIGHT: "RT",
+}
+#: The controls a gamepad has, by the names in its SDL mapping.
+_MAPPED: dict[str, tuple[str, ...]] = {
+    "y": ("Y",), "b": ("B",), "x": ("X",), "a": ("A",), "lefttrigger": ("LT",),
+    "righttrigger": ("RT",), "leftshoulder": ("LB",), "rightshoulder": ("RB",),
+    "start": ("START",), "back": ("BACK",), "dpup": ("DPAD_UP",), "dpdown": ("DPAD_DOWN",),
+    "dpleft": ("DPAD_LEFT",), "dpright": ("DPAD_RIGHT",),
+    "leftx": ("LEFT", "RIGHT"), "lefty": ("UP", "DOWN"),
+    "rightx": ("RS_LEFT", "RS_RIGHT"), "righty": ("RS_UP", "RS_DOWN"),
+}
+#: How far an analog trigger is pulled to press, and let go to release, of its travel.
+_TRIGGER_ON, _TRIGGER_OFF = 0.5, 0.3
+_GAMEPAD_EVENTS = (pygame.CONTROLLERBUTTONDOWN, pygame.CONTROLLERBUTTONUP,
+                   pygame.CONTROLLERAXISMOTION)
+_PAD_EVENTS = (pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP, pygame.JOYAXISMOTION, *_GAMEPAD_EVENTS)
+_DOWN_EVENTS = (pygame.JOYBUTTONDOWN, pygame.CONTROLLERBUTTONDOWN)
+
+
+def _scaled(value: float) -> float:
+    """A gamepad axis's reading, -32768..32767, as -1..1."""
+    return max(-1.0, min(1.0, value / 32767))
+
+
+class Pad:
+    """One plugged-in pad: its SDL handles, and which of its numbers is which control."""
+
+    def __init__(self, index: int) -> None:
+        self.joystick = pygame.joystick.Joystick(index)
+        self.gamepad = controller.Controller(index) if controller.is_controller(index) else None
+        self.layout = CURRENT_DESIGNS if self.gamepad is None else GAMEPAD
+        self.name = self.joystick.get_name()
+        self.id = self.joystick.get_instance_id()
+
+    def controls(self) -> tuple[str, ...]:
+        """The controls this pad has, in :data:`CONTROLS` order."""
+        if self.gamepad is None:
+            have = {*STICK, *self.layout.buttons.values()}
+        else:
+            have = {c for key in self.gamepad.get_mapping() for c in _MAPPED.get(key, ())}
+        return tuple(c for c in CONTROLS if c in have)
+
+    def source(self, control: str) -> str:
+        """Which of its raw buttons or axes a control is, as SDL numbers them ("b6", "+a2")."""
+        if self.gamepad is not None:
+            key = next((k for k, cs in _MAPPED.items() if control in cs), "")
+            return self.gamepad.get_mapping().get(key, "")
+        number = {c: b for b, c in self.layout.buttons.items()}.get(control)
+        return "" if number is None else f"b{number}"
+
+    def read(self) -> tuple[dict[int, float], set[str]]:
+        """Its stick axes now (by :data:`STICKS`, raw), and the buttons and triggers held."""
+        if self.gamepad is None:
+            j = self.joystick
+            axes = {s: j.get_axis(a) for a, s in self.layout.axes.items() if a < j.get_numaxes()}
+            return axes, {c for b, c in self.layout.buttons.items()
+                          if b < j.get_numbuttons() and j.get_button(b)}
+        g = self.gamepad
+        axes = {s: _scaled(g.get_axis(a)) for a, s in self.layout.axes.items()}
+        held = {c for b, c in self.layout.buttons.items() if g.get_button(b)}
+        return axes, held | {c for a, c in GAMEPAD_TRIGGERS.items()
+                             if _scaled(g.get_axis(a)) >= _TRIGGER_ON}
 
 #: Where each direction sits as an angle of push. A push is classified by which
 #: of these it points nearest to, so these four are the whole of what "which
@@ -102,8 +200,9 @@ _pushed: dict[int, str | None] = {}     # axis -> its side, in diagonal mode
 _since: dict[str, float] = {}           # direction -> when it first wanted pressing
 _quiet: dict[int, tuple] = {}           # axis -> (since, low, high) while still
 _settled: set[int] = set()              # axes whose centre has been taken
-_joysticks: list = []
-_unmapped: set[int] = set()
+_pads: dict[int, Pad] = {}              # instance id -> the pad
+_unmapped: set[tuple[str, int]] = set()  # (layout, button) already warned of
+_foreign = ""                           # the device a calibration not applied was measured on
 _warmed = False
 _status = 'off (the rig\'s "has_pad": false)'
 
@@ -131,20 +230,24 @@ def init(enabled: bool = True, bindings: dict[str, str] | None = None) -> str:
         _status = 'off (the rig\'s "has_pad": false)'
         return _status
     _enabled = True
-    _load_calibration()
     register_held_source(held)
     register_event_source(pump)
-    if not _open():
+    found = _open() or _arrived()
+    _load_calibration()
+    if not found:
         _status = "no controller plugged in; the keyboard answers"
         return _status
-    cal = (f"calibrated {config_path()}" if _calibration
+    cal = (f"UNCALIBRATED: {config_path()} measured {_foreign!r}, not this pad (run "
+           "fmri-pad-calibrate)" if _foreign
+           else f"calibrated {config_path()}" if _calibration
            else f"UNCALIBRATED (run fmri-pad-calibrate; writing {config_path()})")
     rule = ("one direction at a time" if _DIAGONAL >= 1.0
             else f"diagonals past {_DIAGONAL:.2f}")
     bound = (", ".join(f"{c}={k}" for c, k in _bindings.items()) if _bindings else
              'WARNING: the rig file has no "bindings", so its controls press no key (a '
              "controller that types keys itself needs none)")
-    _status = (f"{', '.join(j.get_name() for j in _joysticks)} -> {bound}; stick at "
+    pads = ", ".join(f"{p.name} ({p.layout.name})" for p in _pads.values())
+    _status = (f"{pads} -> {bound}; stick at "
                f"{_AXIS_ON:.2f}/{_AXIS_OFF:.2f}, {rule}, {_DWELL * 1000:.0f} ms dwell; {cal}")
     return _status
 
@@ -155,9 +258,10 @@ def status() -> str:
 
 
 def _load_calibration() -> None:
-    """Read this rig's stick measurements, if it has been calibrated."""
-    global _warmed
+    """Read this rig's left-stick measurements, if they were made on the pad plugged in."""
+    global _warmed, _foreign
     _calibration.clear()
+    _foreign = ""
     # A new calibration means a new centre to find: forget the one taken under
     # the old one rather than carrying it across.
     _zero.clear()
@@ -172,7 +276,14 @@ def _load_calibration() -> None:
     except (OSError, ValueError) as exc:
         print(f"pad: ignoring unreadable {path}: {exc}", file=sys.stderr)
         return
+    device = str(blob.get("device", "")).split(" (refit of ")[0]
+    names = {p.name for p in _pads.values()}
+    if device and names and device not in names:
+        _foreign = device
+        return
     for index, entry in (blob.get("axes") or {}).items():
+        if int(index) not in STICK_AXES:
+            continue
         try:
             axis = {k: float(entry[k]) for k in ("rest", "min", "max")}
         except (KeyError, TypeError, ValueError):
@@ -198,14 +309,38 @@ def _open() -> bool:
     every subsystem and quietly closes handles opened before it. Rather than
     depend on the order, they are checked here and taken again when stale.
     """
-    if _joysticks and _joysticks[0].get_init():
+    if _pads and next(iter(_pads.values())).joystick.get_init():
         return True
-    _joysticks.clear()
+    _pads.clear()
     if not pygame.joystick.get_init():
         pygame.joystick.init()
-    _joysticks.extend(pygame.joystick.Joystick(i)
-                      for i in range(pygame.joystick.get_count()))
-    return bool(_joysticks)
+    if not controller.get_init():
+        controller.init()
+    for i in range(pygame.joystick.get_count()):
+        pad = Pad(i)
+        _pads[pad.id] = pad
+    return bool(_pads)
+
+
+def _arrived(seconds: float = 0.5) -> bool:
+    """Wait for a pad SDL announces late, and open it.
+
+    On macOS SDL sees a gamepad only with its display subsystem up (which opens
+    no window), and the pad arrives as an event about 0.1 s after that.
+    """
+    pygame.display.init()
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        pygame.event.pump()
+        if _open():
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def first() -> Pad | None:
+    """The pad the tools watch and measure: the first one plugged in."""
+    return next(iter(_pads.values()), None)
 
 
 def held() -> frozenset[str]:
@@ -236,8 +371,8 @@ def _normalise(index: int, value: float) -> float:
 
 
 def _settle(now: float) -> None:
-    """Take the stick's centre, once, after it has been used and let go."""
-    if not _warmed or _ARROWS & _held:
+    """Take the left stick's centre, once, after it has been used and let go."""
+    if not _warmed or set(STICK) & _held:
         return
     for index, value in _raw.items():
         if index in _settled or index not in _calibration:
@@ -285,24 +420,27 @@ def _away(a: float, b: float) -> float:
     return abs((a - b + math.pi) % (2 * math.pi) - math.pi)
 
 
-def _classified() -> set[str]:
-    """The one direction the stick is being pushed, or none.
+def _classified(axes: tuple[int, int], directions: tuple[str, ...]) -> set[str]:
+    """The one direction a stick is being pushed, or none.
 
     How far it is from centre says *whether* a direction is held, and the angle
     says *which*. Classifying the push as a whole is what keeps the horizontal
     axis from answering a push meant for down: that push does move both axes, a
-    lot, but it points much closer to down than to left.
+    lot, but it points much closer to down than to left. The left stick's
+    directions are the calibration's; another stick's are the ideal four.
     """
-    x, y = STICK_AXES
+    x, y = axes
     nx, ny = _value.get(x, 0.0), _value.get(y, 0.0)
-    current = _ARROWS & _held
+    current = set(directions) & _held
     if math.hypot(nx, ny) < (_AXIS_OFF if current else _AXIS_ON):
         return set()
+    sectors = _sectors if directions == STICK else {
+        d: IDEAL_SECTORS[s] for s, d in zip(STICK, directions)}
     theta = math.atan2(ny, nx)
-    best = min(_sectors, key=lambda d: _away(theta, _sectors[d]))
+    best = min(sectors, key=lambda d: _away(theta, sectors[d]))
     for name in current:                    # the one already pressed keeps it
-        if name in _sectors and _away(theta, _sectors[name]) \
-                - _away(theta, _sectors[best]) < _SECTOR_KEEP:
+        if name in sectors and _away(theta, sectors[name]) \
+                - _away(theta, sectors[best]) < _SECTOR_KEEP:
             return {name}
     return {best}
 
@@ -317,15 +455,17 @@ def _side(index: int) -> str | None:
     return None if abs(value) < _AXIS_OFF else was
 
 
-def _independent() -> set[str]:
-    """Both axes read separately, for a game that wants diagonals."""
+def _independent(axes: tuple[int, int], directions: tuple[str, ...]) -> set[str]:
+    """A stick's two axes read separately, for a game that wants diagonals."""
+    x, y = axes
+    up, down, left, right = directions
+    sides = {(x, "-"): left, (x, "+"): right, (y, "-"): up, (y, "+"): down}
     wanted: dict[int, str] = {}
-    for index in list(_value):
+    for index in axes:
         side = _side(index)
         _pushed[index] = side
-        if side is not None and (index, side) in AXIS_CONTROLS:
-            wanted[index] = AXIS_CONTROLS[(index, side)]
-    x, y = STICK_AXES
+        if side is not None:
+            wanted[index] = sides[(index, side)]
     if x in wanted and y in wanted:
         strong, weak = (x, y) if abs(_value[x]) >= abs(_value[y]) else (y, x)
         if wanted[weak] in _held and wanted[strong] not in _held \
@@ -348,16 +488,20 @@ def _dwelt(names: set[str], now: float) -> set[str]:
 
 
 def _resolve() -> None:
-    """Press what the stick's position now means, and release what it does not."""
+    """Press what the sticks' positions now mean, and release what they do not."""
     global _warmed
     now = time.monotonic()
     _settle(now)
     for index, value in _raw.items():
         _value[index] = _normalise(index, value)
-    names = _classified() if _DIAGONAL >= 1.0 else _independent()
+    names: set[str] = set()
+    for axes, directions in STICKS.items():
+        if any(a in _raw for a in axes):
+            names |= (_classified(axes, directions) if _DIAGONAL >= 1.0
+                      else _independent(axes, directions))
     if _DWELL > 0:
         names = _dwelt(names, now)
-    for name in sorted(_ARROWS & (_held - names)):
+    for name in sorted(_DIRECTIONS & (_held - names)):
         _press(name, False)
     for name in sorted(names - _held):
         _warmed = True
@@ -367,25 +511,56 @@ def _resolve() -> None:
 def pump() -> None:
     """Move the pad's events into the keyboard ones (run by ``keys.get_events``).
 
-    Takes only the joystick events off the queue, so whatever else is waiting
-    there is still the caller's to read.
+    Takes only the joystick and gamepad events off the queue, so whatever else
+    is waiting there is still the caller's to read. A gamepad's events come
+    twice, as a joystick's and as a gamepad's; only the gamepad's are read.
     """
     if not (_enabled and _open()):
         return
     moved = False
-    for event in pygame.event.get((pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP,
-                                   pygame.JOYAXISMOTION)):
-        if event.type == pygame.JOYAXISMOTION:
-            _raw[event.axis] = event.value
-            moved = True
-        elif event.button in BUTTON_CONTROLS:
-            _press(BUTTON_CONTROLS[event.button], event.type == pygame.JOYBUTTONDOWN)
-        elif event.type == pygame.JOYBUTTONDOWN and event.button not in _unmapped:
-            _unmapped.add(event.button)
-            print(f"pad: button {event.button} pressed, but it is no control of "
-                  "fmri_gym/pad.py's BUTTON_CONTROLS", file=sys.stderr)
+    for event in pygame.event.get(_PAD_EVENTS):
+        pad = _pads.get(event.instance_id)
+        if pad is None or (event.type in _GAMEPAD_EVENTS) != (pad.gamepad is not None):
+            continue
+        if event.type in (pygame.JOYAXISMOTION, pygame.CONTROLLERAXISMOTION):
+            moved |= _axis(pad, event.axis, event.value)
+        else:
+            _button(pad, event.button, event.type in _DOWN_EVENTS)
     if moved:
         _resolve()
+
+
+def _axis(pad: Pad, axis: int, value: float) -> bool:
+    """Take an axis's reading. Returns whether it was a stick's."""
+    if pad.gamepad is not None:
+        value = _scaled(value)
+        if axis in GAMEPAD_TRIGGERS:
+            _trigger(GAMEPAD_TRIGGERS[axis], value)
+            return False
+    stick = pad.layout.axes.get(axis)
+    if stick is None:
+        return False
+    _raw[stick] = value
+    return True
+
+
+def _trigger(control: str, value: float) -> None:
+    """Press an analog trigger's control past :data:`_TRIGGER_ON`, release it under the off."""
+    if control not in _held and value >= _TRIGGER_ON:
+        _press(control, True)
+    elif control in _held and value < _TRIGGER_OFF:
+        _press(control, False)
+
+
+def _button(pad: Pad, button: int, down: bool) -> None:
+    """Press or release the control a button is, or warn once of one that is none."""
+    control = pad.layout.buttons.get(button)
+    if control is not None:
+        _press(control, down)
+    elif down and (pad.layout.name, button) not in _unmapped:
+        _unmapped.add((pad.layout.name, button))
+        print(f"pad: {pad.name}'s button {button} pressed, but it is no control of "
+              f"{pad.layout.name} (fmri_gym/pad.py)", file=sys.stderr)
 
 
 # ------------------------------------------------------------ the two tools
@@ -398,9 +573,8 @@ LIVE, WARN = (63, 185, 80), (210, 153, 34)
 #: How each control is named and coloured on screen: the face buttons as they
 #: are printed on the pad, in the colour they are printed in, so a cue can be
 #: matched by colour without reading it.
-FACE: dict[int, tuple[str, tuple[int, int, int]]] = {
-    0: ("Y", (226, 192, 68)), 1: ("B", (230, 86, 86)), 2: ("X", (79, 143, 247)),
-    3: ("LT", INK2), 4: ("A", (63, 185, 80)), 5: ("RT", INK2),
+FACE: dict[str, tuple[int, int, int]] = {
+    "Y": (226, 192, 68), "B": (230, 86, 86), "X": (79, 143, 247), "A": (63, 185, 80),
 }
 
 
@@ -423,12 +597,11 @@ def _arrow(surface, direction: str, at: tuple[int, int], size: int, colour) -> N
     ])
 
 
-BUTTONS = {i: label for i, (label, _) in FACE.items()}
 DIRECTIONS = {"LEFT": (0, -1), "RIGHT": (0, 1), "UP": (1, -1), "DOWN": (1, 1)}
 #: The order the task asks for them: round the face the way the buttons sit
 #: under a thumb, then round the stick, so the next cue is where the hand
 #: already expects it and nobody is surprised into the wrong control.
-CUE_BUTTONS = (4, 2, 0, 1, 3, 5)                       # A X Y B LT RT
+CUE_BUTTONS = ("A", "X", "Y", "B", "LT", "RT")
 CUE_DIRECTIONS = ("DOWN", "LEFT", "UP", "RIGHT")
 
 SWEEP_S, REST_S = 14.0, 4.0
@@ -703,14 +876,13 @@ def run(reps: int, shuffle: bool = False,
     mid = pygame.font.SysFont("Menlo,Monaco,monospace", int(25 * scale))
     sml = pygame.font.SysFont("Menlo,Monaco,monospace", int(15 * scale))
 
-    pygame.joystick.init()
-    sticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
-    if not sticks:
+    pad = first() if _open() or _arrived() else None
+    if pad is None:
         if own:
             pygame.quit()
         raise SystemExit("no controller found: plug it in and run this again")
-    j = sticks[0]
-    n_ax, n_btn = j.get_numaxes(), j.get_numbuttons()
+    buttons = [c for c in pad.controls() if c not in _DIRECTIONS]
+    n_ax = len(pad.read()[0])
 
     samples: list[dict] = []
     trials: list[dict] = []
@@ -729,14 +901,13 @@ def run(reps: int, shuffle: bool = False,
             screen.blit(s, s.get_rect(center=(mx, h - 40)))
         pygame.display.flip()
 
-    def take(phase: str, trial: int, cue: str) -> tuple[list[float], list[int]]:
+    def take(phase: str, trial: int, cue: str) -> tuple[dict[int, float], set[str]]:
         pygame.event.pump()
-        ax = [j.get_axis(i) for i in range(n_ax)]
-        bt = [int(j.get_button(i)) for i in range(n_btn)]
+        ax, bt = pad.read()
         row = {"t": round(time.perf_counter() - t0, 4), "phase": phase,
                "trial": trial, "cue": cue}
-        row.update({f"ax{i}": round(v, 5) for i, v in enumerate(ax)})
-        row.update({f"b{i}": v for i, v in enumerate(bt)})
+        row.update({f"ax{i}": round(v, 5) for i, v in sorted(ax.items())})
+        row.update({f"b_{c}": int(c in bt) for c in buttons})
         samples.append(row)
         return ax, bt
 
@@ -775,7 +946,7 @@ def run(reps: int, shuffle: bool = False,
 
     # One at a time, in a fixed order: a press aimed at the wrong control
     # measures nothing, and this is measuring the pad, not the person.
-    order = ([("button", b) for b in CUE_BUTTONS]
+    order = ([("button", b) for b in CUE_BUTTONS if b in buttons]
              + [("stick", d) for d in CUE_DIRECTIONS])
     plan = [item for item in order for _ in range(reps)]
     if shuffle:
@@ -785,10 +956,10 @@ def run(reps: int, shuffle: bool = False,
     for n, (kind, what) in enumerate(plan):
         if stop:
             break
-        cue = what if kind == "stick" else BUTTONS[what]
+        cue = what
         arrow = cue if kind == "stick" else None
         label = "push" if kind == "stick" else f"press  {cue}"
-        ink = INK if kind == "stick" else FACE[what][1]
+        ink = INK if kind == "stick" else FACE.get(what, INK2)
 
         if (kind, what) != previous:            # a new control: say so, unhurried
             previous = (kind, what)
@@ -807,7 +978,7 @@ def run(reps: int, shuffle: bool = False,
         while time.perf_counter() < end and not stop:
             stop = quit_pressed()
             ax, _ = take("recentre", n, cue)
-            if all(abs(_norm(live, i, ax[i])) < CENTRED for i in (0, 1) if i < n_ax):
+            if all(abs(_norm(live, i, ax[i])) < CENTRED for i in STICK_AXES if i in ax):
                 break
             draw(["let the stick", "come back"], INK2)
             clock.tick(60)
@@ -825,8 +996,8 @@ def run(reps: int, shuffle: bool = False,
             stop = quit_pressed()
             ax, bt = take("cue", n, cue)
             if rt is None:
-                if kind == "button" and any(bt):
-                    rt, got = time.perf_counter() - onset, BUTTONS.get(bt.index(1), "?")
+                if kind == "button" and bt:
+                    rt, got = time.perf_counter() - onset, "+".join(sorted(bt))
                 elif kind == "stick":
                     best, which = LOOSE, ""
                     for name, (axis, sign) in DIRECTIONS.items():
@@ -854,11 +1025,10 @@ def run(reps: int, shuffle: bool = False,
                  sub=f"trial {n + 1} of {len(plan)}")
             clock.tick(60)
 
-    name = j.get_name()
     draw(["measuring..."])
     if own:
         pygame.quit()
-    return samples, trials, name, n_ax, n_btn
+    return samples, trials, pad.name, n_ax, len(buttons)
 
 
 def _reread(path: Path) -> list[dict]:
@@ -1025,10 +1195,29 @@ def calibrate_main() -> None:
         scope_main()
 
 
-W, H = 1020, 680
+W, H = 1020, 800
 WINDOW_S, TRAIL_S = 8.0, 0.8
+#: The arrow each stick direction is drawn as.
+_ARROW_OF = {**{d: d for d in STICK}, **dict(zip(RIGHT_STICK, STICK))}
 
-ARROWS = ["UP", "DOWN", "LEFT", "RIGHT"]
+
+def _draw_buttons(screen, fonts, pad: Pad | None, down: set[str], keys: frozenset) -> None:
+    """One tile per button the pad has: its name, where it comes from, and its key."""
+    f_big, f_sm = fonts
+    names = [c for c in pad.controls() if c not in _DIRECTIONS] if pad else []
+    cols, bx, by, gap = 7, 20, 66, 4
+    bw = (W - 2 * bx - (cols - 1) * gap) // cols
+    for k, name in enumerate(names):
+        x, y = bx + (k % cols) * (bw + gap), by + (k // cols) * (62 + gap)
+        key, is_down, hue = _bindings.get(name), name in down, FACE.get(name, INK2)
+        pygame.draw.rect(screen, hue if is_down else PANEL, (x, y, bw, 62), border_radius=4)
+        pygame.draw.rect(screen, hue if is_down else GRID, (x, y, bw, 62), 1, border_radius=4)
+        ink = SURFACE if is_down else INK2
+        screen.blit(f_big.render(name, True, SURFACE if is_down else hue), (x + 8, y + 6))
+        screen.blit(f_sm.render(pad.source(name), True, ink), (x + 8, y + 42))
+        screen.blit(f_big.render(key or "-", True, ink if key else INK3), (x + bw - 60, y + 36))
+        if is_down and key in keys:
+            pygame.draw.circle(screen, SURFACE, (x + bw - 10, y + 10), 4)
 
 
 def _vy(v: float, cy: int, half: int) -> int:
@@ -1089,7 +1278,6 @@ def scope_main() -> None:
     hist: deque = deque()
     log: deque = deque(maxlen=11)
     prev_held: frozenset = frozenset()
-    prev_btn: dict[int, bool] = {}
     t0 = time.perf_counter()
 
     running = True
@@ -1141,24 +1329,16 @@ def scope_main() -> None:
                     flash, flash_until = f"{os.path.basename(p)} changed - reloaded", now + 2.0
 
         pump()
-        pressed = held()
-        js = _joysticks[0] if _joysticks else None
-        raw = [js.get_axis(i) for i in range(js.get_numaxes())] if js else [0.0, 0.0]
-        a0, a1 = _normalise(0, raw[0]), _normalise(1, raw[1])
-        btn = {i: bool(js.get_button(i)) for i in range(js.get_numbuttons())} if js else {}
+        pressed, controls, pad = held(), frozenset(_held), first()
+        raw, down = pad.read() if pad else ({}, set())
+        a0, a1 = _normalise(0, raw.get(0, 0.0)), _normalise(1, raw.get(1, 0.0))
 
-        for name in sorted(pressed - prev_held):
-            log.appendleft((now, f"{name:<6} DOWN", LIVE))
-        for name in sorted(prev_held - pressed):
-            log.appendleft((now, f"{name:<6} up", INK3))
-        for i, down in btn.items():
-            if down != prev_btn.get(i, False):
-                log.appendleft((now, (f"button {BUTTONS.get(i, i):<3} "
-                                      f"{'press' if down else 'release':<8}"
-                                      f"-> {_bindings.get(BUTTON_CONTROLS.get(i, '')) or 'unbound'}"),
-                                LIVE if down else INK3))
-        prev_held, prev_btn = pressed, btn
-        hist.append((now, a0, a1, pressed))
+        for name in sorted(controls - prev_held):
+            log.appendleft((now, f"{name:<10} DOWN  -> {_bindings.get(name) or 'unbound'}", LIVE))
+        for name in sorted(prev_held - controls):
+            log.appendleft((now, f"{name:<10} up", INK3))
+        prev_held = controls
+        hist.append((now, a0, a1, controls))
         while hist and now - hist[0][0] > WINDOW_S:
             hist.popleft()
 
@@ -1174,21 +1354,9 @@ def scope_main() -> None:
         if flash and now < flash_until:
             screen.blit(f.render(flash, True, LIVE), (20, 40))
 
-        bx, by, bw = 20, 66, 160
-        for i in range(6):
-            x = bx + i * (bw + 4)
-            key, down = _bindings.get(BUTTON_CONTROLS.get(i, "")), btn.get(i, False)
-            label, hue = FACE.get(i, (f"b{i}", INK2))
-            pygame.draw.rect(screen, hue if down else PANEL, (x, by, bw, 62), border_radius=4)
-            pygame.draw.rect(screen, hue if down else GRID, (x, by, bw, 62), 1, border_radius=4)
-            ink = SURFACE if down else INK2
-            screen.blit(f_big.render(label, True, SURFACE if down else hue), (x + 12, by + 8))
-            screen.blit(f_sm.render(f"b{i}", True, ink), (x + 12, by + 40))
-            screen.blit(f_big.render(key or "-", True, ink if key else INK3), (x + bw - 46, by + 20))
-            if down and key in pressed:
-                pygame.draw.circle(screen, SURFACE, (x + bw - 12, by + 12), 4)
+        _draw_buttons(screen, (f_big, f_sm), pad, down, pressed)
 
-        px, py, pw, ph = 20, 176, 630, 232
+        px, py, pw, ph = 20, 210, 630, 200
         cy, half = py + ph // 2, ph // 2
         pygame.draw.rect(screen, PANEL, (px, py, pw, ph))
         for lvl in (-1.0, -0.5, 0.5, 1.0):
@@ -1203,17 +1371,20 @@ def scope_main() -> None:
             for idx, hue in ((1, X_HUE), (2, Y_HUE)):
                 pygame.draw.lines(screen, hue, False, [(_tx(h[0], now, px, pw), _vy(h[idx], cy, half)) for h in hist], 2)
             for a, b in zip(hist, list(hist)[1:]):
-                if (b[3] - a[3]) & set(ARROWS):
+                if (b[3] - a[3]) & set(STICK):
                     pygame.draw.line(screen, LIVE, (_tx(b[0], now, px, pw), py), (_tx(b[0], now, px, pw), py + ph), 1)
         screen.blit(f.render("stick x", True, X_HUE), (px + 8, py + 6))
         screen.blit(f.render("stick y", True, Y_HUE), (px + 78, py + 6))
         screen.blit(f_sm.render("calibrated units", True, INK3), (px + pw - 100, py + 6))
 
         ry = py + ph + 10
-        for r, name in enumerate(ARROWS):
+        lanes = [d for d in (pad.controls() if pad else STICK) if d in _DIRECTIONS]
+        for r, name in enumerate(lanes):
             y = ry + r * 16
-            _arrow(screen, name, (px + 8, y + 7), 7,
-                   LIVE if name in pressed else INK3)
+            _arrow(screen, _ARROW_OF[name], (px + 8, y + 7), 7,
+                   LIVE if name in controls else INK3)
+            if name in RIGHT_STICK:
+                screen.blit(f_sm.render("RS", True, INK3), (px + 20, y))
             pygame.draw.rect(screen, PANEL, (px + 46, y + 2, pw - 46, 10))
             if len(hist) > 1:
                 for a, b in zip(hist, list(hist)[1:]):
@@ -1222,7 +1393,7 @@ def scope_main() -> None:
                         x2 = int(px + pw - (now - b[0]) / WINDOW_S * pw)
                         pygame.draw.rect(screen, LIVE, (max(x1, px + 46), y + 2, max(1, x2 - x1), 10))
 
-        qx, qy, q = 676, 176, 310
+        qx, qy, q = 676, py, 310
         pygame.draw.rect(screen, PANEL, (qx, qy, q, q))
         mid = (qx + q // 2, qy + q // 2)
         pygame.draw.line(screen, GRID, (qx, mid[1]), (qx + q, mid[1]))
@@ -1244,7 +1415,7 @@ def scope_main() -> None:
                 end = (mid[0] + math.cos(angle) * reach, mid[1] + math.sin(angle) * reach)
                 pygame.draw.line(screen, (58, 66, 84), mid, end, 1)
                 _arrow(screen, name, (int(end[0]), int(end[1])), 9,
-                       LIVE if name in pressed else INK3)
+                       LIVE if name in controls else INK3)
                 nxt = ordered[(i + 1) % len(ordered)][1]
                 edge = angle + ((nxt - angle) % (2 * math.pi)) / 2   # the boundary between them
                 pygame.draw.line(screen, (44, 50, 64), mid,
@@ -1253,13 +1424,18 @@ def scope_main() -> None:
         for i, h in enumerate([h for h in hist if now - h[0] < TRAIL_S]):
             k = 40 + i // 2
             pygame.draw.circle(screen, (k, k + 6, k + 16), _qpos(h[1], h[2], mid, q), 2)
+        if 2 in raw:                        # the right stick, uncalibrated
+            right = _qpos(raw[2], raw.get(3, 0.0), mid, q)
+            pygame.draw.circle(screen, LIVE if controls & set(RIGHT_STICK) else Y_HUE, right, 5)
+            screen.blit(f_sm.render(f"right stick {raw[2]:+.3f} {raw.get(3, 0.0):+.3f}  (orange)",
+                                    True, Y_HUE), (qx + 8, qy + 22))
         cur = _qpos(a0, a1, mid, q)
         pygame.draw.circle(screen, SURFACE, cur, 9)
-        pygame.draw.circle(screen, LIVE if pressed & set(ARROWS) else X_HUE, cur, 6)
+        pygame.draw.circle(screen, LIVE if controls & set(STICK) else X_HUE, cur, 6)
         screen.blit(f.render("stick position", True, INK2), (qx + 8, qy + 6))
         screen.blit(f_sm.render(f"calibrated {a0:+.3f} {a1:+.3f}", True, INK), (qx + 8, qy + q - 32))
-        screen.blit(f_sm.render(f"raw        {raw[0]:+.3f} {raw[1]:+.3f}", True, INK3),
-                    (qx + 8, qy + q - 18))
+        screen.blit(f_sm.render(f"raw        {raw.get(0, 0.0):+.3f} {raw.get(1, 0.0):+.3f}",
+                                True, INK3), (qx + 8, qy + q - 18))
         centre = " ".join(f"{_zero.get(i, _calibration.get(i, {}).get('rest', 0.0)):+.3f}"
                           for i in (0, 1))
         screen.blit(f_sm.render(f"centre     {centre}  (tracked while idle)", True, INK3),
@@ -1270,13 +1446,13 @@ def scope_main() -> None:
                                 f"   pushed {math.hypot(a0, a1):.2f}", True, INK2),
                     (qx + 8, qy + q - 46))
 
-        ly = ry + 4 * 16 + 14
+        ly = ry + len(lanes) * 16 + 14
         screen.blit(f.render("events", True, INK2), (px, ly))
         for i, (t, text, colour) in enumerate(log):
             screen.blit(f_sm.render(f"{t:7.2f}s  {text}", True, colour), (px, ly + 20 + i * 14))
         screen.blit(f_sm.render("UP/DOWN on   LEFT/RIGHT off   [ ] dwell   D diagonals   S save   R reload   "
                                 "C clear   ESC quit", True, INK3), (px, H - 22))
-        if not js:
+        if pad is None:
             screen.blit(f_big.render("no controller plugged in", True, WARN), (qx + 8, mid[1]))
 
         pygame.display.flip()
@@ -1289,7 +1465,7 @@ def main() -> None:
     pygame.init()
     pygame.display.set_mode((320, 64))
     print(init(), file=sys.stderr)
-    if not _joysticks:
+    if not _pads:
         return
     print("Press each control (Ctrl-C to stop).", file=sys.stderr)
     try:
