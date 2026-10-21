@@ -389,8 +389,6 @@ class Run:
         self._run_end = math.inf
         self.logger.set_extra("duration", config.duration)
         self.logger.set_extra("loop", config.loop)
-        #: the run's BIDS label, which derives its seeds; the phases that pin their own.
-        self.label, self.pinned_seeds = "", frozenset()
         self.logger.set_extra("resumed_from",
                               None if resume_from is None else resume_from.record())
 
@@ -450,8 +448,6 @@ class Run:
         run = cls(config, display, out.folder, audio, triggers, resume_from)
         run.logger.set_extra("run", {"label": out.label, "attempt": out.attempt})
         run.logger.set_extra("seeds", {"derived_from": out.label, "phases": how})
-        run.label = out.label
-        run.pinned_seeds = frozenset(i for i, h in how.items() if h == "pinned")
         run.logger.set_extra("pad", pad_status)   # which controller answered, and as what
         run.logger.set_extra("versions", {  # the banner fmri_gym hides said these
             "pygame": pygame.version.ver, "sdl": ".".join(map(str, pygame.get_sdl_version()))})
@@ -999,23 +995,13 @@ class Run:
 
     def _schedule(self, start: int) -> Iterator[tuple[int, Phase]]:
         """The phases to play from ``start``, with their indices; with ``loop``, then the whole
-        curriculum again and again, each pass's derived seeds new (:func:`bids.phase_seed`)."""
+        curriculum again and again."""
         phases = self.config.curriculum.phases
         for index, phase in enumerate(phases):
             if index >= start or phase.include_on_resume:   # else an earlier run played it
                 yield index, phase
-        pass_number = 1
         while self.config.loop:
-            pass_number += 1
-            for index, phase in enumerate(phases):
-                yield index, self._reseeded(phase, index, pass_number)
-
-    def _reseeded(self, phase: Phase, index: int, pass_number: int) -> Phase:
-        """``phase`` with the seed of pass ``pass_number``, unless it pins its own."""
-        if not isinstance(phase, GamePhase) or index in self.pinned_seeds:
-            return phase
-        seed = bids.phase_seed(self.label, index, pass_number)
-        return replace(phase, seed=seed, spec={**phase.spec, "seed": seed})
+            yield from enumerate(phases)
 
     def _time_up(self) -> bool:
         """Whether the run has reached its closing fixation."""

@@ -1,4 +1,4 @@
-"""``--loop``: a curriculum that ends before ``--duration`` is played again, newly seeded.
+"""``--loop``: a curriculum that ends before ``--duration`` is played again.
 
 A 2 s CartPole block (``mode: duration``) in a run several times that long, on
 the ``gym`` backend, which the core CI job plays.
@@ -42,7 +42,7 @@ def _run(config: Path, data_root: Path, number: int, *more: str) -> tuple[dict, 
     return json.loads(manifest.read_text()), manifest.parent, done.stderr
 
 
-def test_loop_plays_the_curriculum_again_newly_seeded(tmp_path):
+def test_loop_plays_the_curriculum_again(tmp_path):
     config = write_curriculum(CURRICULUM, tmp_path / "loop.json")
     manifest, run, _ = _run(config, tmp_path / "data", 1, "--loop")
     blocks = [p for p in manifest["phases"] if p["type"] == "game"]
@@ -51,9 +51,8 @@ def test_loop_plays_the_curriculum_again_newly_seeded(tmp_path):
     names = [b["data_dir"] for b in blocks]
     assert names[:3] == ["block-01_gym_CartPole-v1", "block-01_gym_CartPole-v1_2",
                          "block-01_gym_CartPole-v1_3"]
-    seeds = [read_events(str(run / n))[0]["base_seed"] for n in names]
-    assert len(set(seeds)) == len(seeds), f"a pass replayed another's seed: {seeds}"
-    assert seeds[0] == manifest["curriculum"][1]["seed"], "pass 1 changed its seed"
+    seeds = {read_events(str(run / n))[0]["base_seed"] for n in names}
+    assert seeds == {manifest["curriculum"][1]["seed"]}, f"a pass changed the seed: {seeds}"
     assert manifest["phases"][-1].get("end_of_run"), "the run did not close on its fixation"
 
 

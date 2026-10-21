@@ -554,7 +554,7 @@ uv run fmri-play --subject sub-01 --ses "$SES" --run 1 --rig configs/rigs/exampl
 uv run fmri-play --subject sub-01 --ses "$SES" --run 2 --rig configs/rigs/example/laptop.json --duration 600 --resume --curriculum configs/curricula/rushhour/complete.json
 ```
 
-`--loop` plays the curriculum again from its first phase when it ends before `--duration`, and again, until `--duration` stops it; it needs `--duration`. Each pass gets new seeds (a phase that pins its own `seed` keeps it), the first pass the seeds a run without `--loop` gets, and a block played again writes `block-NN_<backend>_<game>_2`, `_3`.... With `--resume`, a curriculum the last run played to its end starts again from its beginning instead of being refused. The manifest says `"loop"`.
+`--loop` plays the curriculum again from its first phase when it ends before `--duration`, and again, until `--duration` stops it; it needs `--duration`. Each pass plays the same phases with the same seeds; a block played again writes `block-NN_<backend>_<game>_2`, `_3`.... With `--resume`, a curriculum the last run played to its end starts again from its beginning instead of being refused. The manifest says `"loop"`.
 
 A resumed episode starts from that savestate rather than from its seed alone, so its `episode_start` line carries it as `initial_state`, and `fmri_gym.replay.reconstruct_episode` restores it over the reset. Without `--duration` and `--resume` a run plays its config from start to end, as before.
 
