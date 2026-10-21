@@ -988,8 +988,9 @@ class Run:
         return time.perf_counter() >= self._run_end
 
     def _end_fixation(self) -> None:
-        """Close the run on ``end_fixation`` seconds of fixation."""
+        """Close the run on fixation: ``end_fixation`` seconds, cut short at the run's end."""
         onset = self.clock.from_perf(self.display.draw_fixation())
-        _wait_for_duration(self.display, self.config.end_fixation)
+        _wait_for_duration(self.display, self.config.end_fixation,
+                           until=self.clock.t0_perf + self.config.duration)
         self.logger.log_phase({"index": None, "type": "fixation", "end_of_run": True,
                                "onset": onset, "offset": self.clock.run_time()})
