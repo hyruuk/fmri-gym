@@ -8,7 +8,7 @@ The `aigamestore` backend's curricula: the ten public [AI GameStore](https://aig
 
 ## Keys
 
-The env's action is MultiBinary over the game's keys, in `aigamestore_gym.GAME_KEYS` order, so a phase's `keys` values are those indices (the JSON key is what the subject presses), and held keys combine. The env relabels the on-canvas hints to the pressed key; the instructions' Controls text is kept in sync with `keys` by hand.
+The env's action is MultiBinary over the game's keys, in `aigamestore_gym.GAME_KEYS` order, so a phase's `keys` values are those indices (the JSON key is what the subject presses), and held keys combine. The env relabels the on-canvas hints to the pressed key; the instructions' Controls text is kept in sync with `keys` by hand. The games' keys are the rig's ten (README, "Rigs") but for game3 and game7, which have more actions than a controller's six buttons: they are played on a keyboard, and a rig with a controller refuses them (as it does `all.json`, which plays them).
 
 | game | `GAME_KEYS` order | reference |
 |---|---|---|

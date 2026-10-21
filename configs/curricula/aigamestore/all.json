@@ -59,14 +59,14 @@
     {"type": "fixation", "duration": 1.0},
     {
       "type": "game", "backend": "aigamestore", "game": "game9",
-      "keys": {"LEFT": 0, "RIGHT": 1, "UP": 2, "DOWN": 3, "Z": 4, "SPACE": 5, "LSHIFT": 6},
+      "keys": {"LEFT": 0, "RIGHT": 1, "UP": 2, "DOWN": 3, "Z": 4, "SPACE": 5, "X": 6},
       "mode": "duration", "duration": 15.0, "fps": 10
     },
     {"type": "message", "text": "AI GameStore 10", "duration": 2.0},
     {"type": "fixation", "duration": 1.0},
     {
       "type": "game", "backend": "aigamestore", "game": "game10",
-      "keys": {"LEFT": 0, "RIGHT": 1, "UP": 2, "DOWN": 3, "LSHIFT": 4, "SPACE": 5, "Z": 6},
+      "keys": {"LEFT": 0, "RIGHT": 1, "UP": 2, "DOWN": 3, "X": 4, "SPACE": 5, "Z": 6},
       "mode": "duration", "duration": 15.0, "fps": 10
     },
     {"type": "fixation", "duration": 3.0}

@@ -11,11 +11,11 @@
           "Doors are shut; keys open them. Rules decide which is which.",
           "",
           "Controls:",
-          "   ARROWS   move",
-          "   SPACE    wait a turn",
-          "   hold X   pause menu (restart / give up / resume)",
+          "   [ARROWS]   move",
+          "   [SPACE]    wait a turn",
+          "   hold [X]   pause menu (restart / give up / resume)",
           "",
-          "(press SPACE to start)"
+          "(press [SPACE] to start)"
         ]
       }
     },
