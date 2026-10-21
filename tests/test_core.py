@@ -382,20 +382,20 @@ def test_each_stick_reads_its_own_calibration(monkeypatch, tmp_path):
     # A pad with one stick: the right stick's axes, whatever the file says of them, are not read
     path.write_text(json.dumps({"device": "Xbox", "axis_on": 0.3, "axes": {
         "0": axis, "1": axis, "2": {**axis, "rest": -1.0, "min": -1.0}}}))
-    pad._load_calibration()
-    assert (pad._tuning[pad.STICK_AXES].on, pad._tuning[pad.RIGHT_AXES]) == (0.3, pad.Tuning())
+    pad.load_calibration()
+    assert (pad.tunings[pad.STICK_AXES].on, pad.tunings[pad.RIGHT_AXES]) == (0.3, pad.Tuning())
     assert sorted(pad._calibration) == [0, 1]
 
     path.write_text(json.dumps({"device": "Xbox", "axis_on": 0.3, "right_stick": {
         "axis_on": 0.4, "stick_dwell_s": 0.02}, "axes": {str(i): axis for i in range(4)}}))
-    pad._load_calibration()
-    assert (pad._tuning[pad.RIGHT_AXES].on, pad._tuning[pad.RIGHT_AXES].dwell) == (0.4, 0.02)
+    pad.load_calibration()
+    assert (pad.tunings[pad.RIGHT_AXES].on, pad.tunings[pad.RIGHT_AXES].dwell) == (0.4, 0.02)
     assert sorted(pad._calibration) == [0, 1, 2, 3]
 
     # Measured on another pad: nothing of it is applied
     path.write_text(json.dumps({"device": "932", "axis_on": 0.3, "axes": {"0": axis}}))
-    pad._load_calibration()
-    assert (pad._foreign, pad._calibration, pad._tuning[pad.STICK_AXES]) \
+    pad.load_calibration()
+    assert (pad._foreign, pad._calibration, pad.tunings[pad.STICK_AXES]) \
         == ("'932'", {}, pad.Tuning())
 
 
@@ -418,31 +418,45 @@ def test_a_run_reads_the_newest_calibration_of_the_pad_plugged_in(monkeypatch, t
     newest = write("Xbox_b.json", "Xbox", "2026-10-03T00:00:00+00:00", 0.33)
     write("Xbox_a.json", "Xbox", "2026-10-02T00:00:00+00:00", 0.32)
     write("932_c.json", "932", "2026-10-04T00:00:00+00:00", 0.34)       # newer, another pad
-    pad._load_calibration()
-    assert (pad.calibration_path(), pad._tuning[pad.STICK_AXES].on) == (newest, 0.33)
+    pad.load_calibration()
+    assert (pad.calibration_path(), pad.tunings[pad.STICK_AXES].on) == (newest, 0.33)
 
     named = write("Xbox_a.json", "Xbox", "2026-10-02T00:00:00+00:00", 0.32)
     monkeypatch.setenv(pad.CONFIG_ENV, str(named))                     # one file, named
-    pad._load_calibration()
-    assert (pad.calibration_path(), pad._tuning[pad.STICK_AXES].on) == (named, 0.32)
+    pad.load_calibration()
+    assert (pad.calibration_path(), pad.tunings[pad.STICK_AXES].on) == (named, 0.32)
 
     monkeypatch.setattr(pad, "_pads", {1: types.SimpleNamespace(name="Pro Controller")})
     monkeypatch.delenv(pad.CONFIG_ENV)
-    pad._load_calibration()
+    pad.load_calibration()
     assert (pad.calibration_path(), pad._foreign) == (None, "'932', 'Xbox'")
 
 
 def test_a_calibration_stopped_part_way_writes_nothing(monkeypatch, tmp_path):
-    from fmri_gym import pad
+    from fmri_gym import pad, pad_scope
     monkeypatch.delenv(pad.CONFIG_ENV, raising=False)
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
 
-    def stopped(screen=None):
-        raise pad._Quit
+    def stopped(*args, **kwargs):
+        raise pad_scope._Quit
 
-    monkeypatch.setattr(pad, "run", stopped)
-    assert pad.calibrate()["measured"] is False
+    monkeypatch.setattr(pad_scope, "run", stopped)
+    assert pad_scope.calibrate()["measured"] is False
     assert not pad.pads_dir().exists()
+
+
+def test_calibrating_one_stick_keeps_the_other_from_the_calibration_in_use():
+    from fmri_gym import pad, pad_scope
+    base = {"device": "Xbox", "axes": {str(i): {"rest": float(i)} for i in range(4)},
+            "axis_on": 0.4, "sectors": {"UP": -80.0}, pad.RIGHT_KEY: {"axis_on": 0.45}}
+    new = {"device": "", "axes": {"2": {"rest": 9.0}, "3": {"rest": 9.0}},
+           pad.RIGHT_KEY: {"axis_on": 0.5}}
+    out = pad_scope._merged(new, base, [pad.RIGHT_AXES])
+    assert out["axes"] == {"0": {"rest": 0.0}, "1": {"rest": 1.0},
+                           "2": {"rest": 9.0}, "3": {"rest": 9.0}}
+    assert (out["axis_on"], out["sectors"], out[pad.RIGHT_KEY]) == (0.4, {"UP": -80.0},
+                                                                    {"axis_on": 0.5})
+    assert pad_scope._merged(new, None, [pad.RIGHT_AXES]) is new       # nothing in use: the new alone
 
 
 def test_a_check_controls_phase_refuses_pad_reps():

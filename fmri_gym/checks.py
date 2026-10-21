@@ -79,7 +79,7 @@ import numpy as np
 import pygame
 from gymnasium import spaces
 
-from . import pad
+from . import pad, pad_scope
 from .config import rig as rig_file
 from .config.phases import (CHECK_PHASES, CheckControls, CheckDisplay, CheckFrames, CheckPhase,
                             CheckPhotodiode, CheckTriggers, GamePhase)
@@ -414,7 +414,7 @@ def _check_pad(run: Run, phase: CheckControls) -> dict[str, Any]:
     rig = {k: run.config.rig.fields[k] for k in ("site", "rig")}  # filed with the pad's
     _title(run, f"measuring {device}")
     try:
-        out = pad.calibrate(screen=run.display.screen, extra=rig)
+        out = pad_scope.calibrate(screen=run.display.screen, extra=rig)
     except SystemExit as exc:                 # no pad by the time it looked
         return {"present": True, "device": device, "measured": False, "why": str(exc)}
     out.update(present=True, why=_pad_problem(out))

@@ -99,10 +99,10 @@ fmri-ses = "fmri_gym.bids:main"
 # Measure this rig's controller once and write ~/.config/fmri-gym/pad.json, which
 # every run then reads. A pad's stick neither rests at 0 nor reaches 1 both ways,
 # so the numbers have to be measured per machine rather than assumed.
-fmri-pad-calibrate = "fmri_gym.pad:calibrate_main"
+fmri-pad-calibrate = "fmri_gym.pad_scope:calibrate_main"
 # Watch the pad live -- what it sends, and what pad.py makes of it. Opens on its
 # own after a calibration, so the numbers are looked at before they are trusted.
-fmri-pad-scope = "fmri_gym.pad:scope_main"
+fmri-pad-scope = "fmri_gym.pad_scope:scope_main"
 
 [tool.setuptools]
 packages = ["fmri_gym", "fmri_gym.adapters"]
