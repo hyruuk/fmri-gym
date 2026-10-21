@@ -96,6 +96,10 @@ fmri-edit = "fmri_gym.gui:main"
 # The next free session number for a subject: a session script's first line, so
 # all of its runs land in one session. Nothing else reads the disk for a number.
 fmri-ses = "fmri_gym.bids:main"
+# The controller plugged in: calibrate it (a new file in ~/.config/fmri-gym/pads/,
+# the newest of which every run with that controller reads), see what it sends and
+# what fmri-gym makes of it, and tune how its sticks are read, with its buttons.
+fmri-pad = "fmri_gym.pad_scope:main"
 
 [tool.setuptools]
 packages = ["fmri_gym", "fmri_gym.adapters"]
