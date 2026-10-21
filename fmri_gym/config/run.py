@@ -56,6 +56,8 @@ class RunConfig:
     end_fixation: float
     #: carry on from where the subject's latest run of this curriculum stopped.
     resume: bool
+    #: play the curriculum again from its start when it ends, until ``duration``.
+    loop: bool
     #: skip the experimenter and scanner waits: a test run, not a session.
     dummy_trigger: bool
 
@@ -70,7 +72,7 @@ class RunConfig:
         """
         return cls(curriculum=curriculum, rig=rig, subject=args.subject, ses=args.ses,
                    run=args.run, duration=args.duration, end_fixation=args.end_fixation,
-                   resume=args.resume, dummy_trigger=args.dummy_trigger)
+                   resume=args.resume, loop=args.loop, dummy_trigger=args.dummy_trigger)
 
     def problems(self) -> list[str]:
         """What keeps this curriculum from being played on this rig, which neither shows alone.

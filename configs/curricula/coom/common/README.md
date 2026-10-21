@@ -27,3 +27,4 @@ Requires OpenAL (Ubuntu: `sudo apt install libopenal1`). Native stereo PCM at 44
 | `pitfall.json` | Pitfall | JUMP, SPACE |
 | `raise_the_roof.json` | Raise the Roof | USE, SPACE |
 | `run_and_gun.json` | Run and Gun | ATTACK, SPACE |
+| `all.json` (in `coom/`) | the nine in a row, as above | |

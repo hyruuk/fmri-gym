@@ -29,7 +29,7 @@ import math
 import sys
 import time
 from collections import Counter, deque
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass, replace
 from functools import partial
 from typing import TYPE_CHECKING, Any
@@ -41,7 +41,7 @@ from .adapters import get_adapter
 from .audio import Audio
 from .bids import BlockProgress, RunProgress
 from .config.curriculum import Curriculum, game_changes
-from .config.phases import CHECK_PHASES, BlockMode, Fixation, GamePhase, Message, Survey
+from .config.phases import CHECK_PHASES, BlockMode, Fixation, GamePhase, Message, Phase, Survey
 from .config.run import RunConfig
 from .display import Display, check_monitor
 from .keys import get_events, held_key_names, key_name
@@ -302,15 +302,18 @@ def _final_outcome(
     return outcome, message
 
 
-def _run_progress(data_root: str, subject: str, curriculum: Curriculum) -> RunProgress | None:
+def _run_progress(data_root: str, subject: str, curriculum: Curriculum,
+                  loop: bool) -> RunProgress | None:
     """Where ``--resume`` starts: the subject's progress in this curriculum, checked against it.
 
     :param data_root: the BIDS tree's root.
     :param subject: ``sub-<label>``.
     :param curriculum: the curriculum; its file's name is the task label.
+    :param loop: a curriculum played to its end starts again (``--loop``).
     :return: :func:`~fmri_gym.bids.last_position`, or ``None`` (said on stderr)
-        when no earlier run of this curriculum got past its opening phases.
-    :raises ValueError: if that run played the curriculum to its end, or its
+        when no earlier run of this curriculum got past its opening phases, or
+        with ``loop``, when it played it to its end.
+    :raises ValueError: if that run played the curriculum to its end (without ``loop``), or its
         last game phase is another game in this curriculum
         (:func:`~fmri_gym.config.curriculum.game_changes`), or it stopped an
         episode its backend keeps no savestate of (:func:`~fmri_gym.bids.last_position`).
@@ -322,6 +325,10 @@ def _run_progress(data_root: str, subject: str, curriculum: Curriculum) -> RunPr
               "at the beginning", file=sys.stderr)
         return None
     run_label, last_game = progress.run_label, progress.last_game
+    if progress.phase_index >= len(phases) and loop:
+        print(f"resume: {run_label} played this curriculum to its end; --loop starts it again",
+              file=sys.stderr)
+        return None
     if progress.phase_index >= len(phases):
         raise ValueError(f"--resume: {run_label} played this curriculum to its end; start it "
                          "over without --resume")
@@ -384,6 +391,7 @@ class Run:
         #: ``perf_counter`` at which the phases stop for the closing fixation.
         self._run_end = math.inf
         self.logger.set_extra("duration", config.duration)
+        self.logger.set_extra("loop", config.loop)
         self.logger.set_extra("resumed_from",
                               None if resume_from is None else resume_from.record())
 
@@ -409,6 +417,8 @@ class Run:
             raise ValueError(f"--duration {config.duration:g}: a run closes on "
                              f"{config.end_fixation:g} s of fixation (--end-fixation), so it "
                              "must be longer than that")
+        if config.loop and config.duration is None:
+            raise ValueError("--loop plays the curriculum until --duration: give a --duration")
         out = bids.run_output(config.rig.data_root, config.subject, config.curriculum.path,
                               config.ses, config.run)
         if out.attempt > 1:
@@ -417,7 +427,8 @@ class Run:
         print(f"output: {out.folder}", file=sys.stderr)
         resume_from = None
         if config.resume:
-            resume_from = _run_progress(config.rig.data_root, config.subject, config.curriculum)
+            resume_from = _run_progress(config.rig.data_root, config.subject, config.curriculum,
+                                        config.loop)
         curriculum, how = config.curriculum.with_seeds(lambda i: bids.phase_seed(out.label, i))
         for i, phase in enumerate(curriculum.phases):
             if i in how:
@@ -958,15 +969,14 @@ class Run:
                                  - self.config.end_fixation)
 
             reached_end = True
-            for index, phase in enumerate(self.config.curriculum.phases):
-                if index < start and not phase.include_on_resume:
-                    continue                    # an earlier run played it
+            for index, phase in self._schedule(start):
                 if self._time_up():
                     reached_end = False
                     break
                 handler = handlers[type(phase)]
                 if index == start and block_progress is not None:
                     self._game(phase, index, block_progress)  # the block an earlier run stopped
+                    block_progress = None
                     continue
                 handler(phase, index)
 
@@ -986,6 +996,16 @@ class Run:
             print(f"Saved run to: {self.outdir}")
             print(f"Manifest: {manifest_path}")
         return not user_quit
+
+    def _schedule(self, start: int) -> Iterator[tuple[int, Phase]]:
+        """The phases to play from ``start``, with their indices; with ``loop``, then the whole
+        curriculum again and again."""
+        phases = self.config.curriculum.phases
+        for index, phase in enumerate(phases):
+            if index >= start or phase.include_on_resume:   # else an earlier run played it
+                yield index, phase
+        while self.config.loop:
+            yield from enumerate(phases)
 
     def _time_up(self) -> bool:
         """Whether the run has reached its closing fixation."""

@@ -7,6 +7,8 @@
     <outdir>/block-NN_<backend>_<game>/frames.h5      the rendered frames, when the phase keeps them
     <outdir>/block-NN_<backend>_<game>/audio.h5       the queued PCM, when the block played any
 
+A phase played again in the same run (``--loop``) writes ``block-NN_<backend>_<game>_2``, ``_3``...
+
 There is one :class:`Logger` per run and it writes all three. The manifest is
 rewritten (atomically) whenever a phase entry or a run-level field lands, so
 it is current at every phase boundary. A block's lines and frames go through
@@ -47,6 +49,7 @@ import os
 import queue as queue_mod
 import time
 import zlib
+from collections import Counter
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -82,6 +85,8 @@ class Logger:
             "subject": subject, "curriculum": phases, "start_epoch": None, "phases": [],
         }
         self._block: str | None = None
+        #: how many blocks of each folder name this run has opened.
+        self._block_names: Counter[str] = Counter()
         #: frames recorded in the open block so far.
         self.n_frames = 0
         self._frame_stride = 1
@@ -140,6 +145,9 @@ class Logger:
         """
         safe_game = game.split("/")[-1].replace(":", "_")
         name = f"block-{index:02d}_{backend}_{safe_game}"
+        self._block_names[name] += 1
+        if self._block_names[name] > 1:
+            name += f"_{self._block_names[name]}"
         self._block = os.path.join(self.outdir, name)
         self.n_frames = 0
         self._frame_stride = int(phase.get("frame_stride", 1))

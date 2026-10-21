@@ -30,3 +30,4 @@ Blocking, as Baba Is You is: the block is the level played until won (mode `epis
 | `pillar_yard.json` | Pillar Yard |
 | `turns.json` | Turns |
 | `volcano.json` | Volcano |
+| `all.json` (in `baba_auto/`) | the twelve in a row |

@@ -31,3 +31,4 @@ Per frame: the action (the 8-vector), the reward (progress, in metres), and ever
 | `lighthouse.json` | Around the Lighthouse | 880 m |
 | `scotland.json` | Nessie's Pond | 1329 m |
 | `snowmountain.json` | Northern Resort | 1147 m |
+| `all.json` (in `stk/`) | the five in a row | |

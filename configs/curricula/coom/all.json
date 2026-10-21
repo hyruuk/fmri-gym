@@ -1,0 +1,188 @@
+{
+  "curriculum": [
+    {"type": "fixation", "duration": 1.0, "include_on_resume": true},
+    {
+      "__include": "common/coom.json",
+      "game": "pitfall",
+      "instructions": {
+        "title": "Pitfall",
+        "text": [
+          "Cross the corridor without falling into a pit.",
+          "The floor layout is randomized every episode.",
+          "",
+          "Controls:",
+          "   UP           move forward",
+          "   LEFT / RIGHT turn left / right",
+          "   SPACE        jump",
+          "",
+          "(press SPACE to start)"
+        ]
+      },
+      "keys": {"": 0, "LEFT": 8, "RIGHT": 4, "UP": 2, "LEFT+UP": 10, "RIGHT+UP": 6, "SPACE": 1, "UP+SPACE": 3}
+    },
+    {"type": "fixation", "duration": 1.0},
+    {
+      "__include": "common/coom.json",
+      "game": "chainsaw",
+      "instructions": {
+        "title": "Chainsaw",
+        "text": [
+          "Find the enemies scattered around the maze and",
+          "saw them in half at melee range.",
+          "",
+          "Controls:",
+          "   UP           move forward",
+          "   LEFT / RIGHT turn left / right",
+          "   SPACE        attack",
+          "",
+          "(press SPACE to start)"
+        ]
+      },
+      "keys": {"": 0, "LEFT": 8, "RIGHT": 4, "UP": 2, "LEFT+UP": 10, "RIGHT+UP": 6, "SPACE": 1, "UP+SPACE": 3}
+    },
+    {"type": "fixation", "duration": 1.0},
+    {
+      "__include": "common/coom.json",
+      "game": "hide_and_seek",
+      "instructions": {
+        "title": "Hide and Seek",
+        "text": [
+          "Enemies are closing in. Evade them and collect",
+          "health kits when you're low.",
+          "",
+          "Controls:",
+          "   UP           move forward",
+          "   LEFT / RIGHT turn left / right",
+          "   LSHIFT       run",
+          "",
+          "(press SPACE to start)"
+        ]
+      },
+      "keys": {"": 0, "LEFT": 8, "RIGHT": 4, "UP": 2, "LEFT+UP": 10, "RIGHT+UP": 6, "LSHIFT": 1, "UP+LSHIFT": 3}
+    },
+    {"type": "fixation", "duration": 1.0},
+    {
+      "__include": "common/coom.json",
+      "game": "health_gathering",
+      "instructions": {
+        "title": "Health Gathering",
+        "text": [
+          "The floor is draining your health. Find and",
+          "collect health kits to survive; watch out for",
+          "poison vials.",
+          "",
+          "Controls:",
+          "   UP           move forward",
+          "   LEFT / RIGHT turn left / right",
+          "   LSHIFT       run",
+          "",
+          "(press SPACE to start)"
+        ]
+      },
+      "keys": {"": 0, "LEFT": 8, "RIGHT": 4, "UP": 2, "LEFT+UP": 10, "RIGHT+UP": 6, "LSHIFT": 1, "UP+LSHIFT": 3}
+    },
+    {"type": "fixation", "duration": 1.0},
+    {
+      "__include": "common/coom.json",
+      "game": "arms_dealer",
+      "instructions": {
+        "title": "Arms Dealer",
+        "text": [
+          "Pick up weapons from the floor and deliver them",
+          "to the platform that appears after each pickup.",
+          "",
+          "Controls:",
+          "   UP           move forward",
+          "   LEFT / RIGHT turn left / right",
+          "   LSHIFT       run",
+          "",
+          "(press SPACE to start)"
+        ]
+      },
+      "keys": {"": 0, "LEFT": 8, "RIGHT": 4, "UP": 2, "LEFT+UP": 10, "RIGHT+UP": 6, "LSHIFT": 1, "UP+LSHIFT": 3}
+    },
+    {"type": "fixation", "duration": 1.0},
+    {
+      "__include": "common/coom.json",
+      "game": "parkour",
+      "instructions": {
+        "title": "Parkour",
+        "text": [
+          "Navigate the platforming course, jumping across",
+          "gaps and up ledges as you go.",
+          "",
+          "Controls:",
+          "   UP           move forward",
+          "   LEFT / RIGHT turn left / right",
+          "   SPACE        jump",
+          "",
+          "(press SPACE to start)"
+        ]
+      },
+      "keys": {"": 0, "LEFT": 8, "RIGHT": 4, "UP": 2, "LEFT+UP": 10, "RIGHT+UP": 6, "SPACE": 1, "UP+SPACE": 3}
+    },
+    {"type": "fixation", "duration": 1.0},
+    {
+      "__include": "common/coom.json",
+      "game": "raise_the_roof",
+      "instructions": {
+        "title": "Raise the Roof",
+        "text": [
+          "The ceiling is slowly crushing you. Find and",
+          "press the wall switches to raise it back up",
+          "before it's too late.",
+          "",
+          "Controls:",
+          "   UP           move forward",
+          "   LEFT / RIGHT turn left / right",
+          "   E            press switch",
+          "",
+          "(press SPACE to start)"
+        ]
+      },
+      "keys": {"": 0, "LEFT": 8, "RIGHT": 4, "UP": 2, "LEFT+UP": 10, "RIGHT+UP": 6, "E": 1, "UP+E": 3}
+    },
+    {"type": "fixation", "duration": 1.0},
+    {
+      "__include": "common/coom.json",
+      "game": "run_and_gun",
+      "instructions": {
+        "title": "Run and Gun",
+        "text": [
+          "Locate and shoot the enemies scattered around",
+          "the maze. You have unlimited ammunition.",
+          "",
+          "Controls:",
+          "   UP           move forward",
+          "   LEFT / RIGHT turn left / right",
+          "   SPACE        shoot",
+          "",
+          "(press SPACE to start)"
+        ]
+      },
+      "keys": {"": 0, "LEFT": 8, "RIGHT": 4, "UP": 2, "LEFT+UP": 10, "RIGHT+UP": 6, "SPACE": 1, "UP+SPACE": 3}
+    },
+    {"type": "fixation", "duration": 1.0},
+    {
+      "__include": "common/coom.json",
+      "game": "floor_is_lava",
+      "instructions": {
+        "title": "Floor is Lava",
+        "text": [
+          "The floor is lava except for platforms that",
+          "briefly appear. Stay off the lava as much as",
+          "you can.",
+          "",
+          "Controls:",
+          "   UP           move forward",
+          "   LEFT / RIGHT turn left / right",
+          "   LSHIFT       run",
+          "",
+          "(press SPACE to start)"
+        ]
+      },
+      "keys": {"": 0, "LEFT": 8, "RIGHT": 4, "UP": 2, "LEFT+UP": 10, "RIGHT+UP": 6, "LSHIFT": 1, "UP+LSHIFT": 3}
+    },
+    {"type": "fixation", "duration": 2.0}
+  ]
+}

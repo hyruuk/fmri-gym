@@ -59,3 +59,4 @@ Each block is its task played until completed (`mode` `episode`, `n_episodes` 1,
 | `room_beyond_the_next_wall.json` | Room: Beyond the Next Wall |
 | `room_find_the_connections.json` | Room: Find the Connections |
 | `room_look_before_moving.json` | Room: Look Before Moving |
+| `all.json` (in `minihack/`) | room5x5, room15x15, mazewalk9x9, corridor, river, eat (allocentric) in a row |

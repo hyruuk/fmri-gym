@@ -91,7 +91,8 @@ def test_a_game_key_the_scanner_types_is_refused_on_that_rig():
         game = {"type": "game", "game": "CartPole-v1", "fps": 30, "keys": keys}
         curriculum = Curriculum.from_dict({"curriculum": [game]}, "cartpole.json")
         return RunConfig(curriculum=curriculum, rig=box, subject="sub-01", ses=1, run=1,
-                         duration=None, end_fixation=10.0, resume=False, dummy_trigger=True)
+                         duration=None, end_fixation=10.0, resume=False, loop=False,
+                         dummy_trigger=True)
 
     assert run_of({"": 0, "5": 1}).problems() and not run_of({"": 0, "LEFT": 1}).problems()
 
