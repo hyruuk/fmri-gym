@@ -104,12 +104,14 @@ class Menu:
 
     :param spec: the phase's ``"menu"`` dict (already validated).
     :param block_start: ``perf_counter`` at which the block began.
+    :param label: names each ``[KEY]`` of the pop-up's hint as the participant presses it.
     :param held: returns the names of the keys held now (a test can fake it).
     """
 
-    def __init__(self, spec: dict, block_start: float,
+    def __init__(self, spec: dict, block_start: float, label: Callable[[str], str],
                  held: Callable[[], frozenset[str]] = held_key_names) -> None:
         self.settings = MenuSettings.from_dict(spec)
+        self._label = label
         self.available_from = block_start + self.settings.after
         self._held = held
         self._held_since: float | None = None
@@ -180,6 +182,6 @@ class Menu:
         """Render the option list with ``choice`` marked."""
         s = self.settings
         rows = [f"{'>' if i == choice else ' '}  {_LABELS[o]}" for i, o in enumerate(s.options)]
-        display.draw_text("Paused\n\n" + "\n".join(rows) + "\n\n"
-                          f"({s.move[0]}/{s.move[1]} to choose, {s.confirm} to select)",
+        hint = f"([{s.move[0]}]/[{s.move[1]}] to choose, [{s.confirm}] to select)"
+        display.draw_text("Paused\n\n" + "\n".join(rows) + "\n\n" + self._label(hint),
                           align="left")

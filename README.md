@@ -433,12 +433,16 @@ They assume `sub-01` and a 1024x768 window, and play into the session their fold
 {"type": "fixation", "duration": 1.0, "include_on_resume": true}  // also played first by a resumed run (below)
 {"type": "message", "text": "Get ready", "duration": 2.0}  // text: string or list of lines; omit duration to wait for a key
                                                            // ("key": a character, or "keys_to_dismiss": key names)
+                                                           // a key named in brackets, "[SPACE]", shows as
+                                                           // what the participant presses on the rig: "SPACE"
+                                                           // on a keyboard, "A" on a pad that binds A to SPACE;
+                                                           // "[ARROWS]" shows "ARROWS", or "stick" on a pad
 {"type": "survey", "n_points": 7, "questions": ["...","..."]}
 
 {"type": "game",
  "backend": "ale",              // "ale" | "retro" | "gym"
  "game": "ALE/Pong-v5",         // env id for that backend
- "instructions": {"title": "Pong", "text": ["Move with UP / DOWN.", "(press SPACE)"],
+ "instructions": {"title": "Pong", "text": ["Move with [UP] / [DOWN].", "(press [SPACE])"],
                   "align": "center", "duration": 30.0, "keys_to_dismiss": ["SPACE"]},
                                 // optional: the screen before the block, "Starting Pong" (or
                                 // "Resuming Pong" when a run carries the block on) over the text,
