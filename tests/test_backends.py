@@ -355,8 +355,9 @@ def test_resume(session, resumed):
     assert manifest["resumed_from"]["index"] == 1, manifest["resumed_from"]
     if not _stopped_mid_episode(stopped):
         pytest.skip("the first run stopped between episodes: no episode to carry on")
-    last = max(session.tap["logged"], key=int)
-    assert resumed.tap["draws"][0] == session.tap["logged"][last][1], (
+    # The last draw, not the last logged frame: a block can run out between a reset
+    # and its first step, ending on a picture no frame line holds.
+    assert resumed.tap["draws"][0] == session.tap["draws"][-1], (
         "the resumed episode's first picture is not the one the stopped run ended on")
     done = verify_replay.check_in_second_process(str(resumed.run))
     assert done.returncode == 0, f"the resumed run does not replay:\n{done.stdout}"
