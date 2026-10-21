@@ -369,6 +369,54 @@ def test_each_pad_is_read_by_its_layout(monkeypatch):
     pad._held.clear()
 
 
+def test_each_stick_reads_its_own_calibration(monkeypatch, tmp_path):
+    import json
+    import types
+
+    from fmri_gym import pad
+    axis = {"rest": 0.0, "min": -1.0, "max": 1.0}
+    path = tmp_path / "pad.json"
+    monkeypatch.setenv(pad.CONFIG_ENV, str(path))
+    monkeypatch.setattr(pad, "_pads", {1: types.SimpleNamespace(name="Xbox")})
+
+    # A pad with one stick: the right stick's axes, whatever the file says of them, are not read
+    path.write_text(json.dumps({"device": "Xbox", "axis_on": 0.3, "axes": {
+        "0": axis, "1": axis, "2": {**axis, "rest": -1.0, "min": -1.0}}}))
+    pad._load_calibration()
+    assert (pad._tuning[pad.STICK_AXES].on, pad._tuning[pad.RIGHT_AXES]) == (0.3, pad.Tuning())
+    assert sorted(pad._calibration) == [0, 1]
+
+    path.write_text(json.dumps({"device": "Xbox", "axis_on": 0.3, "right_stick": {
+        "axis_on": 0.4, "stick_dwell_s": 0.02}, "axes": {str(i): axis for i in range(4)}}))
+    pad._load_calibration()
+    assert (pad._tuning[pad.RIGHT_AXES].on, pad._tuning[pad.RIGHT_AXES].dwell) == (0.4, 0.02)
+    assert sorted(pad._calibration) == [0, 1, 2, 3]
+
+    # Measured on another pad: nothing of it is applied
+    path.write_text(json.dumps({"device": "932", "axis_on": 0.3, "axes": {"0": axis}}))
+    pad._load_calibration()
+    assert (pad._foreign, pad._calibration, pad._tuning[pad.STICK_AXES]) \
+        == ("'932'", {}, pad.Tuning())
+
+
+def test_a_calibration_stopped_part_way_writes_nothing(monkeypatch, tmp_path):
+    from fmri_gym import pad
+    monkeypatch.delenv(pad.CONFIG_ENV, raising=False)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+
+    def stopped(screen=None):
+        raise pad._Quit
+
+    monkeypatch.setattr(pad, "run", stopped)
+    assert pad.calibrate()["measured"] is False
+    assert not pad.config_path().exists()
+
+
+def test_a_check_controls_phase_refuses_pad_reps():
+    from fmri_gym.config.phases import CheckControls
+    assert any("pad_reps" in p for p in CheckControls.problems({"pad_reps": 3}))
+
+
 def test_a_check_that_broke_part_way_is_reported_not_crashed_on():
     from fmri_gym.checks import _html_frames, _html_section
     half = {"rig_check": {"frames": {"blocks": []}}}      # it broke before refresh_rate
