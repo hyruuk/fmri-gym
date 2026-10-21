@@ -399,6 +399,39 @@ def test_each_stick_reads_its_own_calibration(monkeypatch, tmp_path):
         == ("'932'", {}, pad.Tuning())
 
 
+def test_a_run_reads_the_newest_calibration_of_the_pad_plugged_in(monkeypatch, tmp_path):
+    import json
+    import types
+
+    from fmri_gym import pad
+    monkeypatch.delenv(pad.CONFIG_ENV, raising=False)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.setattr(pad, "_pads", {1: types.SimpleNamespace(name="Xbox")})
+    pad.pads_dir().mkdir(parents=True)
+
+    def write(name, device, measured, on):
+        path = pad.pads_dir() / name if name != "pad.json" else tmp_path / "fmri-gym" / name
+        path.write_text(json.dumps({"device": device, "measured": measured, "axis_on": on}))
+        return path
+
+    write("pad.json", "Xbox", "2026-10-01T00:00:00+00:00", 0.31)      # the single file, oldest
+    newest = write("Xbox_b.json", "Xbox", "2026-10-03T00:00:00+00:00", 0.33)
+    write("Xbox_a.json", "Xbox", "2026-10-02T00:00:00+00:00", 0.32)
+    write("932_c.json", "932", "2026-10-04T00:00:00+00:00", 0.34)       # newer, another pad
+    pad._load_calibration()
+    assert (pad.calibration_path(), pad._tuning[pad.STICK_AXES].on) == (newest, 0.33)
+
+    named = write("Xbox_a.json", "Xbox", "2026-10-02T00:00:00+00:00", 0.32)
+    monkeypatch.setenv(pad.CONFIG_ENV, str(named))                     # one file, named
+    pad._load_calibration()
+    assert (pad.calibration_path(), pad._tuning[pad.STICK_AXES].on) == (named, 0.32)
+
+    monkeypatch.setattr(pad, "_pads", {1: types.SimpleNamespace(name="Pro Controller")})
+    monkeypatch.delenv(pad.CONFIG_ENV)
+    pad._load_calibration()
+    assert (pad.calibration_path(), pad._foreign) == (None, "'932', 'Xbox'")
+
+
 def test_a_calibration_stopped_part_way_writes_nothing(monkeypatch, tmp_path):
     from fmri_gym import pad
     monkeypatch.delenv(pad.CONFIG_ENV, raising=False)
@@ -409,7 +442,7 @@ def test_a_calibration_stopped_part_way_writes_nothing(monkeypatch, tmp_path):
 
     monkeypatch.setattr(pad, "run", stopped)
     assert pad.calibrate()["measured"] is False
-    assert not pad.config_path().exists()
+    assert not pad.pads_dir().exists()
 
 
 def test_a_check_controls_phase_refuses_pad_reps():

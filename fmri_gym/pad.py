@@ -20,8 +20,9 @@ one map for every game played on the rig. A control with no binding presses
 nothing; a controller that types keys itself needs none. What is *not* the rig
 file's is each stick, which rests off centre, travels further one way than the
 other, and moves its centre between sessions; that is measured per rig by
-``fmri-pad-calibrate`` (below) into ``~/.config/fmri-gym/pad.json``, applied
-only to the device it was measured on, and checked in ``fmri-pad-scope``.
+``fmri-pad-calibrate`` (below), one file per calibration in :func:`pads_dir`, of
+which a run reads the newest made on the pad plugged in, and checked in
+``fmri-pad-scope``.
 
 It turns itself on when a pad is plugged in, and a rig file's ``"has_pad": false`` leaves it off.
 """
@@ -33,6 +34,7 @@ import csv
 import json
 import math
 import os
+import re
 import statistics
 import sys
 import time
@@ -163,8 +165,10 @@ IDEAL_SECTORS: dict[str, float] = {
 #: How much nearer another direction must be before the stick changes hands.
 _SECTOR_KEEP = math.radians(15)
 
-#: Where this rig's measured stick calibration lives -- deliberately outside the
-#: checkout, since it describes the controller on *this* machine, not the task.
+#: Calibrations live outside the checkout, since they describe the controllers on
+#: *this* machine, not the task: one file per calibration in :func:`pads_dir`, of
+#: which a run reads the newest made on the pad plugged in. This names one file
+#: instead, which a run reads and a calibration writes.
 CONFIG_ENV = "FMRI_GYM_PAD_CONFIG"
 
 _DOMINANCE = 1.15           # with diagonals, the margin for one axis to take the stick over
@@ -239,24 +243,35 @@ _quiet: dict[int, tuple] = {}           # axis -> (since, low, high) while still
 _settled: set[int] = set()              # axes whose centre has been taken
 _pads: dict[int, Pad] = {}              # instance id -> the pad
 _unmapped: set[tuple[str, int]] = set()  # (layout, button) already warned of
-_foreign = ""                           # the device a calibration not applied was measured on
+_foreign = ""                           # the devices only other calibrations were made on
 _path: Path | None = None               # the calibration file read
 _warmed: set[tuple[int, int]] = set()   # sticks used since their calibration was read
 _status = 'off (the rig\'s "has_pad": false)'
 
 
-def config_path() -> Path:
-    """The pad calibration file for this machine."""
-    override = os.environ.get(CONFIG_ENV)
-    if override:
-        return Path(override).expanduser()
+def _config_dir() -> Path:
     base = os.environ.get("XDG_CONFIG_HOME") or "~/.config"
-    return Path(base).expanduser() / "fmri-gym" / "pad.json"
+    return Path(base).expanduser() / "fmri-gym"
+
+
+def pads_dir() -> Path:
+    """Where this machine's calibrations are written, one file per calibration."""
+    return _config_dir() / "pads"
 
 
 def calibration_path() -> Path | None:
     """The calibration file the pad plugged in is read with, or None if it has none."""
     return _path
+
+
+def _candidates() -> list[Path]:
+    """The calibration files a run chooses from: the one :data:`CONFIG_ENV` names, if
+    set; otherwise every one in :func:`pads_dir`, and a ``pad.json`` beside it."""
+    override = os.environ.get(CONFIG_ENV)
+    if override:
+        return [Path(override).expanduser()]
+    single = _config_dir() / "pad.json"
+    return sorted(pads_dir().glob("*.json")) + ([single] if single.exists() else [])
 
 
 def _read(path: Path) -> dict | None:
@@ -295,10 +310,11 @@ def init(enabled: bool = True, bindings: dict[str, str] | None = None) -> str:
     if not found:
         _status = "no controller plugged in; the keyboard answers"
         return _status
+    where = os.environ.get(CONFIG_ENV) or pads_dir()
     cal = (f"calibrated {_path}" if _path is not None
-           else f"UNCALIBRATED: {config_path()} measured {_foreign}, not this pad (run "
-                "fmri-pad-calibrate)" if _foreign
-           else f"UNCALIBRATED (run fmri-pad-calibrate; writing {config_path()})")
+           else f"UNCALIBRATED: no calibration of this pad, only of {_foreign} (run "
+                f"fmri-pad-calibrate; writing to {where})" if _foreign
+           else f"UNCALIBRATED (run fmri-pad-calibrate; writing to {where})")
     bound = (", ".join(f"{c}={k}" for c, k in _bindings.items()) if _bindings else
              'WARNING: the rig file has no "bindings", so its controls press no key (a '
              "controller that types keys itself needs none)")
@@ -316,10 +332,10 @@ def status() -> str:
 
 
 def _load_calibration() -> None:
-    """Read this rig's calibration, if it was made on the pad plugged in.
+    """Read the newest calibration made on the pad plugged in, if it has one.
 
-    One made on another device is never read: its device's name is kept for the
-    status line instead.
+    Newest by the ``"measured"`` each file records. One made on another device is
+    never read: its device's name is kept for the status line instead.
     """
     global _foreign, _path
     _calibration.clear()
@@ -331,16 +347,21 @@ def _load_calibration() -> None:
     _settled.clear()
     _quiet.clear()
     _warmed.clear()
-    path = config_path()
-    blob = _read(path)
-    if blob is None:
+    names, mine, others = {p.name for p in _pads.values()}, [], set()
+    for path in _candidates():
+        blob = _read(path)
+        if blob is None:
+            continue
+        device = str(blob.get("device", "")).split(" (refit of ")[0]
+        if device and names and device not in names:
+            others.add(repr(device))
+            continue
+        mine.append((str(blob.get("measured", "")), path, blob))
+    if not mine:
+        _foreign = ", ".join(sorted(others))
         return
-    device = str(blob.get("device", "")).split(" (refit of ")[0]
-    if device and _pads and device not in {p.name for p in _pads.values()}:
-        _foreign = repr(device)
-        return
-    _path = path
-    _apply(blob, path)
+    _, _path, blob = max(mine, key=lambda m: m[0])
+    _apply(blob, _path)
 
 
 def _apply(blob: dict, path: Path) -> None:
@@ -908,22 +929,29 @@ def fit(samples: list[dict]) -> dict:
     return blob
 
 
-def save(blob: dict, samples: list[dict]) -> tuple[Path, Path]:
-    """Write the calibration, and the recording it came from beside it. Returns both paths.
+def _slug(device: str) -> str:
+    """A device's name as a file name's start."""
+    return re.sub(r"[^A-Za-z0-9]+", "-", device).strip("-") or "pad"
+
+
+def save(blob: dict, samples: list[dict]) -> Path:
+    """Write a calibration and the recording it came from, side by side. Returns the calibration's path.
 
     The calibration is this site's, not this session's: every run on the rig
     reads it, so it lives beside the other per-machine config rather than in the
-    checkout or the session's data. The recording goes next to it, one per calibration.
+    checkout or the session's data, one file per calibration so none is lost.
     """
-    out = config_path()
-    raw = out.with_name(f"pad-samples_{time.strftime('%Y%m%d-%H%M%S')}.csv")
+    override = os.environ.get(CONFIG_ENV)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    out = (Path(override).expanduser() if override
+           else pads_dir() / f"{_slug(blob['device'])}_{stamp}.json")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(blob, indent=2) + "\n")
-    with raw.open("w", newline="") as fh:
+    with out.with_suffix(".csv").open("w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(samples[0]))
         w.writeheader()
         w.writerows(samples)
-    return out, raw
+    return out
 
 
 def detect() -> str:
@@ -946,10 +974,10 @@ def calibrate(screen=None, extra: dict | None = None) -> dict:
     except _Quit:
         return {"measured": False, "why": "stopped before it finished (ESC); nothing written"}
     blob = {**fit(samples), "device": device, **(extra or {})}
-    path, raw = save(blob, samples)
+    path = save(blob, samples)
     _load_calibration()                      # what follows plays calibrated
     return {"measured": True, "device": device, "config": str(path),
-            "samples": str(raw), "confirmed": confirmed,
+            "samples": str(path.with_suffix(".csv")), "confirmed": confirmed,
             "corrections": wrong, "axis_on": blob["axis_on"], "axis_off": blob["axis_off"],
             "stick_dwell_s": blob["stick_dwell_s"], "axes": blob["axes"],
             **({RIGHT_KEY: blob[RIGHT_KEY]} if RIGHT_KEY in blob else {})}
@@ -1045,8 +1073,8 @@ def _save_thresholds(stick: tuple[int, int]) -> str:
 
 
 def _watched() -> dict[str, float]:
-    """What the scope reloads on a change to: this file, and the calibration."""
-    paths = [__file__, str(config_path())]
+    """What the scope reloads on a change to: this file, the calibrations, the one in use."""
+    paths = [__file__, str(pads_dir()), *([str(_path)] if _path else [])]
     return {p: (os.path.getmtime(p) if os.path.exists(p) else 0.0) for p in paths}
 
 
