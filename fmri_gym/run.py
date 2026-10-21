@@ -378,6 +378,9 @@ class Run:
         self.triggers = triggers
         self.sync = self.triggers.sync
         self.resume_from = resume_from
+        #: names each ``[KEY]`` of a screen's text as the participant presses it on this rig
+        self._label = partial(pad.label_keys,
+                              bindings=config.rig.bindings if config.rig.has_pad else None)
         #: ``perf_counter`` at which the phases stop for the closing fixation.
         self._run_end = math.inf
         self.logger.set_extra("duration", config.duration)
@@ -502,7 +505,8 @@ class Run:
         :raises KeyboardInterrupt: on window close or ESC.
         """
         duration = message.duration
-        onset = self.clock.from_perf(self.display.draw_text(message.text, align=message.align))
+        text = self._label(message.text)
+        onset = self.clock.from_perf(self.display.draw_text(text, align=message.align))
         if message.keys_to_dismiss is not None:
             deadline = time.perf_counter() + (math.inf if duration is None else duration)
             if self.config.dummy_trigger:      # a test run skips the waits for a key
@@ -514,7 +518,7 @@ class Run:
                            dummy_trigger=self.config.dummy_trigger, until=self._run_end)
         else:
             _wait_for_duration(self.display, duration, until=self._run_end)
-        return {"text": message.text, "onset": onset, "offset": self.clock.run_time()}
+        return {"text": text, "onset": onset, "offset": self.clock.run_time()}
 
     def _survey(self, phase: Survey, index: int) -> None:
         """Run a Likert-style survey and log each confirmed response.
@@ -544,7 +548,7 @@ class Run:
                                   for i in range(1, n_points + 1))
                 self.display.draw_text(
                     f"{q}\n\nDisagree      Agree\n{scale}\n\n"
-                    "(LEFT/RIGHT to rate, ENTER to confirm)")
+                    + self._label("([LEFT]/[RIGHT] to rate, [RETURN] to confirm)"))
                 for event in get_events():
                     if event.type == pygame.QUIT:
                         raise KeyboardInterrupt
@@ -826,7 +830,7 @@ class Run:
         own_end = block_start + game_phase.duration - block_time_elapsed
         block_end = min(own_end, self._run_end)
         # The hold-a-key pause menu (reset / forfeit / resume), if the phase has one.
-        menu = Menu(spec["menu"], block_start) if "menu" in spec else None
+        menu = Menu(spec["menu"], block_start, self._label) if "menu" in spec else None
         episodes: list[EpisodeResult] = []
         outcome = ""
 

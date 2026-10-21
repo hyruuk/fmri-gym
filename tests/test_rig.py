@@ -96,6 +96,31 @@ def test_a_game_key_the_scanner_types_is_refused_on_that_rig():
     assert run_of({"": 0, "5": 1}).problems() and not run_of({"": 0, "LEFT": 1}).problems()
 
 
+def test_what_the_controller_cannot_press_is_refused_on_that_rig():
+    from fmri_gym.config.curriculum import Curriculum
+    from fmri_gym.config.run import RunConfig
+    pad = RigConfig.open(write("pad", bindings={"A": "SPACE", "UP": "UP", "DOWN": "DOWN"}))
+    keyboard = RigConfig.open(write("kb", has_pad=False, bindings={"A": "SPACE"}))
+
+    def problems(phase: dict, on: RigConfig = pad) -> list[str]:
+        curriculum = Curriculum.from_dict({"curriculum": [phase]}, "c.json")
+        return RunConfig(curriculum=curriculum, rig=on, subject="sub-01", ses=1, run=1,
+                         duration=None, end_fixation=10.0, resume=False,
+                         dummy_trigger=True).problems()
+
+    def game(keys: dict, **more) -> dict:
+        return {"type": "game", "game": "CartPole-v1", "fps": 30, "keys": keys, **more}
+
+    assert problems(game({"": 0, "UP": 1, "W": 1, "SPACE": 2})) == []  # W only doubles UP
+    assert "action 3 needs W" in problems(game({"": 0, "SPACE": 2, "W": 3}))[0]
+    assert problems(game({"": 0, "W": 3}), on=keyboard) == []
+    menu = {"key": "X", "move": ["UP", "DOWN"], "confirm": "SPACE"}
+    assert "its menu's X" in problems(game({"": 0, "UP": 1}, menu=menu))[0]
+    assert problems({"type": "message", "text": "hi", "keys_to_dismiss": ["Q", "SPACE"]}) == []
+    assert "dismissing it needs Q" in problems({"type": "message", "text": "hi", "key": "q"})[0]
+    assert problems({"type": "message", "text": "hi", "duration": 2.0, "key": "q"}) == []
+
+
 def test_bindings_map_the_controllers_controls_to_keys():
     pad = RigConfig.open(write("pad", bindings={"A": "SPACE", "UP": "UP"}))
     assert pad.bindings == {"A": "SPACE", "UP": "UP"}

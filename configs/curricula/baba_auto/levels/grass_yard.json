@@ -11,11 +11,11 @@
           "Push and align the words to make a winning rule.",
           "",
           "Controls:",
-          "   ARROWS   move",
-          "   SPACE    wait a turn",
-          "   hold X   pause menu (restart / give up / resume)",
+          "   [ARROWS]   move",
+          "   [SPACE]    wait a turn",
+          "   hold [X]   pause menu (restart / give up / resume)",
           "",
-          "(press SPACE to start)"
+          "(press [SPACE] to start)"
         ]
       }
     },

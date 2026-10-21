@@ -12,7 +12,7 @@ There is one curriculum per race track the asset pack ships with geometry. Its o
 
 ## Keys
 
-The env's action is MultiBinary(8) over SuperTuxKart's keys: 0=left, 1=right, 2=up (accelerate), 3=down (brake / reverse), 4=nitro, 5=skid, 6=fire, 7=rescue. Held keys combine, and the game's own player controller turns them into controls. `race.json` maps SuperTuxKart's default bindings (arrows, N nitro, V skid, SPACE fire, BACKSPACE rescue); keep each curriculum's Controls text in sync by hand.
+The env's action is MultiBinary(8) over SuperTuxKart's keys: 0=left, 1=right, 2=up (accelerate), 3=down (brake / reverse), 4=nitro, 5=skid, 6=fire, 7=rescue. Held keys combine, and the game's own player controller turns them into controls. `race.json` maps them to the rig's ten keys (arrows, X nitro, C skid, SPACE fire, Z rescue); keep each curriculum's Controls text in sync by hand.
 
 ## Timing
 

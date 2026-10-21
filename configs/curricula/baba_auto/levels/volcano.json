@@ -11,11 +11,11 @@
           "Lava is hot and you melt. Change what is hot, or what melts.",
           "",
           "Controls:",
-          "   ARROWS   move",
-          "   SPACE    wait a turn",
-          "   hold X   pause menu (restart / give up / resume)",
+          "   [ARROWS]   move",
+          "   [SPACE]    wait a turn",
+          "   hold [X]   pause menu (restart / give up / resume)",
           "",
-          "(press SPACE to start)"
+          "(press [SPACE] to start)"
         ]
       }
     },
