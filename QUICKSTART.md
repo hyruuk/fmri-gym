@@ -162,9 +162,9 @@ uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/emp
 uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game1.json
 uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game2.json
 uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game3.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/levels/game4.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game4.json
 uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game5.json
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/levels/game6.json
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game6.json
 uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game7.json
 uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game8.json
 uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/rigs/example/empty.json --curriculum configs/curricula/aigamestore/game9.json

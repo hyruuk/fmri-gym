@@ -1,6 +1,6 @@
 # AI GameStore curricula
 
-The `aigamestore` backend's curricula: the ten public [AI GameStore](https://aigamestore.org) games, one file per game with one game phase per level, plus `all.json`, all ten for 15 s each. A game with several levels has `common/<game>.json`, which its phases include, stating only the level and its title (README, "Shared phases"); game4 and game6, one phase each, have none.
+The `aigamestore` backend's curricula: the ten public [AI GameStore](https://aigamestore.org) games, one file per game with one game phase per level, plus `all.json`, all ten for 15 s each. Every game has `common/<game>.json`, which its phases include, stating only the level and its title (README, "Shared phases"). All of them sit in `aigamestore/` itself, the one-level games too, so the ten games share one layout.
 
 ## Setup
 
@@ -27,7 +27,7 @@ The env's action is MultiBinary over the game's keys, in `aigamestore_gym.GAME_K
 
 An episode is one level: it ends on a win, a loss or a level clear, and `reset()` restarts the same level. Each level is one phase; drop or reorder them as the session needs. The blocks are blocking, as the games are: each is its level played until cleared (mode `episode`, `n_episodes` 1, `advance_on` `["won"]`); a loss restarts the same level, so the levels run back to back at the subject's own pace, and `duration` 120 s is the cap on a level nobody clears. Three games differ:
 
-- **game4** (jetpack runner) has no levels: each episode is one run and ends when it is lost. The block is that one run (no `advance_on`: a runner has nothing to clear, so its end is the block's), `duration` the cap.
+- **game4** (jetpack runner) has no levels and cannot be won: each episode is one run and ends when it is lost. The block is 10 runs (`n_episodes` 10, no `advance_on`, so every run counts), `duration` 300 s the cap.
 - **game6** (shadow platformer) is one long level with checkpoints: the block is one attempt that counts only when won, a loss restarts it, and `duration` is 300 s.
 - **game7** (top-down extract shooter) generates levels without an upper bound; the first five are listed.
 
@@ -39,7 +39,7 @@ An episode is one level: it ends on a win, a loss or a level clear, and `reset()
 | `game1.json` | Water Sort, levels 1–9 |
 | `game2.json` | Angry-Birds-like, levels 1–9 |
 | `game3.json` | twin-stick / top-down shooter (Three.js + canvas HUD), levels 1–7 |
-| `game4.json` | jetpack runner, one run |
+| `game4.json` | jetpack runner, 10 runs |
 | `game5.json` | mouse / cheese platformer, levels 1–6 |
 | `game6.json` | shadow platformer, one long level |
 | `game7.json` | top-down extract shooter, levels 1–5 |
