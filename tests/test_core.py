@@ -330,6 +330,17 @@ def test_the_pad_presses_the_key_each_control_is_bound_to(monkeypatch):
     pad._bindings = {}
 
 
+def test_a_screen_names_each_key_as_the_participant_presses_it():
+    from fmri_gym.pad import label_keys
+    text = "[SPACE] fire, [UP] jump, [Q] quit, [1] of [3]? [hi]"
+    pad = {"A": "SPACE", "UP": "UP", "DPAD_UP": "UP", "X": "X"}
+    assert label_keys(text, None) == "SPACE fire, UP jump, Q quit, 1 of 3? [hi]"
+    assert label_keys(text, pad) == "A fire, stick up jump, Q quit, 1 of 3? [hi]"
+    assert label_keys("[UP]", {"DPAD_UP": "UP"}) == "D-pad up"
+    assert [label_keys("[ARROWS] move", b) for b in (None, pad, {"DPAD_UP": "UP"})] == [
+        "ARROWS move", "stick move", "D-pad move"]
+
+
 def test_each_pad_is_read_by_its_layout(monkeypatch):
     import types
 

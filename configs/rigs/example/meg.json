@@ -1,0 +1,15 @@
+{
+  "modality": "meg",
+  "trigger_hardware": "a serial port into the MEG's trigger channel",
+  "notes": "Example: a MEG, the participant on a Current Designs controller (one stick, six buttons); the run starts the recording and codes its events",
+  "screen": {"size": "1024x768", "is_fullscreen": true, "monitor": 0, "has_vsync": true},
+  "has_pad": true,
+  "bindings": {"A": "SPACE", "X": "X", "B": "C", "Y": "Z", "LT": "A", "RT": "S", "UP": "UP", "DOWN": "DOWN", "LEFT": "LEFT", "RIGHT": "RIGHT"},
+  "has_audio": true,
+  "data_root": "data",
+  "triggers": {
+    "sync": {"mode": "send", "delay": 0.0},
+    "backend": "serial", "port": "/dev/ttyUSB0",
+    "codes": {"frame_bits": 3, "task_start": 8, "task_stop": 16, "episode_start": 32, "scanner_start": 64}
+  }
+}

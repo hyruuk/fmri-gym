@@ -53,6 +53,12 @@ DPAD = ("DPAD_UP", "DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT")
 CONTROLS = (*STICK, "Y", "B", "X", "LT", "A", "RT", "LB", "RB", "START", "BACK",
             *DPAD, *RIGHT_STICK)
 STICK_DIRECTIONS = frozenset(STICK + RIGHT_STICK)
+#: What a participant is told to press for a control: a button by its name, a
+#: direction by what moves.
+CONTROL_LABELS = {**{c: c for c in CONTROLS}, **{d: f"stick {d.lower()}" for d in STICK},
+                  **{d: f"right stick {d[3:].lower()}" for d in RIGHT_STICK},
+                  **{d: f"D-pad {d[5:].lower()}" for d in DPAD}}
+_KEY_TAG = re.compile(r"\[([A-Z0-9_]+)\]")
 #: Where each stick direction points, as an angle of push (y grows downwards).
 _ANGLES: dict[str, float] = {
     **dict(zip(STICK, (-math.pi / 2, math.pi / 2, math.pi, 0.0))),
@@ -558,6 +564,32 @@ def _sticks_line(pad: Pad) -> str:
 def status() -> str:
     """The line :func:`init` last returned, for the manifest and the banner."""
     return _status
+
+def label_keys(text: str, bindings: dict[str, str] | None) -> str:
+    """``text`` with each ``[KEY]`` (a key name) named as the participant presses it.
+
+    :param bindings: control -> key, the controller's; ``None`` for a keyboard.
+    :return: each tag as the first control (:data:`CONTROLS` order, so the stick
+        before the D-pad) bound to its key, or as the key's name when none is;
+        ``[ARROWS]`` as what presses ``UP`` ("stick", "D-pad") or as ``ARROWS``.
+        Brackets around anything but a key name are left as they are.
+    """
+    pressed_by: dict[str, str] = {}
+    for control in CONTROLS:
+        if bindings and control in bindings:
+            pressed_by.setdefault(bindings[control], control)
+
+    def label(tag: re.Match) -> str:
+        key = tag.group(1)
+        if key == "ARROWS":
+            up = pressed_by.get("UP")
+            return CONTROL_LABELS[up].rsplit(" ", 1)[0] if up in (*STICK, *DPAD, *RIGHT_STICK) \
+                else "ARROWS"
+        if key not in KEYCODE_BY_NAME:
+            return tag.group(0)
+        return CONTROL_LABELS[pressed_by[key]] if key in pressed_by else key
+    return _KEY_TAG.sub(label, text)
+
 
 
 def use(found: tuple[Path, Calibration] | None) -> None:

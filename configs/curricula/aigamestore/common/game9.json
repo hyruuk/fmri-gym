@@ -7,15 +7,15 @@
       "defeat bosses, and unlock their weapons.",
       "",
       "Controls:",
-      "   LEFT / RIGHT   move",
-      "   UP / DOWN      aim",
-      "   Z              jump",
-      "   SPACE          shoot",
-      "   SHIFT          cycle weapons",
+      "   [LEFT] / [RIGHT]   move",
+      "   [UP] / [DOWN]      aim",
+      "   [Z]              jump",
+      "   [SPACE]          shoot",
+      "   [X]          cycle weapons",
       "",
-      "(press SPACE to start)"
+      "(press [SPACE] to start)"
     ]
   },
-  "keys": {"LEFT": 0, "RIGHT": 1, "UP": 2, "DOWN": 3, "Z": 4, "SPACE": 5, "LSHIFT": 6},
+  "keys": {"LEFT": 0, "RIGHT": 1, "UP": 2, "DOWN": 3, "Z": 4, "SPACE": 5, "X": 6},
   "mode": "episode", "n_episodes": 1, "advance_on": ["won"], "duration": 120.0, "fps": 10
 }

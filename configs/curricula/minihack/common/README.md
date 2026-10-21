@@ -19,12 +19,12 @@ Every phase is `is_turn_based`: action 0 (move N) is also the noop, so a real-ti
 
 | shared phase | action space | keys |
 |---|---|---|
-| `room5x5`, `room15x15`, `mazewalk9x9`, `river` | Discrete(8) compass: 0=N, 1=E, 2=S, 3=W, 4=NE, 5=SE, 6=SW, 7=NW | arrows, and NetHack's Y/U/B/N for the diagonals |
-| `corridor` | Discrete(11): compass 0-7, 8=OPEN, 9=KICK, 10=SEARCH | arrows, Y/U/B/N, and O/K/S for open, kick and search |
-| `eat` | Discrete(85), the full command set, of which movement and 29=EAT are mapped | arrows, Y/U/B/N, and E to eat |
+| `room5x5`, `room15x15`, `mazewalk9x9`, `river` | Discrete(8) compass: 0=N, 1=E, 2=S, 3=W, 4=NE, 5=SE, 6=SW, 7=NW | arrows, and A/S/Z/C for the diagonals NW/NE/SW/SE, laid out as on the keyboard |
+| `corridor` | Discrete(11): compass 0-7, 8=OPEN, 9=KICK, 10=SEARCH | arrows, NetHack's Y/U/B/N for the diagonals, and O/K/S for open, kick and search: more than six buttons, so keyboard only |
+| `eat` | Discrete(85), the full command set, of which movement and 29=EAT are mapped | arrows, A/S/Z/C, and SPACE to eat |
 | designed levels | Discrete(4): 0=N, 1=E, 2=S, 3=W | arrows only |
 
-**Eating** is two NetHack steps: E, then NetHack asks "eat it? [ynq]" and the player answers Y. The prompt is drawn on the tty message line, which is not part of the pixel observation, so the game seems to freeze after E; the instructions give the E-then-Y recipe. In NetHack y and n are also the NW and SE movement keys, so Y (action 7, 'y') and N (action 5, 'n') double as yes and no.
+**Eating** is two NetHack steps: SPACE (eat), then NetHack asks "eat it? [ynq]" and the player answers A, the NW diagonal, which sends NetHack's y. The prompt is drawn on the tty message line, which is not part of the pixel observation, so the game seems to freeze after SPACE; the instructions give the SPACE-then-A recipe. In NetHack y and n are also the NW and SE movement keys, so Y (action 7, 'y') and N (action 5, 'n') double as yes and no.
 
 ## Blocking
 
