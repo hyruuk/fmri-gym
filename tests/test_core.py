@@ -330,6 +330,45 @@ def test_the_pad_presses_the_key_each_control_is_bound_to(monkeypatch):
     pad._bindings = {}
 
 
+def test_each_pad_is_read_by_its_layout(monkeypatch):
+    import types
+
+    import pygame
+
+    from fmri_gym import pad
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    pygame.display.init()
+    gamepad = types.SimpleNamespace(gamepad=object(), layout=pad.GAMEPAD, name="Xbox", id=1)
+    curdes = types.SimpleNamespace(gamepad=None, layout=pad.CURRENT_DESIGNS, name="932", id=2)
+    monkeypatch.setattr(pad, "_enabled", True)
+    monkeypatch.setattr(pad, "_open", lambda: True)
+    monkeypatch.setattr(pad, "_pads", {1: gamepad, 2: curdes})
+    monkeypatch.setattr(pad, "_bindings", {"A": "SPACE", "Y": "W", "LT": "Q", "DPAD_UP": "I"})
+    pad._held.clear()
+    pygame.event.clear()
+
+    def keys(iid, kind, **fields):
+        pygame.event.post(pygame.event.Event(kind, instance_id=iid, **fields))
+        pad.pump()
+        return [(e.type == pygame.KEYDOWN, e.key) for e in pygame.event.get((pygame.KEYDOWN,
+                                                                             pygame.KEYUP))]
+
+    # The gamepad by SDL's names; its raw joystick twin (button 0, the 932's Y) is not read
+    assert keys(1, pygame.CONTROLLERBUTTONDOWN, button=pygame.CONTROLLER_BUTTON_A) \
+        == [(True, pygame.K_SPACE)]
+    assert keys(1, pygame.JOYBUTTONDOWN, button=0) == []
+    assert keys(1, pygame.CONTROLLERBUTTONDOWN, button=pygame.CONTROLLER_BUTTON_DPAD_UP) \
+        == [(True, pygame.K_i)]
+    lt = pygame.CONTROLLER_AXIS_TRIGGERLEFT
+    assert keys(1, pygame.CONTROLLERAXISMOTION, axis=lt, value=20000) == [(True, pygame.K_q)]
+    assert keys(1, pygame.CONTROLLERAXISMOTION, axis=lt, value=12000) == []  # still held
+    assert keys(1, pygame.CONTROLLERAXISMOTION, axis=lt, value=0) == [(False, pygame.K_q)]
+    # The Current Designs pad by its button numbers, as before
+    assert keys(2, pygame.JOYBUTTONDOWN, button=0) == [(True, pygame.K_w)]
+    assert keys(2, pygame.JOYBUTTONDOWN, button=4) == [(True, pygame.K_SPACE)]
+    pad._held.clear()
+
+
 def test_a_check_that_broke_part_way_is_reported_not_crashed_on():
     from fmri_gym.checks import _html_frames, _html_section
     half = {"rig_check": {"frames": {"blocks": []}}}      # it broke before refresh_rate
