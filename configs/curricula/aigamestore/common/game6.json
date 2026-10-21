@@ -1,0 +1,19 @@
+{
+  "type": "game", "backend": "aigamestore",
+  "instructions": {
+    "align": "left", "keys_to_dismiss": ["SPACE"],
+    "text": [
+      "Side-scrolling platformer through the",
+      "shadows. Reach checkpoints and find your way.",
+      "",
+      "Controls:",
+      "   LEFT / RIGHT        move",
+      "   UP or SPACE         jump",
+      "   Z                   interact",
+      "",
+      "(press SPACE to start)"
+    ]
+  },
+  "keys": {"LEFT": 0, "RIGHT": 1, "UP": 2, "SPACE": 3, "Z": 4},
+  "mode": "episode", "n_episodes": 1, "advance_on": ["won"], "duration": 300.0, "fps": 10
+}

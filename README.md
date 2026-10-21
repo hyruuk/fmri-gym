@@ -110,7 +110,7 @@ A curriculum's path after `curricula/`, in camelCase (BIDS labels are letters an
 
 | folder | count | curricula |
 |---|---|---|
-| `aigamestore/` | 11 | game1…game10 (p5.js; needs playwright): game4 and game6 in `levels/`, the others several levels each; and `all`, the ten in a row |
+| `aigamestore/` | 11 | game1…game10 (p5.js; needs playwright), one file each in `aigamestore/` with its phase in `common/` (no `levels/`: game4 and game6 have one level, the others several); and `all`, the ten in a row |
 | `ale/` | 11 | `levels/`: pong, breakout, spaceinvaders, mspacman, seaquest, qbert, asterix, beamrider, enduro, boxing, and `all` |
 | `arc3/` | 6 | `levels/`: g50t, ls20, re86, tr87, tu93, wa30 (the game files are fetched once; see [ARC-AGI-3 games](#arc-agi-3-games)) |
 | `baba/` | 1 | `levels/`: make_win (rule-manipulation puzzle; other ids) |
