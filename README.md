@@ -291,6 +291,15 @@ uv run fmri-play --subject sub-01 --dummy-trigger --ses 1 --run 1 --rig configs/
 
 Controls, phase fields and the logged columns are documented in `configs/curricula/rushhour/common/README.md` and in the package's README ("A person at the board").
 
+To develop Rush-Hour and fmri-gym together, install the package editable from a Rush-Hour checkout and point at the engine built there, which the adapter then uses. The engine's default Go build is headless (no SDL, no C toolchain), so it needs only the Go compiler:
+
+```bash
+RH=/path/to/Rush-Hour
+uv pip install -e "$RH/python"
+(cd "$RH" && go build -o rushhour-env ./cmd/rushhour-env)
+export RUSHHOUR_ENV_BIN="$RH/rushhour-env"
+```
+
 ## Running Baba Is Auto (`baba_auto`)
 
 [utilForever/baba-is-auto](https://github.com/utilForever/baba-is-auto) is a C++ simulator of Baba Is You with the game's real ruleset and the original levels' maps (`baba_is_you`, `out_of_reach`, `off_limits`, ...), where the `baba` backend plays baba-is-ai's small generated puzzles. Its Python module exposes only the `Game`, so the Gymnasium env is **`baba-auto-gym`** (`gym/baba_auto/`, the `baba_auto` extra), one `baba_auto__<level>.json` per level the checkout ships. Installing the extra compiles the engine from the pinned checkout (see [External checkouts](#external-checkouts-external); a C++17 compiler and `python3-dev` are needed; about 30 s), and the env reads the maps and the GUI's sprites from the same checkout:
