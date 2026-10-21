@@ -424,7 +424,7 @@ sh configs/subjects/boston-college/sub-01/ses-003/dbp_puzzle.sh   # nine AI Game
 sh configs/subjects/boston-college/sub-01/ses-001/dbp_mix.sh 003  # ... into session 3: how one that stopped is resumed
 ```
 
-`configs/subjects/boston-college/sub-02/ses-001/dbp_multi.sh` is a session of resumed runs: eleven sequences of levels (COOM, ViZDoom, AI GameStore games 1, 4, 7 and 8, Crafter L1, Rush Hour, Baba Is Auto, MiniHack, STK), each played as two 1-min runs back to back with `--duration 60 --resume`, so the second run carries on where the first stopped (see "Resuming a curriculum").
+`configs/subjects/boston-college/sub-02/ses-001/dbp_multi.sh` is a session of resumed runs: eleven sequences of levels (COOM, ViZDoom, AI GameStore games 1, 4, 7 and 8, Crafter L1, Rush Hour, Baba Is Auto, MiniHack, STK), each played as two 1-min runs back to back with `--duration 60 --loop --resume`, so the second run carries on where the first stopped and a curriculum that ends starts over (see "Resuming a curriculum"). STK keeps no savestate, so its two runs play `--loop` without `--resume`.
 
 The sub-01 sessions assume `sub-01` and a 1024x768 window, and play into the session their folder names unless given another: open one in `fmri-edit --session configs/subjects/boston-college/sub-01/ses-001/dbp_mix.sh` to change any of that, or `--dummy-trigger` a run of it at the desk.
 
