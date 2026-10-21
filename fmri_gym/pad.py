@@ -95,7 +95,7 @@ class Stick(Enum):
 
 
 #: What to do about a stick with no calibration, for the messages that say so.
-HOW_TO_CALIBRATE = "calibrate it in the rig check (check_controls)"
+HOW_TO_CALIBRATE = "run fmri-pad, or the rig check (check_controls)"
 #: The longest a direction may be made to wait before it is pressed.
 MAX_DWELL_S = 0.3
 

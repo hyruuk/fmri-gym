@@ -264,3 +264,82 @@ def test_each_stick_reads_its_own_tuning(config_home, plugged):
 def test_a_check_controls_phase_refuses_pad_reps():
     from fmri_gym.config.phases import CheckControls
     assert any("pad_reps" in p for p in CheckControls.problems({"pad_reps": 3}))
+
+
+@pytest.fixture
+def scope(config_home, plugged, screen):
+    """The tool's window on the dummy display, with the scripted pad plugged in."""
+    from fmri_gym import pad_scope
+    plugged.source = lambda control: f"b{control}"
+    plugged.read = lambda: (plugged._axes({}), set())
+    return pad_scope._Scope({"UP": "UP", "A": "SPACE"}, has_rig=True)
+
+
+def test_the_keyboard_does_nothing_in_the_tool_but_esc(scope):
+    path = pad.write(pad.Calibration.from_dict(copy.deepcopy(FILE)))
+    scope.reload("")
+    before = (pad.tuning(Stick.LEFT), scope.stick, sorted(pad.calibrations_dir().iterdir()))
+    for key in (pygame.K_s, pygame.K_d, pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT,
+                pygame.K_RIGHT, pygame.K_LEFTBRACKET, pygame.K_RIGHTBRACKET, pygame.K_TAB):
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=key, mod=0, unicode=""))
+    scope.events()
+    assert (pad.tuning(Stick.LEFT), scope.stick,
+            sorted(pad.calibrations_dir().iterdir())) == before and scope.running
+    assert pad.in_use()[0] == path
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE, mod=0, unicode=""))
+    scope.events()
+    assert not scope.running
+
+
+@pytest.mark.parametrize("action", ["on-", "on+", "off-", "off+", "dwell-", "dwell+", "diag"])
+def test_each_tuning_button_moves_one_field_within_bounds(action):
+    from fmri_gym import pad_scope
+    for start in (pad.UNCALIBRATED, pad.StickTuning(0.99, 0.99, 0.7, 0.3),
+                  pad.StickTuning(0.5, 0.01, 1.0, 0.0)):
+        moved = pad_scope._retuned(start, action)
+        assert sum(a != b for a, b in zip(vars(moved).values(), vars(start).values())) <= 1
+        pad.StickTuning.from_dict(moved.record(), "")      # what a file allows
+    middle = pad.StickTuning(0.5, 0.3, 1.0, 0.05)
+    assert pad_scope._retuned(middle, action) != middle
+
+
+def test_save_writes_a_new_newest_file_and_leaves_its_source(scope):
+    from fmri_gym import pad_scope
+    source = pad.write(pad.Calibration.from_dict(copy.deepcopy(FILE)))
+    os.utime(source, (1000, 1000))
+    was = source.read_bytes()
+    scope.reload("")
+    pad_scope._ACTIONS["on+"](scope)
+    scope.click(next(b.rect.center for b in scope.buttons if b.action == "save"))
+    assert source.read_bytes() == was
+    path, saved = pad.newest("Scripted")
+    assert path != source and saved.tuned_from == source.name
+    assert saved.sticks[Stick.LEFT].tuning.on == 0.51
+    assert saved.sticks[Stick.LEFT].made == pad.read(source).sticks[Stick.LEFT].made
+    assert pad.in_use()[0] == path
+
+
+def test_the_watch_reloads_only_on_its_one_second_tick(scope, monkeypatch):
+    reloads = []
+    monkeypatch.setattr(scope, "reload", reloads.append)
+    start = scope.next_watch
+    pad.write(pad.Calibration.from_dict(copy.deepcopy(FILE)))   # a calibration added
+    scope.watch(start - 0.5)
+    assert reloads == []
+    scope.watch(start)
+    assert reloads == ["a calibration changed: reloaded"] and scope.next_watch == start + 1.0
+    scope.draw()                                                  # and it draws
+
+
+def test_a_click_is_mapped_back_to_the_picture_at_any_window_size(scope):
+    from fmri_gym import pad_scope
+    canvas = scope.canvas
+    canvas.window.size = (900, 1200)                              # bars above and below
+    assert canvas.window.size == (900, 1200)
+    s = 900 / pad_scope.W
+    top = (1200 - int(pad_scope.H * s)) // 2
+    assert canvas.to_canvas((int(100 * s), top + int(40 * s))) == pytest.approx((100, 40), abs=2)
+    clear = next(b for b in scope.buttons if b.action == "clear")
+    scope.log.append((0.0, "a press", None))
+    scope.click(canvas.to_canvas((int(clear.rect.centerx * s), top + int(clear.rect.centery * s))))
+    assert not scope.log
