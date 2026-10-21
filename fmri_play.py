@@ -74,6 +74,9 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--resume", action="store_true",
                    help="carry on from where this subject's latest run of this config (any "
                    "session) stopped, mid-block included. Default: start at the beginning")
+    p.add_argument("--loop", action="store_true",
+                   help="when the curriculum ends before --duration, play it again from its "
+                   "first phase, newly seeded, until --duration (which it needs)")
     p.add_argument("--rig", required=True,
                    help="the rig file it is played on, e.g. configs/rigs/example/laptop.json: "
                    "it says the window, controller, audio and data root. A rig check makes "

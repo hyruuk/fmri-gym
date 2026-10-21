@@ -184,7 +184,7 @@ def run_output(root: str, subject: str, curriculum_path: str,
     return RunOutput(folder, label, attempt)
 
 
-def phase_seed(label: str, index: int) -> int:
+def phase_seed(label: str, index: int, pass_number: int = 1) -> int:
     """A game phase's base seed when it pins none: its episodes get ``seed, seed + 1, ...``.
 
     A hash of the run's label and the phase's index: stable across processes
@@ -194,9 +194,12 @@ def phase_seed(label: str, index: int) -> int:
 
     :param label: :func:`run_label`.
     :param index: the phase's index in the curriculum.
+    :param pass_number: which time through the curriculum (``--loop``); the first keeps the
+        seed a run without ``--loop`` gets.
     :return: a seed in ``0 .. 2**31 - 1``.
     """
-    digest = hashlib.sha256(f"{label}|phase-{index}".encode()).digest()
+    key = f"{label}|phase-{index}" + (f"|pass-{pass_number}" if pass_number > 1 else "")
+    digest = hashlib.sha256(key.encode()).digest()
     return int.from_bytes(digest[:4], "big") >> 1
 
 
