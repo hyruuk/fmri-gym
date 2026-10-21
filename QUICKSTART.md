@@ -6,6 +6,7 @@ Commands to install fmri-gym and play each game on a laptop, in order. What they
 
 ```bash
 sudo apt install libportaudio2                  # Linux only
+brew install openal-soft                        # Apple Silicon Mac only
 curl -LsSf https://astral.sh/uv/install.sh | sh # if you don't have uv
 git submodule update --init                     # if you cloned without --recursive
 uv sync --extra dbp --extra gui
