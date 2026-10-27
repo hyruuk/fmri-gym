@@ -18,7 +18,13 @@ RIG = "configs/examples/rigs/laptop.json"
 EXAMPLES = rig_file.CONFIGS / "examples" / "rigs"
 
 
-def test_the_check_plan_follows_the_rig():
+@pytest.fixture
+def gui():
+    """Skip the test where the gui extra (PySide6) is not installed."""
+    pytest.importorskip("PySide6", reason="the gui extra: uv sync --extra gui")
+
+
+def test_the_check_plan_follows_the_rig(gui):
     from fmri_gym.gui.rig_config import check_plan
 
     laptop = check_plan(rig_file.RigConfig.open(str(EXAMPLES / "laptop.json")))
@@ -34,8 +40,7 @@ def test_the_check_plan_follows_the_rig():
 
 
 @pytest.fixture
-def qt(monkeypatch):
-    pytest.importorskip("PySide6", reason="the gui extra: uv sync --extra gui")
+def qt(gui, monkeypatch):
     monkeypatch.setenv("QT_QPA_PLATFORM", os.environ.get("QT_QPA_PLATFORM", "offscreen"))
     from fmri_gym.gui import widgets
     return widgets.app()
@@ -150,7 +155,7 @@ def test_a_new_rig_is_filled_step_by_step_then_saved_then_checked(qt, tmp_path):
     assert not window.short_check.isEnabled() and window.save.isEnabled()
 
 
-def test_flags_fmri_play_would_refuse_are_problems():
+def test_flags_fmri_play_would_refuse_are_problems(gui):
     from fmri_gym.gui.session_editor import _flag_problems
 
     assert _flag_problems({}) == [] and _flag_problems({"duration": 60.0, "loop": True}) == []
@@ -195,7 +200,7 @@ def test_an_edit_is_known_until_it_is_saved(qt):
     assert editor._state() != clean
 
 
-def test_the_controller_line_says_what_to_do():
+def test_the_controller_line_says_what_to_do(gui):
     from fmri_gym.gui.rig_config import _controller_line
 
     assert "Plug in" in _controller_line({"name": None, "calibrated": None, "error": None})
