@@ -14,6 +14,12 @@ The phase's ``keys`` are indices into the game's own action set, which differs
 per game: ``gym.make(id).unwrapped.get_action_meanings()`` lists it (Pong:
 NOOP, FIRE, RIGHT, LEFT, RIGHTFIRE, LEFTFIRE). NOOP is 0 for every game, so
 ``"": 0`` is the no-key entry.
+
+Paddle games (Pong, Breakout, ...) were made for a rotary controller; ALE
+turns a held RIGHT/LEFT into a sweep at a fixed rate, fast enough to cross
+Pong's field in about half a second. ``"paddle_strength"`` (0 < s <= 1,
+default 1) scales that sweep through ALE's own ``act(action, paddle_strength)``;
+joystick games ignore it. The phase records it, so a replay uses the same value.
 """
 
 from __future__ import annotations
@@ -25,6 +31,23 @@ import gymnasium as gym
 import numpy as np
 
 from .base import EnvAdapter, FrameState
+
+
+class _PaddleStrength:
+    """An ALE interface whose ``act`` moves the paddles at ``strength`` of full speed.
+
+    ``AtariEnv.step`` always calls ``ale.act(action, 1.0)`` in its discrete
+    mode; this stands in for ``env.unwrapped.ale`` and forwards everything else.
+    """
+
+    def __init__(self, ale: Any, strength: float) -> None:
+        self._ale, self._strength = ale, strength
+
+    def act(self, action: Any, paddle_strength: float = 1.0) -> int:
+        return self._ale.act(action, paddle_strength * self._strength)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._ale, name)
 
 
 class ALEAdapter(EnvAdapter):
@@ -40,9 +63,13 @@ class ALEAdapter(EnvAdapter):
         # Block-wide palette for that logging.
         self._palette = np.zeros((256, 3), dtype=np.uint8)
         self._palette_seen = np.zeros(256, dtype=bool)
-        return gym.make(
+        env = gym.make(
             spec["game"], render_mode="rgb_array",
             frameskip=1, repeat_action_probability=0.0)
+        strength = float(spec.get("paddle_strength", 1.0))
+        if strength != 1.0:
+            env.unwrapped.ale = _PaddleStrength(env.unwrapped.ale, strength)
+        return env
 
     def native_fps(self) -> float:
         """The console's 60 frames per second; ``_make`` steps one frame at a time.

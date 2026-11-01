@@ -259,7 +259,8 @@ def new_curriculum() -> dict:
             {"type": "message", "text": "Get ready\n\n(press SPACE to start)"},
             {"type": "fixation", "duration": 2.0},
             {"type": "game", "backend": "ale", "game": "ALE/Pong-v5", "mode": "duration",
-             "duration": 60.0, "fps": 30, "keys": {"UP": 2, "DOWN": 3}},
+             "duration": 60.0, "fps": 30, "paddle_strength": 0.6,
+             "keys": {"UP": 2, "DOWN": 3}},
             {"type": "fixation", "duration": 2.0},
         ],
     }

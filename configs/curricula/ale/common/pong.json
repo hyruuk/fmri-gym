@@ -1,4 +1,5 @@
 {
   "type": "game", "backend": "ale", "game": "ALE/Pong-v5",
-  "mode": "duration", "fps": 30
+  "mode": "duration", "fps": 30,
+  "paddle_strength": 0.6
 }

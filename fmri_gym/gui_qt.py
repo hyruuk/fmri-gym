@@ -1368,7 +1368,7 @@ class _Editor(QtWidgets.QMainWindow):
         self.extra_text.setFixedHeight(120)
         self.extra_text.setToolTip("Backend-specific fields as JSON, e.g. retro \"state\"/"
                                    "\"scenario\", vgdl \"level\", vizdoom \"env_kwargs\", "
-                                   "ale \"save_pixels\".")
+                                   "ale \"save_pixels\" / \"paddle_strength\".")
         body.addWidget(self.extra_text)
 
     def _commit_phase(self) -> None:
