@@ -261,6 +261,13 @@ class GamePhase(Phase):
     #: repeats). Off by default: backends whose actions are key COMBINATIONS
     #: must keep polling.
     has_latched_keys: bool
+    #: Real-time blocks send ``""`` on a frame with no mapped key held.
+    #: ``has_buffered_keys`` keeps the last keys pressed until the next press,
+    #: so a game that reads its controls only on some frames (a turn at a maze
+    #: junction) takes a press that ended before one; two pressed in quick
+    #: succession join as their combo (:class:`~fmri_gym.adapters.keymap.KeyBuffer`).
+    #: Off by default.
+    has_buffered_keys: bool
     #: A turn-based block draws a frame only when the subject presses, so
     #: the seconds its HUD shows stop between presses while the clock the
     #: block actually ends on does not. ``has_live_hud`` redraws the standing
@@ -303,6 +310,7 @@ class GamePhase(Phase):
             seed=d.get("seed"), state_stride=max(1, int(d.get("state_stride", 1))),
             is_turn_based=d.get("is_turn_based", False),
             has_latched_keys=d.get("has_latched_keys", False),
+            has_buffered_keys=d.get("has_buffered_keys", False),
             has_live_hud=d.get("has_live_hud", False), has_audio=d.get("has_audio", True),
             fps=d["fps"],
             instructions=None if instructions is None else Instructions.from_dict(instructions),
@@ -316,8 +324,11 @@ class GamePhase(Phase):
         if d.get("mode", "duration") not in [mode.value for mode in BlockMode]:
             out.append(f"mode: expected 'duration' or 'episode', got {d.get('mode')!r}")
         out += _fps_problems(d) + _keys_problems(d) + _advance_problems(d) + _rewind_problems(d)
-        out += _bool_problems(d, ("is_turn_based", "has_latched_keys", "has_live_hud",
-                                  "has_audio"))
+        out += _bool_problems(d, ("is_turn_based", "has_latched_keys", "has_buffered_keys",
+                                  "has_live_hud", "has_audio"))
+        if d.get("has_buffered_keys") and (d.get("is_turn_based") or d.get("has_latched_keys")):
+            out.append('"has_buffered_keys" is for real-time blocks that poll held keys; '
+                       'turn it off with "is_turn_based" or "has_latched_keys"')
         if d.get("has_live_hud") and not d.get("is_turn_based"):
             out.append('"has_live_hud" is for is_turn_based blocks, whose wait is unbounded; '
                        "a real-time block already redraws every frame")

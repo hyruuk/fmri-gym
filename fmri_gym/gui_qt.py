@@ -1376,22 +1376,56 @@ class _Editor(QtWidgets.QMainWindow):
             return
         old = self.phases[self.edit_index]
         new = {"type": old["type"], **self.phase_form.get()}
-        if "keys" in old:
+        is_new_game = new["type"] == "game" and (
+            (new.get("backend"), new.get("game")) != (old.get("backend"), old.get("game")))
+        if "keys" in old and not is_new_game:
             new["keys"] = old["keys"]
         if self.extra_text is None and curriculum.INCLUDE_KEY in old:  # else it is in extra
             new[curriculum.INCLUDE_KEY] = old[curriculum.INCLUDE_KEY]
-        if self.extra_text is not None:
-            try:
-                extra = json.loads(self.extra_text.toPlainText() or "{}")
-            except ValueError as exc:
-                raise ValueError(f"extra (JSON): not valid JSON ({exc})") from exc
-            if not isinstance(extra, dict):
-                raise ValueError("extra (JSON): must be a JSON object")
-            new.update(extra)
+        extra = self._read_extra()
+        if is_new_game:
+            extra = self._new_game_setup(new)
+        new.update(extra)
         # The file's key order first, so a saved file diffs only where it was edited.
         new = {k: new[k] for k in old if k in new} | new
         self.phases[self.edit_index] = new
         self.phase_list.item(self.edit_index).setText(gui.phase_label(self.edit_index, new))
+        if is_new_game:
+            self.ctl_index = None  # the Controls tab reloads the new keys, not the old game's
+            self._show_phase(self.edit_index)
+
+    def _read_extra(self) -> dict:
+        """The game form's extra (JSON) fields; ``{}`` for a form without them.
+
+        :raises ValueError: if the text is not a JSON object.
+        """
+        if self.extra_text is None:
+            return {}
+        try:
+            extra = json.loads(self.extra_text.toPlainText() or "{}")
+        except ValueError as exc:
+            raise ValueError(f"extra (JSON): not valid JSON ({exc})") from exc
+        if not isinstance(extra, dict):
+            raise ValueError("extra (JSON): must be a JSON object")
+        return extra
+
+    def _new_game_setup(self, new: dict) -> dict:
+        """Set ``new``'s keys, ``fps`` and ``is_turn_based`` from the config that plays its game;
+        return that phase's extra fields.
+
+        Keys are the game's own action indices, and some fit only with its other fields, and
+        the rate is the game's too, so none of the old game's carry over. With no config for
+        the game, ``new`` has no keys and Check asks for them.
+        """
+        found = self._curated_phase()
+        if found is None:
+            return {}
+        phase = found[1]
+        new.pop("is_turn_based", None)
+        for field in ("keys", "fps", "is_turn_based"):
+            if field in phase:
+                new[field] = copy.deepcopy(phase[field])
+        return copy.deepcopy(gui.split_phase(phase, gui.PHASE_FIELDS["game"])[1])
 
     def _add_phase(self, kind: str) -> None:
         templates = {"fixation": {"type": "fixation", "duration": 2.0},
