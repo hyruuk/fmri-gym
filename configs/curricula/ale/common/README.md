@@ -10,6 +10,10 @@ The `ale` backend's curricula: ten Atari 2600 games, one file each (300 s of pla
 
 A phase's `keys` values are indices into the game's own action set, which differs per game. Read it with `gym.make("ALE/Pong-v5").unwrapped.get_action_meanings()` (README, "Keys"): for Pong, `['NOOP', 'FIRE', 'RIGHT', 'LEFT', 'RIGHTFIRE', 'LEFTFIRE']`, so RIGHT=2, LEFT=3, and `""` (no key held) is 0.
 
+## MsPacman's turns
+
+The game turns only on the frame Ms. Pac-Man is centred on a junction, and only if a direction is held on that frame: a key tapped and released before it is lost. `mspacman.json` sets `"has_buffered_keys": true`, so a frame with no key held sends the last direction held and a turn pressed early is taken at the next junction it fits; the log records the action sent.
+
 ## Curricula
 
 | file | plays |

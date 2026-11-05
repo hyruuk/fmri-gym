@@ -57,6 +57,10 @@ class Keymap(ABC):
         """The combos whose keys are all held (``""`` always is)."""
         return [combo for combo in self.combos if combo <= held]
 
+    def holds_any(self, held: frozenset[str]) -> bool:
+        """Whether a mapped combo other than ``""`` is held."""
+        return any(combo for combo in self._matched(held))
+
     def turn_actions(self) -> dict[str, Any]:
         """``{key: action}`` for the single-key entries: turn-based play steps on one press."""
         return {next(iter(combo)): self.resolve(combo) for combo in self.combos if len(combo) == 1}
@@ -106,6 +110,24 @@ class BoxKeymap(DiscreteKeymap):
         if not space.contains(action):
             raise ValueError(f"keys: {combo!r}: {value!r} is not an action of the env's {space}")
         return action
+
+
+class KeyBuffer:
+    """A :class:`Keymap`'s held-key actions, the last one repeated on a frame with no mapped key held.
+
+    A game that reads its controls only on some frames then takes a press that
+    ended before one of them. Its memory starts empty.
+    """
+
+    def __init__(self, keymap: Keymap) -> None:
+        self.keymap = keymap
+        self.action: Any = None
+
+    def resolve(self, held: frozenset[str]) -> Any:
+        """The held keys' action, or the last one held when none is (``""``'s before any)."""
+        if self.keymap.holds_any(held):
+            self.action = self.keymap.resolve(held)
+        return self.keymap.resolve(held) if self.action is None else self.action
 
 
 def make_keymap(spec: dict, space: gym.Space) -> Keymap:

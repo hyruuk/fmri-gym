@@ -38,6 +38,7 @@ import pygame
 
 from . import bids, pad
 from .adapters import get_adapter
+from .adapters.keymap import KeyBuffer
 from .audio import Audio
 from .bids import BlockProgress, RunProgress
 from .config.curriculum import Curriculum, game_changes
@@ -579,7 +580,8 @@ class Run:
         :param game_phase: the phase's settings; read here are
             ``is_turn_based`` (advance only on mapped keydowns),
             ``has_latched_keys`` (real-time: let a fresh keydown win over held
-            keys), ``has_live_hud`` (turn-based: redraw the HUD through the
+            keys), ``has_buffered_keys`` (real-time: no key held sends the last
+            held one's action), ``has_live_hud`` (turn-based: redraw the HUD through the
             wait), ``frame_period``, ``state_stride``, ``has_audio`` (with the rig's) and
             ``show_outcome_duration``.
         :param seed: RNG seed for this episode's ``reset``.
@@ -605,6 +607,8 @@ class Run:
         dt = game_phase.frame_period
         key_to_action = (adapter.keymap.turn_actions()
                          if game_phase.is_turn_based or game_phase.has_latched_keys else None)
+        held_keymap = (KeyBuffer(adapter.keymap) if game_phase.has_buffered_keys
+                       else adapter.keymap)
 
         def redraw() -> float:
             """Present the frame again, for its HUD. Never steps, logs or triggers."""
@@ -673,7 +677,7 @@ class Run:
             elif not game_phase.is_turn_based and action is None:
                 # No latched press this frame (or the phase never asked for
                 # one): the action is whatever is held down at the tick.
-                action = adapter.keymap.resolve(held_key_names())
+                action = held_keymap.resolve(held_key_names())
 
             observation, reward, terminated, truncated, info = adapter.step(action)
             auto = adapter.autoplay(info) if game_phase.is_turn_based else None

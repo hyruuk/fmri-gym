@@ -469,6 +469,9 @@ They assume `sub-01` and a 1024x768 window, and play into the session their fold
  "is_turn_based": false,        // step only on a key PRESS, not per frame (grid/toy_text games)
  "has_latched_keys": false,     // real-time: a fresh key PRESS beats the held-key poll, so a tap
                                 // shorter than one frame is not dropped (games below ~10 fps)
+ "has_buffered_keys": false,    // real-time: a frame with no key held sends the last held key's
+                                // action, not "", so a game that reads its controls only on some
+                                // frames (a maze turn at a junction) takes a press made early
  "has_live_hud": false,         // is_turn_based only: redraw the standing frame while the loop waits
                                 // for the press, so the clock in the HUD keeps up with the block's.
                                 // Draws pixels and nothing else -- no step, no log row, no trigger,

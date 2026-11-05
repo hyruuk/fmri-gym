@@ -16,7 +16,7 @@ from gymnasium import spaces
 from fmri_gym.adapters.base import Sound
 from fmri_gym.audio import AudioBlockLog
 from fmri_gym.bids import task_label
-from fmri_gym.adapters.keymap import make_keymap
+from fmri_gym.adapters.keymap import KeyBuffer, make_keymap
 from fmri_gym.config.curriculum import (
     check_shape, game_changes, is_common_file, load_curriculum, save_curriculum,
     shared_overrides, validate_curriculum,
@@ -119,6 +119,19 @@ def test_box_keymap_takes_lists():
     assert np.array_equal(km.resolve(frozenset({"RIGHT"})), np.array([1.0], dtype=np.float32))
 
 
+def test_key_buffer_sends_the_last_held_action_while_no_key_is_held():
+    km = make_keymap({"keys": {"": 0, "UP": 1, "LEFT": 3, "UP+LEFT": 6}}, spaces.Discrete(9))
+    buf = KeyBuffer(km)
+    assert buf.resolve(frozenset()) == 0                     # nothing held yet: ""
+    assert buf.resolve(frozenset({"UP"})) == 1
+    assert buf.resolve(frozenset()) == 1                     # released: still UP
+    assert buf.resolve(frozenset({"X"})) == 1                # an unmapped key is no key
+    assert buf.resolve(frozenset({"UP", "LEFT"})) == 6
+    assert buf.resolve(frozenset({"LEFT"})) == 3
+    assert buf.resolve(frozenset()) == 3
+    assert KeyBuffer(km).resolve(frozenset()) == 0           # a new buffer starts empty
+
+
 def test_keymap_refuses_an_action_outside_the_space():
     with pytest.raises(ValueError):
         make_keymap({"keys": {"": 0, "LEFT": 5}}, spaces.Discrete(3))
@@ -128,6 +141,9 @@ def test_keymap_refuses_an_action_outside_the_space():
     ({**PHASE, "keys": {"": 0, "NOSUCHKEY": 1}}, "NOSUCHKEY"),
     ({k: v for k, v in PHASE.items() if k != "keys"}, "keys"),
     ({**PHASE, "fps": 0}, "fps"),
+    ({**PHASE, "has_buffered_keys": 1}, "has_buffered_keys"),
+    ({**PHASE, "has_buffered_keys": True, "has_latched_keys": True}, "has_buffered_keys"),
+    ({**PHASE, "has_buffered_keys": True, "is_turn_based": True}, "has_buffered_keys"),
 ])
 def test_validate_config_refuses(phase, problem):
     problems = validate_curriculum({"curriculum": [phase]})
