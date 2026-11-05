@@ -580,8 +580,8 @@ class Run:
         :param game_phase: the phase's settings; read here are
             ``is_turn_based`` (advance only on mapped keydowns),
             ``has_latched_keys`` (real-time: let a fresh keydown win over held
-            keys), ``has_buffered_keys`` (real-time: no key held sends the last
-            held one's action), ``has_live_hud`` (turn-based: redraw the HUD through the
+            keys), ``has_buffered_keys`` (real-time: the last keys pressed stay
+            pressed until the next press), ``has_live_hud`` (turn-based: redraw the HUD through the
             wait), ``frame_period``, ``state_stride``, ``has_audio`` (with the rig's) and
             ``show_outcome_duration``.
         :param seed: RNG seed for this episode's ``reset``.
@@ -607,7 +607,7 @@ class Run:
         dt = game_phase.frame_period
         key_to_action = (adapter.keymap.turn_actions()
                          if game_phase.is_turn_based or game_phase.has_latched_keys else None)
-        held_keymap = (KeyBuffer(adapter.keymap) if game_phase.has_buffered_keys
+        held_keymap = (KeyBuffer(adapter.keymap, game_phase.fps) if game_phase.has_buffered_keys
                        else adapter.keymap)
 
         def redraw() -> float:

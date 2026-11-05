@@ -262,10 +262,11 @@ class GamePhase(Phase):
     #: must keep polling.
     has_latched_keys: bool
     #: Real-time blocks send ``""`` on a frame with no mapped key held.
-    #: ``has_buffered_keys`` sends the last held key's action instead, until
-    #: another is held, so a game that reads its controls only on some frames
-    #: (a turn at a maze junction) takes a press that ended before one. Off by
-    #: default.
+    #: ``has_buffered_keys`` keeps the last keys pressed until the next press,
+    #: so a game that reads its controls only on some frames (a turn at a maze
+    #: junction) takes a press that ended before one; two pressed in quick
+    #: succession join as their combo (:class:`~fmri_gym.adapters.keymap.KeyBuffer`).
+    #: Off by default.
     has_buffered_keys: bool
     #: A turn-based block draws a frame only when the subject presses, so
     #: the seconds its HUD shows stop between presses while the clock the

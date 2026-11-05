@@ -119,17 +119,31 @@ def test_box_keymap_takes_lists():
     assert np.array_equal(km.resolve(frozenset({"RIGHT"})), np.array([1.0], dtype=np.float32))
 
 
-def test_key_buffer_sends_the_last_held_action_while_no_key_is_held():
-    km = make_keymap({"keys": {"": 0, "UP": 1, "LEFT": 3, "UP+LEFT": 6}}, spaces.Discrete(9))
-    buf = KeyBuffer(km)
-    assert buf.resolve(frozenset()) == 0                     # nothing held yet: ""
-    assert buf.resolve(frozenset({"UP"})) == 1
-    assert buf.resolve(frozenset()) == 1                     # released: still UP
-    assert buf.resolve(frozenset({"X"})) == 1                # an unmapped key is no key
-    assert buf.resolve(frozenset({"UP", "LEFT"})) == 6
-    assert buf.resolve(frozenset({"LEFT"})) == 3
-    assert buf.resolve(frozenset()) == 3
-    assert KeyBuffer(km).resolve(frozenset()) == 0           # a new buffer starts empty
+_JOYSTICK = {"": 0, "UP": 1, "RIGHT": 2, "LEFT": 3, "DOWN": 4, "UP+LEFT": 6}
+
+
+def _buffered(*frames: set[str], fps: float = 20) -> list:
+    """The actions a fresh KeyBuffer sends for these held keys, one set per frame."""
+    buf = KeyBuffer(make_keymap({"keys": _JOYSTICK}, spaces.Discrete(9)), fps)
+    return [buf.resolve(frozenset(held)) for held in frames]
+
+
+def test_key_buffer_keeps_the_last_press_until_the_next():
+    # at 20 fps MERGE_S is 5 frames
+    assert _buffered(set(), {"UP"}, set(), {"X"}, *[set()] * 9, {"LEFT"}, {"LEFT"}, set()) \
+        == [0, 1, 1, 1] + [1] * 9 + [3, 3, 3]           # an unmapped key is no key
+    assert _buffered({"UP"}, {"UP", "LEFT"}, {"LEFT"}, set()) == [1, 6, 3, 3]
+
+
+def test_key_buffer_joins_quick_presses_into_their_combo():
+    quick = _buffered({"UP"}, set(), set(), {"LEFT"}, set(), set())
+    assert quick == [1, 1, 1, 6, 6, 6]
+    assert _buffered({"UP"}, *[set()] * 6, {"LEFT"}) == [1] * 7 + [3]          # too slow
+    assert _buffered({"UP"}, set(), {"DOWN"}) == [1, 1, 4]                     # no UP+DOWN
+    assert _buffered(*[{"UP"}] * 8, set(), {"LEFT"}, set()) == [1] * 9 + [3, 3]   # UP held, no tap
+    # the combo outlives its keys being let go, and the next press ends it
+    assert _buffered({"UP"}, set(), {"LEFT"}, {"LEFT"}, set(), *[set()] * 6, {"DOWN"}) \
+        == [1, 1, 6, 6, 6] + [6] * 6 + [4]
 
 
 def test_keymap_refuses_an_action_outside_the_space():

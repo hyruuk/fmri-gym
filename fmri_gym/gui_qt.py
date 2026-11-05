@@ -1410,19 +1410,19 @@ class _Editor(QtWidgets.QMainWindow):
         return extra
 
     def _new_game_setup(self, new: dict) -> dict:
-        """Set ``new``'s keys and ``is_turn_based`` from the config that plays its game; return
-        that phase's extra fields.
+        """Set ``new``'s keys, ``fps`` and ``is_turn_based`` from the config that plays its game;
+        return that phase's extra fields.
 
-        Keys are the game's own action indices, and some fit only with its other fields, so
-        none of the old game's carry over. With no config for the game, ``new`` has no keys
-        and Check asks for them.
+        Keys are the game's own action indices, and some fit only with its other fields, and
+        the rate is the game's too, so none of the old game's carry over. With no config for
+        the game, ``new`` has no keys and Check asks for them.
         """
         found = self._curated_phase()
         if found is None:
             return {}
         phase = found[1]
         new.pop("is_turn_based", None)
-        for field in ("keys", "is_turn_based"):
+        for field in ("keys", "fps", "is_turn_based"):
             if field in phase:
                 new[field] = copy.deepcopy(phase[field])
         return copy.deepcopy(gui.split_phase(phase, gui.PHASE_FIELDS["game"])[1])

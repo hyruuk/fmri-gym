@@ -57,10 +57,6 @@ class Keymap(ABC):
         """The combos whose keys are all held (``""`` always is)."""
         return [combo for combo in self.combos if combo <= held]
 
-    def holds_any(self, held: frozenset[str]) -> bool:
-        """Whether a mapped combo other than ``""`` is held."""
-        return any(combo for combo in self._matched(held))
-
     def turn_actions(self) -> dict[str, Any]:
         """``{key: action}`` for the single-key entries: turn-based play steps on one press."""
         return {next(iter(combo)): self.resolve(combo) for combo in self.combos if len(combo) == 1}
@@ -112,22 +108,47 @@ class BoxKeymap(DiscreteKeymap):
         return action
 
 
-class KeyBuffer:
-    """A :class:`Keymap`'s held-key actions, the last one repeated on a frame with no mapped key held.
+#: :class:`KeyBuffer` merges a press into its combo with the keys before it when those were
+#: a tap -- held at most this many seconds -- let go at most this many seconds before.
+MERGE_S = 0.25
 
-    A game that reads its controls only on some frames then takes a press that
-    ended before one of them. Its memory starts empty.
+
+class KeyBuffer:
+    """A :class:`Keymap` whose keys stay pressed after they are let go, until the next press.
+
+    A game that reads its controls only on some frames then takes a press that ended
+    before one of them. A press right after a tap (:data:`MERGE_S`) joins it when the
+    keymap has that combo (UP tapped, then LEFT: UP+LEFT); any other press replaces the
+    kept keys. Steps one frame per :meth:`resolve`; its memory starts empty.
     """
 
-    def __init__(self, keymap: Keymap) -> None:
+    def __init__(self, keymap: Keymap, fps: float) -> None:
         self.keymap = keymap
-        self.action: Any = None
+        self.merge_frames = round(MERGE_S * fps)
+        self.names = frozenset().union(*keymap.combos)
+        self.keys: frozenset[str] = frozenset()     # what is sent: held, or kept
+        self.held: frozenset[str] = frozenset()     # mapped keys held last frame
+        self.is_merged = False
+        self.frame = self.last_held = self.last_press = 0
 
     def resolve(self, held: frozenset[str]) -> Any:
-        """The held keys' action, or the last one held when none is (``""``'s before any)."""
-        if self.keymap.holds_any(held):
-            self.action = self.keymap.resolve(held)
-        return self.keymap.resolve(held) if self.action is None else self.action
+        """The action of the kept keys, after this frame's ``held`` keys update them."""
+        keys = held & self.names
+        pressed = keys - self.held
+        self.frame += 1
+        if pressed:
+            merged = self.keys | keys
+            was_tap = self.last_held - self.last_press < self.merge_frames
+            self.is_merged = (merged != keys and merged in self.keymap.combos and was_tap
+                              and self.frame - self.last_held <= self.merge_frames)
+            self.keys = merged if self.is_merged else keys
+            self.last_press = self.frame
+        elif keys and not (self.is_merged and keys <= self.keys):
+            self.keys, self.is_merged = keys, False
+        if keys:
+            self.last_held = self.frame
+        self.held = keys
+        return self.keymap.resolve(self.keys)
 
 
 def make_keymap(spec: dict, space: gym.Space) -> Keymap:
