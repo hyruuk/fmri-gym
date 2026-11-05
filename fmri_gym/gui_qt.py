@@ -146,6 +146,33 @@ def _button(text: str, slot: Callable[[], Any]) -> QtWidgets.QPushButton:
     return b
 
 
+def _scrolled(inner: QtWidgets.QWidget) -> QtWidgets.QScrollArea:
+    """``inner`` in a scroll area: content that outgrows the screen scrolls, rather than
+    growing its window past the screen and the buttons at the window's foot with it."""
+    scroll = QtWidgets.QScrollArea()
+    scroll.setWidgetResizable(True)
+    scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+    scroll.setWidget(inner)
+    return scroll
+
+
+def _fit_screen(window: QtWidgets.QWidget, width: int, height: int) -> None:
+    """Size ``window`` to ``width`` x ``height``, or to what its screen has room for."""
+    parent = window.parentWidget()
+    screen = (parent.screen() if parent is not None else window.screen()).availableGeometry()
+    window.resize(min(width, screen.width() * 95 // 100),
+                  min(height, screen.height() * 90 // 100))
+
+
+def _problem_box(label: QtWidgets.QLabel) -> QtWidgets.QScrollArea:
+    """A dialog's live problem list, a few lines high at most: a long one scrolls, so it
+    cannot push the dialog's Save off the screen."""
+    box = _scrolled(label)
+    box.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+    box.setMaximumHeight(90)
+    return box
+
+
 def _row(*widgets: QtWidgets.QWidget, stretch: bool = True) -> QtWidgets.QHBoxLayout:
     row = QtWidgets.QHBoxLayout()
     for w in widgets:
@@ -185,6 +212,11 @@ class _Form(QtWidgets.QWidget):
         if f.kind in ("choice", "combo"):
             w = QtWidgets.QComboBox()
             w.setEditable(f.kind == "combo")
+            # Sized by a fixed width, not by its longest entry: a backend's game list
+            # (set_choices) would otherwise widen the form, and the window, as it loads.
+            w.setSizeAdjustPolicy(
+                QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+            w.setMinimumContentsLength(20)
             w.addItems(list(f.choices))
             w.currentTextChanged.connect(self.changed)  # a pick, or typing in a combo
             return w
@@ -347,7 +379,7 @@ class _Editor(QtWidgets.QMainWindow):
         self._session_view, self._run_view = _LIST, _PHASES
         self._script_shown = self._json_shown = ""
         self.setWindowTitle("fmri-gym config")
-        self.resize(1250, 850)
+        _fit_screen(self, 1250, 850)
         self._build_menu()
         bottom = self._build_bottom()  # first: the Launch tab labels its Run button
         self.tabs = QtWidgets.QTabWidget()
@@ -375,8 +407,10 @@ class _Editor(QtWidgets.QMainWindow):
             ("Launch", lambda: self._tab_launch(launch)),
             ("Session manager", self._tab_session),
             ("Controls", self._tab_controls), ("Triggers", self._tab_triggers))}
+        pages = {title: _scrolled(page) for title, page in pages.items()}
         for title, page in pages.items():
             self.tabs.addTab(page, title)
+        self.launch_page = pages["Launch"]  # the tab itself, for setCurrentWidget
         self.config_pages = (pages["Controls"],)  # a command line has no config
         # The triggers are the rig's: shown for the launch's rig, whatever line is selected.
         self.launch_form.widgets["rig"].currentTextChanged.connect(
@@ -490,6 +524,7 @@ class _Editor(QtWidgets.QMainWindow):
         self.run_views.currentChanged.connect(self._on_run_view)
         self.run_title = QtWidgets.QLabel()
         self.run_title.setObjectName("hint")
+        self.run_title.setWordWrap(True)  # a long config path wraps, not widens the window
         self.run_pick = self._file_pick("json", "the run configs in configs/curricula/: open one, "
                                                 "or in a session add it after the selected line",
                                         self._pick_run)
@@ -522,11 +557,15 @@ class _Editor(QtWidgets.QMainWindow):
         self.phase_pane = QtWidgets.QGroupBox("phase")
         self.phase_pane.setLayout(QtWidgets.QVBoxLayout())
         self.phase_body: QtWidgets.QWidget | None = None
+        # Scrolled: a game phase's form grows with what its game brings (keys, the config it
+        # is set up in), and unscrolled that would grow the window past the screen, Play with it.
+        scroll = _scrolled(self.phase_pane)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         phases = QtWidgets.QWidget()
         columns = QtWidgets.QHBoxLayout(phases)
         columns.addWidget(self.phase_list)
         columns.addLayout(buttons)
-        columns.addWidget(self.phase_pane, 1)
+        columns.addWidget(scroll, 1)
         return phases
 
     @staticmethod
@@ -564,11 +603,16 @@ class _Editor(QtWidgets.QMainWindow):
         """A drop-down of the ``configs/`` files of one kind; choosing one calls ``slot``."""
         pick = QtWidgets.QComboBox()
         pick.setFont(_mono())
-        pick.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToContents)
+        # As wide as its placeholder, not its longest path (which would set the window's
+        # minimum width); the open list is as wide as the paths, so they still read whole.
+        pick.setSizeAdjustPolicy(
+            QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        pick.setMinimumContentsLength(len("pick from configs/..."))
         pick.setToolTip(tip)
         pick.addItem("pick from configs/...", None)
         for path in gui.listed_files(ext):
             pick.addItem(path, path)
+        pick.view().setMinimumWidth(pick.view().sizeHintForColumn(0) + 24)
         pick.activated.connect(lambda index: slot(pick.itemData(index)))
         return pick
 
@@ -1211,8 +1255,12 @@ class _Editor(QtWidgets.QMainWindow):
         """
         self.curated_label = QtWidgets.QLabel()
         self.curated_label.setObjectName("hint")
+        self.curated_label.setWordWrap(True)  # a long config path wraps, not widens the window
         self.curated_button = _button("Fill this phase from that config", self._use_curated)
-        body.addLayout(_row(self.curated_button, self.curated_label))
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(self.curated_button)
+        row.addWidget(self.curated_label, 1)
+        body.addLayout(row)
         widgets = self.phase_form.widgets
         widgets["backend"].currentTextChanged.connect(lambda _text: self._refresh_games())
         widgets["game"].currentTextChanged.connect(lambda _text: self._refresh_curated())
@@ -1320,7 +1368,7 @@ class _Editor(QtWidgets.QMainWindow):
         self.extra_text.setFixedHeight(120)
         self.extra_text.setToolTip("Backend-specific fields as JSON, e.g. retro \"state\"/"
                                    "\"scenario\", vgdl \"level\", vizdoom \"env_kwargs\", "
-                                   "ale \"save_pixels\".")
+                                   "ale \"save_pixels\" / \"paddle_strength\".")
         body.addWidget(self.extra_text)
 
     def _commit_phase(self) -> None:
@@ -1795,9 +1843,13 @@ class _RigForm(QtWidgets.QDialog):
         #: what the form does not edit (the file's place, the Triggers tab, the file), kept
         self._kept = {k: values[k] for k in ("site", "rig", "triggers", "bindings")
                       if k in values}
-        self.setMinimumWidth(640)
         self.fields: dict[str, QtWidgets.QWidget] = {}
-        layout = QtWidgets.QVBoxLayout(self)
+        outer = QtWidgets.QVBoxLayout(self)
+        # The form scrolls; its problems and Save stay in view below it, whatever the screen.
+        content = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(content)
+        layout.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(_scrolled(content), 1)
         intro = QtWidgets.QLabel(_RIG_INTRO)
         intro.setWordWrap(True)
         layout.addWidget(intro)
@@ -1815,14 +1867,15 @@ class _RigForm(QtWidgets.QDialog):
         self.problems = QtWidgets.QLabel()
         self.problems.setWordWrap(True)
         self.problems.setStyleSheet("color: #c0392b")
-        layout.addWidget(self.problems)
+        outer.addWidget(_problem_box(self.problems))
         buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Save
                                              | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         self.save = buttons.button(QtWidgets.QDialogButtonBox.StandardButton.Save)
-        layout.addWidget(buttons)
+        outer.addWidget(buttons)
         self._check()
+        _fit_screen(self, 760, 900)
 
     def _field(self, key: str, value: str, example: str) -> QtWidgets.QWidget:
         """The widget for one key: a choice for ``modality``, a text box for ``notes``."""
@@ -1976,9 +2029,13 @@ class _TriggerChoice(QtWidgets.QDialog):
     def __init__(self, path: str) -> None:
         super().__init__()
         self.setWindowTitle(f"Triggers: {path}")
-        self.setMinimumWidth(620)
         self.touched = False
-        layout = QtWidgets.QVBoxLayout(self)
+        outer = QtWidgets.QVBoxLayout(self)
+        # The forms scroll; the summary and Save stay in view below them, whatever the screen.
+        content = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(content)
+        layout.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(_scrolled(content), 1)
         intro = QtWidgets.QLabel(
             f"{path} has no trigger settings yet: how does this rig start the recording, and "
             "what does it send? Pick a setup, or set your own. They are saved in the file; "
@@ -1996,17 +2053,19 @@ class _TriggerChoice(QtWidgets.QDialog):
         for form in (self.sync_form, self.trigger_form):
             layout.addWidget(form)
             form.changed.connect(self._edited)
+        layout.addStretch(1)
         self.text = QtWidgets.QLabel()
         self.text.setWordWrap(True)
-        layout.addWidget(self.text)
+        outer.addWidget(_problem_box(self.text))
         buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Save
                                              | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         self.save = buttons.button(QtWidgets.QDialogButtonBox.StandardButton.Save)
-        layout.addWidget(buttons)
+        outer.addWidget(buttons)
         self.touched = False  # filling the forms above is not a choice
         self._refresh()
+        _fit_screen(self, 620, 560)
 
     def _apply_preset(self) -> None:
         if self.preset.currentText() == self._PICK:

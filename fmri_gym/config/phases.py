@@ -324,6 +324,10 @@ class GamePhase(Phase):
         seconds = d.get("show_outcome_duration", 0)
         if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or seconds < 0:
             out.append(f"show_outcome_duration: expected seconds >= 0, got {seconds!r}")
+        if "paddle_strength" in d:
+            s = d["paddle_strength"]
+            if isinstance(s, bool) or not isinstance(s, (int, float)) or not 0 < s <= 1:
+                out.append(f"paddle_strength: expected a number in (0, 1], got {s!r}")
         if "menu" in d:
             out.extend(menu_problems(d["menu"]))
         if "instructions" in d:

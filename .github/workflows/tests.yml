@@ -33,10 +33,14 @@ env:
   SDL_AUDIODRIVER: dummy
   PYTHONUNBUFFERED: "1"
 
+# The runners are pinned to 24.04, whose PortAudio (19.6) has no PulseAudio host API. Ubuntu
+# 26.04's (19.7) does, and with no sound server it fails Pa_Initialize, so `import sounddevice`
+# (fmri_gym.audio) raises before a test is collected.
+
 jobs:
   core:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -56,7 +60,7 @@ jobs:
 
   backend:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false

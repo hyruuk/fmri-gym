@@ -2,7 +2,7 @@
   "curriculum": [
     {"type": "message", "text": "Pong (Atari)", "duration": 2.0},
     {"type": "fixation", "duration": 2.0},
-    {"type": "game", "backend": "ale", "game": "ALE/Pong-v5", "mode": "duration", "duration": 15.0, "fps": 30, "keys": {"": 0, "SPACE": 1, "RIGHT": 2, "LEFT": 3, "RIGHT+SPACE": 4, "LEFT+SPACE": 5, "UP": 2, "DOWN": 3}},
+    {"type": "game", "backend": "ale", "game": "ALE/Pong-v5", "paddle_strength": 0.6, "mode": "duration", "duration": 15.0, "fps": 30, "keys": {"": 0, "SPACE": 1, "RIGHT": 2, "LEFT": 3, "RIGHT+SPACE": 4, "LEFT+SPACE": 5, "UP": 2, "DOWN": 3}},
     {"type": "message", "text": "Airstriker (Genesis)", "duration": 2.0},
     {"type": "fixation", "duration": 2.0},
     {"type": "game", "backend": "retro", "game": "Airstriker-Genesis-v0", "keys": {"Z": 1, "X": 0, "C": 8, "A": 10, "S": 9, "D": 11, "UP": 4, "DOWN": 5, "LEFT": 6, "RIGHT": 7, "RETURN": 3, "TAB": 2}, "mode": "duration", "duration": 15.0, "fps": 59.92274340431231},
