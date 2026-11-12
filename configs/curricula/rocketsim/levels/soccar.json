@@ -1,0 +1,8 @@
+{
+  "curriculum": [
+    {
+      "__include": "../common/soccar.json",
+      "instructions": {"title": "Rocket League: one on one"}
+    }
+  ]
+}

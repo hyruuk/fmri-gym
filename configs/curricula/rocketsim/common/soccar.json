@@ -1,0 +1,26 @@
+{
+  "type": "game", "backend": "rocketsim", "game": "RocketSimSoccar-v0",
+  "instructions": {
+    "align": "left", "controls_to_dismiss": ["SPACE"],
+    "text": [
+      "A match of Rocket League against a bot. You are blue:",
+      "score in the orange goal, and keep the ball out of yours.",
+      "",
+      "Controls:",
+      "   W / S                throttle / reverse",
+      "   A / D, LEFT / RIGHT  steer (in the air: turn)",
+      "   UP / DOWN            nose down / nose up",
+      "   SPACE                jump",
+      "   LEFT SHIFT           boost",
+      "   LEFT CTRL            powerslide (in the air: roll)",
+      "   Q / E                air roll left / right",
+      "   C                    ball cam on / off",
+      "",
+      "(press SPACE to start)"
+    ]
+  },
+  "controls": {"W": 0, "S": 1, "A": 2, "LEFT": 2, "D": 3, "RIGHT": 3, "UP": 4, "DOWN": 5, "SPACE": 6, "LSHIFT": 7, "LCTRL": 8, "C": 9, "Q": 10, "E": 11},
+  "hud": {"show_score": false, "show_time_remaining": false},
+  "env_kwargs": {"match_seconds": 300},
+  "mode": "episode", "n_episodes": 1, "duration": 600.0, "fps": 60
+}

@@ -96,7 +96,23 @@ def _stk() -> str | None:
             "STK_ENV_BIN names a binary of your own")
 
 
-_RUNTIME_NEEDS = {"aigamestore": _chrome, "arc3": _arc3_files, "stk": _stk}
+def _rocketsim() -> str | None:
+    """rocketsim needs RocketSim's wheel and an OpenGL 3.3 context to draw its frames in."""
+    if importlib.util.find_spec("RocketSim") is None:
+        return f"RocketSim (pip rocketsim) has no wheel for {platform.system()} {platform.machine()}"
+    import moderngl
+    try:
+        # EGL on Linux, as rocketsim_gym draws: it needs no display.
+        egl = {"backend": "egl"} if platform.system() == "Linux" else {}
+        moderngl.create_standalone_context(require=330, **egl).release()
+    except Exception as error:
+        return (f"no OpenGL 3.3 context opens to draw the frames ({error}): on Linux, "
+                "apt install libegl1 libegl-mesa0 libgl1-mesa-dri")
+    return None
+
+
+_RUNTIME_NEEDS = {"aigamestore": _chrome, "arc3": _arc3_files, "stk": _stk,
+                  "rocketsim": _rocketsim}
 
 _C = "configs/curricula/"
 BACKENDS: dict[str, Backend] = {b.name: b for b in (
@@ -131,6 +147,8 @@ BACKENDS: dict[str, Backend] = {b.name: b for b in (
     Backend("stk", "stk", "stk_gym", (_C + "stk/levels/hacienda.json",),
             ci="the game renders through a real GL display, which a hosted runner lacks",
             needs_display=True),
+    Backend("rocketsim", "rocketsim", "rocketsim_gym", (_C + "rocketsim/levels/soccar.json",),
+            gym_dirs=("replay_state",)),
 )}
 
 #: The backends whose headless runs stand for the run loop when only core files changed:

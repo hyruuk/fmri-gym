@@ -65,6 +65,11 @@ rushhour = ["rushhour-gym>=0.7.0", "replay-state-gym"]
 # The pack is tied to the package version, so upgrading the pin is the whole
 # update procedure; STK_ENV_BIN overrides the binary it fetched.
 stk = ["supertuxkart-gym>=0.1.4"]
+# Rocket League's soccar, one car against a ball-chasing bot: RocketSim's physics, the match's
+# rules and frames drawn offscreen with OpenGL 3.3, from hyruuk/rocketsim-gym (see
+# tool.uv.sources). RocketSim has wheels for macOS 14+ on arm64, Linux (x86_64, aarch64) and
+# Windows x86_64; on Linux the frames need Mesa's EGL (libegl1 libegl-mesa0 libgl1-mesa-dri).
+rocketsim = ["rocketsim-gym", "replay-state-gym"]
 # `gym` backend families beyond classic_control / toy_text (which ship with gymnasium):
 # `Box2D` is the module gymnasium's box2d envs import. gymnasium[box2d] would
 # get it from box2d-py, an sdist-only 2018 release that must compile (swig +
@@ -147,6 +152,7 @@ vgdl-gym = { path = "gym/vgdl", editable = true }
 arc3-gym = { path = "gym/arc3", editable = true }
 replay-state-gym = { path = "gym/replay_state", editable = true }
 vizdoom-gym = { path = "gym/vizdoom", editable = true }
+rocketsim-gym = { git = "https://github.com/hyruuk/rocketsim-gym", rev = "e96be7473f57185ffe996167ca6c981bc2ffca31" }
 
 # Who may import whom (docs/DEPENDENCIES.md), checked by `lint-imports` in CI. The gym/
 # packages are read from their folders, so run it as
@@ -175,7 +181,7 @@ source_modules = [
 ]
 forbidden_modules = [
     "ale_py", "stable_retro", "vizdoom", "minihack", "nle", "crafter", "stk_gym",
-    "rushhour_gym", "shimmy", "Box2D", "mujoco",
+    "rushhour_gym", "shimmy", "Box2D", "mujoco", "RocketSim", "rocketsim_gym",
     "aigamestore_gym", "arc3_gym", "baba_gym", "baba_auto_gym", "coom_gym", "crafter_gym",
     "minihack_levels", "replay_state_gym", "vgdl_gym", "vizdoom_gym",
 ]

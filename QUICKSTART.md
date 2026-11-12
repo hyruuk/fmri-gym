@@ -125,6 +125,13 @@ uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/examples/rigs/mi
 uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/examples/rigs/minimal.json --curriculum configs/curricula/stk/levels/hacienda.json
 ```
 
+### Rocket League
+
+```bash
+uv sync --extra dbp --extra rocketsim --extra gui   # its own extra, not in dbp
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/examples/rigs/minimal.json --curriculum configs/curricula/rocketsim/levels/soccar.json   # a 5:00 match against a bot
+```
+
 ## Before a real session
 
 ```bash

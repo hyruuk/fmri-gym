@@ -67,7 +67,7 @@ jobs:
       matrix:
         # Every row of tests/backends.py without a `ci` reason, minus gym (above).
         backend: [ale, crafter, minihack, nethack, vizdoom, coom, vgdl, baba, baba_auto,
-                  rushhour, aigamestore, arc3]
+                  rushhour, aigamestore, arc3, rocketsim]
     name: ${{ matrix.backend }}
     steps:
       - uses: actions/checkout@v4
@@ -85,6 +85,9 @@ jobs:
           # libegl1 libxkbcommon0: Qt's offscreen windows (the gui extra).
           sudo apt-get install -y --no-install-recommends \
             libportaudio2 libopenal1 build-essential cmake libegl1 libxkbcommon0
+      - name: OpenGL without a display, for the Rocket League frames (Mesa's EGL)
+        if: matrix.backend == 'rocketsim'
+        run: sudo apt-get install -y --no-install-recommends libegl-mesa0 libgl1-mesa-dri
       - name: Sync the backend's extra and the gui
         run: uv sync --extra ${{ matrix.backend }} --extra gui
       - name: Browser for the AI GameStore pages
