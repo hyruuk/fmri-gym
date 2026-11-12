@@ -130,7 +130,8 @@ uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/examples/rigs/mi
 ```bash
 uv sync --extra dbp --extra rocketsim --extra gui   # its own extra, not in dbp
 uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/examples/rigs/minimal.json --curriculum configs/curricula/rocketsim/levels/1v1.json   # a 5:00 match against a bot
-uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/examples/rigs/xbox.json --curriculum configs/curricula/rocketsim/levels/1v1-GMPD3-stick-nav.json   # the same, on an Xbox controller
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/examples/rigs/minimal.json --curriculum configs/curricula/rocketsim/levels/3v3.json   # you and two bots against three (2v2.json: two a team)
+uv run fmri-play --subject sub-01 --ses 1 --run 1 --rig configs/examples/rigs/xbox.json --curriculum configs/curricula/rocketsim/levels/1v1-GMPD3-stick-nav.json   # on an Xbox controller (each level has one)
 ```
 
 ## Before a real session

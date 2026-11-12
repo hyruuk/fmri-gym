@@ -936,7 +936,7 @@ requires-dist = [
     { name = "replay-state-gym", marker = "extra == 'rocketsim'", editable = "gym/replay_state" },
     { name = "replay-state-gym", marker = "extra == 'rushhour'", editable = "gym/replay_state" },
     { name = "replay-state-gym", marker = "extra == 'vizdoom'", editable = "gym/replay_state" },
-    { name = "rocketsim-gym", marker = "extra == 'rocketsim'", git = "https://github.com/hyruuk/rocketsim-gym?rev=e96be7473f57185ffe996167ca6c981bc2ffca31" },
+    { name = "rocketsim-gym", marker = "extra == 'rocketsim'", git = "https://github.com/hyruuk/rocketsim-gym?rev=a050dca084cfc722d4c111839fc5e5c64513b424" },
     { name = "rushhour-gym", marker = "extra == 'rushhour'", specifier = ">=0.7.0" },
     { name = "setuptools", specifier = "<81" },
     { name = "shimmy", marker = "extra == 'shimmy'" },
@@ -2561,8 +2561,8 @@ wheels = [
 
 [[package]]
 name = "rocketsim-gym"
-version = "0.1.0"
-source = { git = "https://github.com/hyruuk/rocketsim-gym?rev=e96be7473f57185ffe996167ca6c981bc2ffca31#e96be7473f57185ffe996167ca6c981bc2ffca31" }
+version = "0.2.0"
+source = { git = "https://github.com/hyruuk/rocketsim-gym?rev=a050dca084cfc722d4c111839fc5e5c64513b424#a050dca084cfc722d4c111839fc5e5c64513b424" }
 dependencies = [
     { name = "gymnasium" },
     { name = "moderngl" },

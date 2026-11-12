@@ -1,6 +1,6 @@
 # Rocket League curricula
 
-The `rocketsim` backend's curricula: Rocket League's soccar, the subject's blue car against an orange bot that chases the ball, one match per episode. `levels/1v1.json` includes `common/soccar.json` (a 5:00 match, the keyboard's controls, the instructions) and names its title (README, "Shared phases"). `levels/1v1-GMPD3-stick-nav.json` is the same match on a controller: it includes `common/soccar-GMPD3-stick-nav.json`, and plays on a rig whose `"inputs"` list the GMPD3 or an Xbox controller.
+The `rocketsim` backend's curricula: Rocket League's soccar, one match per episode, 1v1, 2v2 or 3v3. The subject drives a blue car and bots drive the others: a team's cars take turns at the ball, the nearest going for it and the others waiting behind it, and the subject's car counts as one of its team's, so its teammates leave the ball to it while it is nearest. `levels/1v1.json`, `2v2.json` and `3v3.json` include `common/soccar.json` (a 5:00 match, the keyboard's controls, the instructions) and name the env's `team_size` and their title (README, "Shared phases"). Each also comes in a `*-GMPD3-stick-nav` version, the same match on a controller: it includes `common/soccar-GMPD3-stick-nav.json`, and plays on a rig whose `"inputs"` list the GMPD3 or an Xbox controller.
 
 ## Setup
 
@@ -12,8 +12,8 @@ The env's action is MultiBinary(12), a controller's buttons: 0 throttle, 1 rever
 
 ## Timing
 
-Physics runs at 120 Hz and a step advances `ticks_per_step` (2) ticks, so the game plays at its real speed at 60 fps; a phase at another fps plays faster or slower, and the run says so. A step takes under 0.1 ms and a 1024x576 frame about 3 ms on an Apple M4.
+Physics runs at 120 Hz and a step advances `ticks_per_step` (2) ticks, so the game plays at its real speed at 60 fps; a phase at another fps plays faster or slower, and the run says so. On an Apple M4 a step takes 0.1 ms in 1v1 and 0.25 ms in 3v3, and a 1024x576 frame about 3 ms.
 
 ## Logging
 
-Per frame: the action, the reward (+1 for each blue goal, -1 for each orange one), and the env's `SAMPLE_FIELDS`: the match's phase, clock, overtime and score, the goal scored during the step, whether ball cam is on, the ball, and for each car its position, velocity, rotation, boost, ground and supersonic flags, demolition, the touches and demolitions of the step, and the controls it obeyed. Every frame is stored, about 48 KB each at 1024x576 (170 MB a minute). The block's `block_end` record carries the end state and the env's provenance: package versions, the collision meshes' SHA-256s, the tick rates, the OpenGL renderer and the camera and controller settings. A block replays bit for bit from `episode_seeds` and the actions on a machine where those are the same.
+Per frame: the action, the reward (+1 for each blue goal, -1 for each orange one), and the env's `sample_fields`: the match's phase, clock, overtime and score, the goal scored during the step, whether ball cam is on, the ball, and for each car, under its name (`blue1`, the subject's, to `orange3`), its position, velocity, rotation, boost, ground and supersonic flags, demolition, the touches and demolitions of the step, and the controls it obeyed. Every frame is stored, about 48 KB each at 1024x576 (170 MB a minute). The block's `block_end` record carries the end state and the env's provenance: package versions, the collision meshes' SHA-256s, the cars a team, the tick rates, the OpenGL renderer and the camera and controller settings. A block replays bit for bit from `episode_seeds` and the actions on a machine where those are the same.

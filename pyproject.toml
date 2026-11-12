@@ -152,7 +152,7 @@ vgdl-gym = { path = "gym/vgdl", editable = true }
 arc3-gym = { path = "gym/arc3", editable = true }
 replay-state-gym = { path = "gym/replay_state", editable = true }
 vizdoom-gym = { path = "gym/vizdoom", editable = true }
-rocketsim-gym = { git = "https://github.com/hyruuk/rocketsim-gym", rev = "e96be7473f57185ffe996167ca6c981bc2ffca31" }
+rocketsim-gym = { git = "https://github.com/hyruuk/rocketsim-gym", rev = "a050dca084cfc722d4c111839fc5e5c64513b424" }
 
 # Who may import whom (docs/DEPENDENCIES.md), checked by `lint-imports` in CI. The gym/
 # packages are read from their folders, so run it as

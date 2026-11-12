@@ -1,0 +1,9 @@
+{
+  "curriculum": [
+    {
+      "__include": "../common/soccar-GMPD3-stick-nav.json",
+      "env_kwargs": {"team_size": 3},
+      "instructions": {"title": "Rocket League: 3v3"}
+    }
+  ]
+}

@@ -1,10 +1,10 @@
-"""RocketSim adapter (``rocketsim``) -- Rocket League's soccar, one car against a bot.
+"""RocketSim adapter (``rocketsim``) -- Rocket League's soccar, 1v1, 2v2 or 3v3 against bots.
 
 The game is ``rocketsim_gym`` (github.com/hyruuk/rocketsim-gym, pinned in pyproject.toml):
-RocketSim's physics of Rocket League, a 1v1 match's rules (kickoff countdown, clock, goals,
-overtime, demolitions) against a scripted ball-chaser, and frames drawn offscreen with OpenGL
-from Rocket League's car cam and ball cam, its scoreboard, clock and boost meter included. The
-subject drives the blue car.
+RocketSim's physics of Rocket League, a match's rules (kickoff countdown, clock, goals,
+overtime, demolitions), scripted bots that take turns at the ball, and frames drawn offscreen
+with OpenGL from Rocket League's car cam and ball cam, its scoreboard, clock and boost meter
+included. The subject drives blue's first car, ``blue1``; bots drive the others.
 
 Actions: the env's digital input (its default ``input_mode``) is a MultiBinary(12) of a
 controller's buttons, so a phase's ``controls`` are button indices and held controls combine:
@@ -13,9 +13,9 @@ controller's buttons, so a phase's ``controls`` are button indices and held cont
 the stick left / right rolls), 9 ball cam (a press switches the camera), 10 air roll left,
 11 air roll right.
 
-``env_kwargs`` go to the env: ``match_seconds``, ``ticks_per_step``, ``render_width``,
-``render_height``, ``camera`` (Rocket League's camera settings by name) and ``controller``
-(dead zone and sensitivities).
+``env_kwargs`` go to the env: ``match_seconds``, ``team_size`` (cars a team: 1, 2 or 3),
+``ticks_per_step``, ``render_width``, ``render_height``, ``camera`` (Rocket League's camera
+settings by name) and ``controller`` (dead zone and sensitivities).
 
 Savestate: RocketSim's own state set drops Bullet's contact caches, so a restored arena drifts
 at its next contact. The env is deterministic from ``reset(seed=)`` and the actions, so the

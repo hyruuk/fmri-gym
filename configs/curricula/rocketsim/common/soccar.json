@@ -3,8 +3,8 @@
   "instructions": {
     "align": "left", "controls_to_dismiss": ["SPACE"],
     "text": [
-      "A match of Rocket League against a bot. You are blue:",
-      "score in the orange goal, and keep the ball out of yours.",
+      "A match of Rocket League: you drive a blue car, bots the others.",
+      "Score in the orange goal, and keep the ball out of yours.",
       "",
       "Controls:",
       "   W / S                throttle / reverse",
