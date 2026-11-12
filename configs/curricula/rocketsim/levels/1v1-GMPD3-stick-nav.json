@@ -1,0 +1,8 @@
+{
+  "curriculum": [
+    {
+      "__include": "../common/soccar-GMPD3-stick-nav.json",
+      "instructions": {"title": "Rocket League: 1v1"}
+    }
+  ]
+}

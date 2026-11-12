@@ -2,7 +2,7 @@
   "curriculum": [
     {
       "__include": "../common/soccar.json",
-      "instructions": {"title": "Rocket League: one on one"}
+      "instructions": {"title": "Rocket League: 1v1"}
     }
   ]
 }

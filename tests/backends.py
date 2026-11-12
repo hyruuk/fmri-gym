@@ -147,7 +147,7 @@ BACKENDS: dict[str, Backend] = {b.name: b for b in (
     Backend("stk", "stk", "stk_gym", (_C + "stk/levels/hacienda.json",),
             ci="the game renders through a real GL display, which a hosted runner lacks",
             needs_display=True),
-    Backend("rocketsim", "rocketsim", "rocketsim_gym", (_C + "rocketsim/levels/soccar.json",),
+    Backend("rocketsim", "rocketsim", "rocketsim_gym", (_C + "rocketsim/levels/1v1.json",),
             gym_dirs=("replay_state",)),
 )}
 

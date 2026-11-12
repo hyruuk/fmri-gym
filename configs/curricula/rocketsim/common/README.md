@@ -1,6 +1,6 @@
 # Rocket League curricula
 
-The `rocketsim` backend's curricula: Rocket League's soccar, the subject's blue car against an orange bot that chases the ball, one match per episode. `levels/soccar.json` includes `common/soccar.json` (a 5:00 match, the keyboard's controls, the instructions) and names its title (README, "Shared phases").
+The `rocketsim` backend's curricula: Rocket League's soccar, the subject's blue car against an orange bot that chases the ball, one match per episode. `levels/1v1.json` includes `common/soccar.json` (a 5:00 match, the keyboard's controls, the instructions) and names its title (README, "Shared phases"). `levels/1v1-GMPD3-stick-nav.json` is the same match on a controller: it includes `common/soccar-GMPD3-stick-nav.json`, and plays on a rig whose `"inputs"` list the GMPD3 or an Xbox controller.
 
 ## Setup
 
@@ -8,7 +8,7 @@ The `rocketsim` backend's curricula: Rocket League's soccar, the subject's blue 
 
 ## Buttons
 
-The env's action is MultiBinary(12), a controller's buttons: 0 throttle, 1 reverse, 2 stick left, 3 stick right (steer on the ground, yaw in the air), 4 stick up (nose down), 5 stick down (nose up), 6 jump, 7 boost, 8 powerslide (in the air, the stick left / right rolls), 9 ball cam (a press switches between car cam and ball cam), 10 air roll left, 11 air roll right. Held buttons combine, and each stick button is the stick pushed all the way. `soccar.json` keeps Rocket League's PC keys W / S (throttle, reverse), A / D (steer) and Q / E (air roll). A key holds one button here, so pitch, which Rocket League also puts on W / S, has keys of its own (UP / DOWN); jump and boost, on the mouse in Rocket League, are on SPACE and LEFT SHIFT, which moves powerslide to LEFT CTRL and ball cam to C. Keep the Controls text in sync by hand.
+The env's action is MultiBinary(12), a controller's buttons: 0 throttle, 1 reverse, 2 stick left, 3 stick right (steer on the ground, yaw in the air), 4 stick up (nose down), 5 stick down (nose up), 6 jump, 7 boost, 8 powerslide (in the air, the stick left / right rolls), 9 ball cam (a press switches between car cam and ball cam), 10 air roll left, 11 air roll right. Held buttons combine, and each stick button is the stick pushed all the way. `soccar.json` keeps Rocket League's PC keys W / S (throttle, reverse), A / D (steer) and Q / E (air roll). A key holds one button here, so pitch, which Rocket League also puts on W / S, has keys of its own (UP / DOWN); jump and boost, on the mouse in Rocket League, are on SPACE and LEFT SHIFT, which moves powerslide to LEFT CTRL and ball cam to C. `soccar-GMPD3-stick-nav.json` keeps Rocket League's controller defaults on the controls a GMPD3 has: RT throttle, LT reverse, the stick to steer and pitch, A jump, B boost, X powerslide, Y ball cam; air roll left and right, which Rocket League leaves unbound on a controller, have no control. Each trigger and each side of the stick is a button, held from half its travel (the stick's through its controller's calibration, README "Calibrate each controller once per rig"), so the car steers and pitches all the way or not at all, as on the keyboard. Keep each shared phase's Controls text and controls image (`configs/images/controls/rocketsim/`) in sync by hand.
 
 ## Timing
 

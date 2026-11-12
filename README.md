@@ -126,7 +126,7 @@ A curriculum's path after `curricula/`, in camelCase (BIDS labels are letters an
 | `minihack/` | 22 | `levels/`: room5x5/15x15, mazewalk9x9, river, corridor, eat: the `-Allocentric-v0` twin from `minihack_levels` (view fixed on the map), each with an `_egocentric` sibling on MiniHack's own id (view centred on the agent); and the designed levels room_*, mazewalk_*, river_*; and `all`, the six standard tasks (allocentric) in a row |
 | `nethack/` | 1 | `levels/`: score (base NetHack; TTY rendered to a pixel frame) |
 | `retro/` | 1 | `levels/`: airstriker (ships with stable-retro; sound) |
-| `rocketsim/` | 1 | `levels/`: soccar (a 5:00 match against the bot, on the keyboard; the `rocketsim` extra, not in `dbp`) |
+| `rocketsim/` | 2 | `levels/`: 1v1 (a 5:00 match against the bot; the `rocketsim` extra, not in `dbp`), on the keyboard and in a `*-GMPD3-stick-nav` controller version |
 | `rushhour/` | 2 | `levels/`: easy (5 min of random easy puzzles); complete (Rush-Hour's own program, then the rest of the library: all 49 puzzles, one game phase each, with ready screens and solved feedback as message phases) |
 | `stk/` | 10 | `levels/`: hacienda, cornfield_crossing, lighthouse, scotland, snowmountain (the race tracks its asset pack ships; needs a real GL display), each also in a `*-GMPD3-stick-nav` controller version |
 | `vgdl/` | 11 | `levels/`: aliens, avoidGeorge, beesAndBirds, jaws, missile_command, plaqueAttack, portals, preconditions, pushBoulders, relational (needs the VGDL checkout), and `all` |

@@ -107,6 +107,15 @@
       "CONTROLLER_AXIS_TRIGGERLEFT": ["skid"],
       "CONTROLLER_BUTTON_A": ["nitro (boost)"],
       "CONTROLLER_BUTTON_Y": ["rescue"]
+    },
+    "rocketsim/soccar-GMPD3-stick-nav.png": {
+      "LEFT_STICK": ["left / right:", "steer", "up / down:", "nose down / up"],
+      "CONTROLLER_AXIS_TRIGGERRIGHT": ["throttle"],
+      "CONTROLLER_AXIS_TRIGGERLEFT": ["reverse"],
+      "CONTROLLER_BUTTON_A": ["jump"],
+      "CONTROLLER_BUTTON_B": ["boost"],
+      "CONTROLLER_BUTTON_X": ["powerslide", "(in the air: roll)"],
+      "CONTROLLER_BUTTON_Y": ["ball cam"]
     }
   }
 }
