@@ -1,6 +1,6 @@
 ---
 name: troubleshooting
-description: What to do when fmri-play, rig-setup, gamepad-calibration or a session script stops before the run starts, with an error about the rig file, the curriculum, a controller or its calibration, the triggers, the audio output, a game that cannot start, --resume or --loop. Use when a run refuses to start, when asked what an fmri-gym error means, or how to fix one.
+description: What to do when fmri-play, rig-setup, gamepad-calibration or a session script stops before the run starts, or device-events stops, or bids-from-logs writes nothing, with an error about the rig file, the curriculum, a controller or its calibration, the triggers, the audio output, a game that cannot start, --resume or --loop. Use when a run refuses to start, when asked what an fmri-gym error means, or how to fix one.
 ---
 
 # When a run will not start
@@ -40,6 +40,17 @@ A run checks everything it can before the participant screen opens, and stops on
 - **`triggers: sync.mode "send" sends scanner_start on the trigger line, ...`**: a `send` sync needs a real backend; pick one, or use sync mode `wait` or `none`.
 - **`triggers: code ...`, `frame_bits ...`, `unknown ...`**: the code scheme is described in `humans/sync/triggers.py`'s module docstring; codes must not share a bit with each other or with the frame bits.
 
+## Input devices read from the OS (`device-events`)
+
+- **`device-events stopped before recording (exit N): the device events of <rig> are not recorded`** (fmri-play): the recording the rig's `"device_events"` ask for could not start; the line above it, from `device-events`, is one of the errors below.
+- **`device events: WARNING: the recording stopped during the run ...`**: `device-events` died mid-run (a device unplugged on Linux, or a crash: its own message is above); the run's data are whole, its last device events are missing.
+- **`device-events: <rig> names no device_events`**: the rig file lists no device to read. Add their names, as the OS gives them, under `"device_events"`.
+- **`device_events: no input device is named '<name>'; these are: ...`** (Linux) or **`... no HID device is named ...`** (macOS): the rig names a device that is not plugged in, or not by that name. Copy the name from the list in the message into the rig file.
+- **`device_events: /dev/input/eventN (<name>) cannot be read by this user`** (Linux): reading a device's node takes the `input` group. `sudo usermod -aG input $USER`, then log in again (or start it with `sg input -c "..."` until then).
+- **`device_events: this app lacks the Input Monitoring permission, ...`** (macOS): a keyboard-type device (a trigger box that types keys among them) is read only with it. System Settings > Privacy & Security > Input Monitoring: add the app it is started from (the terminal), then restart that app.
+- **`device_events: perf_counter reads ...`** or **`... perf_counter is ... off mach absolute time ...`**: this Python's `perf_counter` is not on the clock the OS stamps its events with, so they could not be matched to the runs. Use the Python the project pins (`uv run`).
+- **`device_events: no reader for <platform>`**: there is no reader for this OS yet (Windows).
+
 ## Audio
 
 - **`audio: no usable output device (...)`** or **`audio: this output reports no DAC timestamps, ...`**: make another output the system default (`python -m sounddevice` lists them), or set `"has_audio": false` in the rig file for a silent run; the game's sound is still logged.
@@ -56,3 +67,11 @@ A run checks everything it can before the participant screen opens, and stops on
 
 - **`subject '<s>': BIDS needs sub-<letters or digits>`**: give `--subject sub-01` (letters and digits only after `sub-`).
 - **`<curriculum>: no letter or digit in its name to make a BIDS task label from`**: rename the curriculum file; its path after `curricula/` is the task label.
+
+## A BIDS dataset from the logs
+
+`bids-from-logs` checks every run before it writes anything, and lists each run it cannot convert under `nothing was written`.
+
+- **`<run label>: N attempts reached the trigger, and BIDS keeps one run`**: the run was played again (its folders end in `_02`, `_03`...) and more than one attempt reached the scanner. Keep the attempt the session uses: move the others out of the data root (into a folder of attempts set aside, say), then run `bids-from-logs` again.
+- **`<run folder>: log format 1, recorded before runs kept a log of their own`**: the run was recorded by a version of fmri-play that kept its lines in its block folders only, so its screens, fixations and presses outside the games were never logged. Convert another subject (`--subject`) or move the run out of the data root.
+- **`skipped, never reached its trigger: <run folder>`** is not an error: that attempt stopped before the scanner started (at start-up, or at the ready screen), so it has nothing to convert.

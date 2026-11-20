@@ -12,6 +12,7 @@ import json
 import math
 import os
 import re
+import sys
 import types
 from datetime import datetime, timezone
 
@@ -451,8 +452,36 @@ def test_the_runs_inputs_take_the_queue_and_name_the_windows_close(screen):
     from humans.run import read_input_events
     pygame.event.post(_key(pygame.KEYDOWN, pygame.K_SPACE))
     pygame.event.post(pygame.event.Event(pygame.QUIT))
-    assert read_input_events(InputDevices([Keyboard()])) == [_down(QUIT), _down("SPACE")]
+    assert read_input_events(InputDevices([Keyboard()]), None) == [_down(QUIT), _down("SPACE")]
     assert pygame.event.peek() is False
+
+
+def test_the_run_logs_each_event_read_as_pygame_gave_it_then_each_edge(screen):
+    from humans.run import read_input_events
+    logged: list[tuple[str, float, dict]] = []
+    logger = types.SimpleNamespace(log_run_event=lambda line_type, perf_time, **fields:
+                                   logged.append((line_type, perf_time, fields)))
+    events = [_key(pygame.KEYDOWN, pygame.K_LEFT),
+              pygame.event.Event(pygame.JOYAXISMOTION, joy=0, instance_id=3, axis=1, value=-0.73),
+              pygame.event.Event(pygame.MOUSEMOTION, pos=(3, 4), rel=(1, 1), buttons=(0, 0, 0)),
+              pygame.event.Event(pygame.WINDOWFOCUSLOST),
+              pygame.event.Event(pygame.QUIT)]
+    for event in events:
+        pygame.event.post(event)
+    edges = read_input_events(InputDevices([Keyboard()]), logger)
+    assert edges == [_down(QUIT), _down("LEFT"), _up("LEFT")]
+    assert logged == [("pygame_event", logged[0][1], {"event_name": pygame.event.event_name(e.type),
+                                                      "event": {"type": e.type, **e.dict}})
+                      for e in events] + [
+        ("input_event", logged[0][1], {"name": name, "down": edge is Edge.DOWN})
+        for name, edge in edges]
+
+
+def test_a_value_a_log_line_cannot_carry_is_written_as_its_repr():
+    from humans.run import _loggable
+    window = object()
+    assert _loggable({"key": 97, "pos": (1, 2), "window": window, "text": None}) == {
+        "key": 97, "pos": (1, 2), "window": repr(window), "text": None}
 
 
 @pytest.fixture
@@ -499,10 +528,9 @@ def test_closing_a_run_saves_every_frame_and_closes_a_controller_before_the_wind
     import numpy as np
     from humans.run import Run
     from humans.save.logging import Logger, read_frames
-    from humans.sync.clock import Clock
     monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
     pygame.init()                                           # the window's close quits it
-    logger = Logger(str(tmp_path), "sub-test", [], Clock())
+    logger = Logger(str(tmp_path), "sub-test", [])
     block = str(tmp_path / logger.open_block(0, "gym", "CartPole-v1", {}, base_seed=0))
     for i in range(200):                                    # a backlog for the writer
         logger.log_frame({"frame": i}, frame=np.full((360, 640, 3), i % 256, dtype=np.uint8))
@@ -525,18 +553,18 @@ def test_a_tap_inside_one_frame_counts_for_that_frame(screen):
     keys = InputDevices([Keyboard()])
     logged: list[dict] = []
     display = types.SimpleNamespace(idle=lambda deadline: None)
-    clock = types.SimpleNamespace(run_time=lambda: 0.0)
-    logger = types.SimpleNamespace(log=lambda **r: logged.append(r))
+    logger = types.SimpleNamespace(log_run_event=lambda line_type, perf_time, **fields:
+                                   logged.append({"type": line_type, **fields}))
     pygame.event.post(_key(pygame.KEYDOWN, pygame.K_LEFT))
     pygame.event.post(_key(pygame.KEYUP, pygame.K_LEFT))
     pygame.event.post(_key(pygame.KEYDOWN, pygame.K_SPACE))
-    pressed, quit_ = _poll_keys_until(keys, display, 0.0, clock, logger)
+    pressed, quit_ = _poll_keys_until(keys, display, 0.0, logger)
     assert (pressed, quit_, keys.held()) == (["LEFT", "SPACE"], False, {"SPACE"})
-    assert [(r["name"], r["down"]) for r in logged] == [
+    assert [(r["name"], r["down"]) for r in logged if r["type"] == "input_event"] == [
         ("LEFT", True), ("LEFT", False), ("SPACE", True)]
     pygame.event.post(_key(pygame.KEYDOWN, pygame.K_z))     # turn-based: the wait ends at Z
     pygame.event.post(_key(pygame.KEYDOWN, pygame.K_x))
-    pressed, _ = _poll_keys_until(keys, display, math.inf, clock, logger, stop_on={"Z"})
+    pressed, _ = _poll_keys_until(keys, display, math.inf, logger, stop_on={"Z"})
     assert pressed == ["Z"]
 
 
@@ -667,3 +695,163 @@ def test_a_rig_measurement_lets_go_of_its_inputs_before_it_shuts_sdl_down():
                for name in ("inputs", "display", "audio", "triggers")}
     RigMeasurement.close(types.SimpleNamespace(**devices))
     assert closed.index("inputs") < closed.index("display")
+
+
+# -- each device's own events, read from the OS beside a session --------------------------
+
+
+linux_only = pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the Linux reader")
+
+
+@linux_only
+def test_the_linux_reader_writes_each_kernel_record_at_the_kernels_time():
+    from humans.standalone.device_events import linux
+    read_end, write_end = os.pipe()
+    devices = object.__new__(linux.LinuxDevices)
+    devices._devices = [{"name": "Trigger Box"}]
+    devices._fds = {read_end: 0}
+    os.write(write_end, linux._EVENT.pack(12345, 678901, 1, 13, 1)     # EV_KEY KEY_EQUAL down
+             + linux._EVENT.pack(12345, 678901, 0, 0, 0))              # EV_SYN SYN_REPORT
+    try:
+        lines = devices.read(1.0)
+    finally:
+        devices.close()
+        os.close(write_end)
+    event = {"type": "device_event", "perf_time": 12345.678901, "device": 0}
+    assert lines == [{**event, "event_type": 1, "code": 13, "value": 1},
+                     {**event, "event_type": 0, "code": 0, "value": 0}]
+
+
+@linux_only
+def test_the_linux_reader_names_the_devices_it_cannot_find_or_read(monkeypatch):
+    from humans.standalone.device_events import DeviceEventsError, linux
+    present = [{"name": "Trigger Box", "path": "/dev/input/event7"},
+               {"name": "Keyboard", "path": "/dev/input/event2"}]
+    monkeypatch.setattr(linux.glob, "glob", lambda pattern: ["a", "b"])
+    monkeypatch.setattr(linux, "_sysfs_device", lambda node: present[node == "b"])
+    with pytest.raises(DeviceEventsError, match="no input device is named 'Pad'; these are: "
+                                                "'Keyboard', 'Trigger Box'"):
+        linux.LinuxDevices(["Pad"])
+
+    def refuse(path, flags):
+        raise PermissionError(path)
+    monkeypatch.setattr(linux.os, "open", refuse)
+    with pytest.raises(DeviceEventsError, match=re.escape(
+            "/dev/input/event7 (Trigger Box) cannot be read by this user")):
+        linux.LinuxDevices(["Trigger Box"])
+
+
+@linux_only
+def test_the_linux_reader_stops_when_perf_counter_is_not_the_kernels_clock(monkeypatch):
+    from humans.standalone.device_events import DeviceEventsError, linux
+    monkeypatch.setattr(linux.time, "get_clock_info",
+                        lambda name: types.SimpleNamespace(implementation="something else"))
+    with pytest.raises(DeviceEventsError, match="perf_counter reads something else"):
+        linux.LinuxDevices(["Trigger Box"])
+
+
+@pytest.mark.parametrize("device_events, says", [
+    (["Trigger Box"], None),
+    (None, None),
+    ([], "expected the devices' names"),
+    ("Trigger Box", "expected the devices' names"),
+    ([""], "expected the devices' names"),
+])
+def test_a_rigs_device_events_are_the_devices_names(device_events, says):
+    from humans.config import rig as rig_file
+    found = [problem for problem in rig_file.problems({"device_events": device_events})
+             if "device_events" in problem]
+    assert found == ([] if says is None else [found[0]]) and (says is None or says in found[0])
+
+
+def _rig_with_devices(tmp_path, device_events) -> str:
+    """A rig file of team ``lab`` whose data root is ``tmp_path/data``."""
+    from humans.config import rig as rig_file
+    path = tmp_path / "configs" / "lab" / "rigs" / "desk.json"
+    rig_file.save({**{k: "x" for k in rig_file.FIELDS}, "site": "lab", "rig": "desk",
+                   "pi": "MT", "modality": "meg", "notes": "",
+                   "data_root": str(tmp_path / "data"), "device_events": device_events,
+                   "screen": {"geometry": {"width_cm": 30.0, "height_cm": 20.0,
+                                           "distance_cm": 60.0}}}, str(path))
+    return str(path)
+
+
+@pytest.mark.parametrize("device_events, says", [
+    (None, "names no device_events"),
+    (["No Such Pad"], "No Such Pad"),
+])
+def test_device_events_stops_on_a_rig_without_devices_or_a_device_missing(
+        tmp_path, monkeypatch, device_events, says):
+    from humans.standalone import device_events as recorder
+
+    def missing(device_names):
+        raise recorder.DeviceEventsError(f"device_events: no input device is named "
+                                         f"{device_names[0]!r}")
+    monkeypatch.setattr(recorder, "open_devices", missing)
+    with pytest.raises(SystemExit, match=says):
+        recorder.main(["--rig", _rig_with_devices(tmp_path, device_events),
+                       "--out", str(tmp_path / "device_events.jsonl")])
+    assert not (tmp_path / "device_events.jsonl").exists()
+    assert not (tmp_path / "data").exists()
+
+
+def test_a_run_does_not_start_when_its_rigs_device_recording_cannot(tmp_path):
+    import fmri_play
+    from humans.config.rig import RigConfig
+    rig = RigConfig.open(_rig_with_devices(tmp_path, ["No Such Pad"]))
+    with pytest.raises(RuntimeError, match="stopped before recording"):
+        fmri_play._start_device_events(rig)
+    assert not (tmp_path / "data").exists()
+
+
+def _box(stop, reads):
+    """Open devices whose reads are ``reads``, then nothing; the last read sets ``stop``."""
+    reads = iter(reads)
+
+    class Box:
+        closed = False
+
+        def record(self):
+            return {"reader": "test", "clock": "perf_counter", "devices": [{"name": "Box"}]}
+
+        def read(self, timeout):
+            line = next(reads, None)
+            if line is None:
+                stop.set()
+            return [] if line is None else line
+
+        def close(self):
+            self.closed = True
+    return Box()
+
+
+def test_a_recording_writes_its_events_between_a_start_and_an_end_line(tmp_path):
+    import json
+    import threading
+
+    from humans.standalone.device_events import record_device_events
+    stop = threading.Event()
+    event = {"type": "device_event", "perf_time": 1.0, "device": 0, "event_type": 1,
+             "code": 13, "value": 1}
+    told = iter([None, None, str(tmp_path / "device_events.jsonl")])
+    box = _box(stop, [[event], [], [{**event, "code": 14}]])
+    record_device_events(box, lambda: next(told, str(tmp_path / "device_events.jsonl")), stop)
+    lines = [json.loads(line) for line in
+             (tmp_path / "device_events.jsonl").read_text().splitlines()]
+    assert [line["type"] for line in lines] == [
+        "recording_start", "device_event", "device_event", "recording_end"]
+    assert lines[0]["devices"] == [{"name": "Box"}] and lines[-1]["how"] == "stopped"
+    assert lines[0]["wall_time"] > lines[0]["perf_time"]
+    assert [line["code"] for line in lines[1:3]] == [13, 14], \
+        "the events read before it was told where to write come first"
+    assert box.closed
+
+
+def test_a_recording_stopped_before_it_is_told_where_writes_nothing(tmp_path):
+    import threading
+
+    from humans.standalone.device_events import record_device_events
+    stop = threading.Event()
+    box = _box(stop, [[]])
+    record_device_events(box, lambda: None, stop)
+    assert list(tmp_path.iterdir()) == [] and box.closed
