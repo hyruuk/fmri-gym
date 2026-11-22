@@ -48,7 +48,10 @@ say the same thing:
   its Host PC (:class:`EyelinkConfig`), for the eye-tracking programs; no run here reads it;
 - ``"rig_measurement"``: the equipment the rig's timing is measured with
   (:class:`RigMeasurementConfig`): how the photodiode is read, a microphone, the recording's
-  rate, more frame rates.
+  rate, more frame rates;
+- ``"device_events"``: input devices, by the names the OS gives them, whose every event is
+  to be read from the OS beside the rig's sessions, each with the OS's own time,
+  ``["AT Translated Set 2 keyboard"]``; nothing a run plays reads it; left out, none is.
 
 **Controls and response keys**, never mixed. A curriculum's **controls** (a game
 phase's ``"controls"``) are control names of the rig's input devices
@@ -110,7 +113,7 @@ DEFAULTS: dict[str, Any] = {
     "inputs": [], "has_audio": True, "data_root": "data", "start_fixation": None,
     "end_fixation": None, "triggers": {}, "response_keys": {}, "photodiode_patch": None,
     "eyelink": None,
-    "rig_measurement": {},
+    "rig_measurement": {}, "device_events": None,
 }
 #: A rig file's ``"screen"`` ``"geometry"``, each in cm (:class:`ScreenGeometry`).
 GEOMETRY_KEYS = ("width_cm", "height_cm", "distance_cm")
@@ -324,6 +327,9 @@ class RigConfig:
     #: the rig's EyeLink; ``None``: the rig has none
     eyelink: EyelinkConfig | None
     rig_measurement: RigMeasurementConfig
+    #: the input devices whose events are read from the OS beside the rig's sessions, by the
+    #: OS's names; ``None``: none.
+    device_events: tuple[str, ...] | None
 
     @classmethod
     def from_dict(cls, rig: dict, path: str) -> RigConfig:
@@ -358,7 +364,9 @@ class RigConfig:
                                      if settings["photodiode_patch"] is not None else None),
                    eyelink=(EyelinkConfig.from_dict(settings["eyelink"])
                             if settings["eyelink"] is not None else None),
-                   rig_measurement=RigMeasurementConfig.from_dict(settings["rig_measurement"]))
+                   rig_measurement=RigMeasurementConfig.from_dict(settings["rig_measurement"]),
+                   device_events=(tuple(settings["device_events"])
+                                  if settings["device_events"] is not None else None))
 
     @classmethod
     def open(cls, path: str) -> RigConfig:
@@ -395,7 +403,9 @@ class RigConfig:
                 "photodiode_patch": (asdict(self.photodiode_patch)
                                      if self.photodiode_patch is not None else None),
                 "eyelink": self.eyelink.record() if self.eyelink is not None else None,
-                "rig_measurement": self.rig_measurement.record()}
+                "rig_measurement": self.rig_measurement.record(),
+                "device_events": (list(self.device_events)
+                                  if self.device_events is not None else None)}
 
     def status(self) -> str:
         """One line for the console: which file, and what it settles."""
@@ -549,8 +559,8 @@ def problems(rig: dict) -> list[str]:
 
 def _setting_problems(rig: dict) -> list[str]:
     """What is wrong with the file's ``screen``, ``inputs``, ``has_audio``, ``data_root``,
-    fixations, triggers, response keys, ``photodiode_patch``, ``eyelink`` and
-    ``rig_measurement``."""
+    fixations, triggers, response keys, ``photodiode_patch``, ``eyelink``,
+    ``rig_measurement`` and ``device_events``."""
     screen = rig.get("screen", {})
     if not isinstance(screen, dict):
         return [f'"screen": expected {{"size", "is_fullscreen", "monitor", "has_vsync", '
@@ -576,6 +586,12 @@ def _setting_problems(rig: dict) -> list[str]:
     out += [f'"{k}" must be seconds, 0 or more, or null for none, got {rig[k]!r}'
             for k in ("start_fixation", "end_fixation")
             if rig.get(k) is not None and not _is_seconds(rig[k])]
+    device_events = rig.get("device_events")
+    if device_events is not None and not (
+            isinstance(device_events, list) and device_events
+            and all(isinstance(name, str) and name for name in device_events)):
+        out.append(f'"device_events": expected the devices\' names, ["..."], or null for none, '
+                   f"got {device_events!r}")
     return (out + trigger_problems(rig.get("triggers", {})) + _input_device_problems(rig)
             + _input_code_problems(rig)
             + _response_key_problems(rig) + _photodiode_patch_problems(rig)
