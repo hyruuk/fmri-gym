@@ -21,6 +21,7 @@ uv run session-editor                           # or: design sessions and runs (
 uv run rig-setup                                # pick, make or change a rig file; run its rig measurements
 uv run gamepad-calibration                      # calibrate the game controller plugged in, and see what it sends
 uv run rig-setup --rig configs/examples/rigs/minimal.json --measure   # measure the rig (--long: at length, once per rig)
+uv run bids-from-logs --rig configs/examples/rigs/minimal.json        # the runs played: a behavioural BIDS dataset and each run's timeline, in data/bids
 ```
 
 Press **RETURN**, then **=** (the scanner trigger; on a laptop you press it). **CTRL+ESCAPE** (hold CTRL, press ESCAPE) quits; the data is saved under `data/`. Any other level: swap in another file from `configs/curricula/<backend>/levels/`.
@@ -134,3 +135,23 @@ uv run gamepad-calibration         # a game controller: calibrate it (also from 
 uv run session-editor --session configs/examples/sessions/pilot.sh   # adapt the example session, save it under your team
 sh configs/examples/sessions/pilot.sh  # play it: about an hour (edit SUBJECT=, SES=, RUN_DURATION=, and RIG= at the top for your team)
 ```
+
+## A session's recording
+
+A session script records itself: its head starts `session-logger` before the first line and stops it when the script ends, however it ends (the example sessions and every script `session-editor` writes). By hand, the same three steps:
+
+```bash
+RECORDING=$(uv run session-logger start --rig configs/<team>/rigs/<rig>.json --subject sub-01 --ses 1)   # before anything else
+uv run session-logger mark "$RECORDING" "the localizer"   # a line of your own, stamped now
+uv run session-logger stop "$RECORDING"                   # after everything else
+```
+
+It records every event of the devices the rig names in `"device_events"`, read from the OS at the time the OS stamped it, which application has the focus, the machine's stalls, the marks and the clock, from start to stop, beside whatever the session runs; `bids-from-logs` gives each press its device's time. On Linux it takes the `input` group; on macOS, the Input Monitoring permission for a keyboard-type device; on Windows, nothing, and the session script runs in Git Bash.
+
+## After a session
+
+```bash
+uv run bids-from-logs --rig configs/<team>/rigs/<rig>.json   # the runs as a behavioural BIDS dataset, with each run's timeline to check, in <data root>/bids
+```
+
+What goes into the dataset is in the README, "A BIDS dataset from the logs"; its `dataset_description.json` is yours to add.
