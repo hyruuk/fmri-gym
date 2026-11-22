@@ -57,13 +57,8 @@ vizdoom = ["vizdoom", "vizdoom-gym", "replay-state-gym"]
 # external/coom checkout too; the COOM package itself is not installed.
 coom = ["coom-gym", "vizdoom-gym", "replay-state-gym"]
 rushhour = ["rushhour-gym>=0.7.0", "replay-state-gym"]
-# SuperTuxKart, game included. The wheel is pure Python; it fetches the
-# game and a trimmed asset pack (254 MiB) from the matching GitHub release on
-# first use, into ~/.cache/supertuxkart-gym, for Linux x86_64 and macOS (x86_64,
-# arm64); 0.1.4 is the first with the macOS packs and with frames that replay. It
-# needs a real GL display, because the observation is the game's own rendering.
-# The pack is tied to the package version, so upgrading the pin is the whole
-# update procedure; STK_ENV_BIN overrides the binary it fetched.
+# SuperTuxKart; the package brings the game itself. It needs a real GL display,
+# because the observation is the game's own rendering.
 stk = ["supertuxkart-gym>=0.1.5"]
 # `gym` backend families beyond classic_control / toy_text (which ship with gymnasium):
 # `Box2D` is the module gymnasium's box2d envs import. gymnasium[box2d] would
@@ -103,6 +98,9 @@ fmri-ses = "humans.standalone.session_script:fmri_ses_main"
 # The game controller plugged in: calibrate it (each run with that controller reads
 # its newest calibration), see what it sends, and tune how its stick axes are read.
 gamepad-calibration = "humans.standalone.gamepad_calibration:main"
+# A behavioural BIDS dataset made from the runs' logs, by hand: one events table per run, and
+# each run's timeline in words.
+bids-from-logs = "humans.standalone.bids_from_logs:main"
 
 [tool.setuptools]
 packages = ["humans", "humans.adapters", "humans.config", "humans.inputs",
@@ -164,7 +162,7 @@ include_external_packages = true
 name = "humans's layers: each imports only the ones below it"
 type = "layers"
 containers = ["humans"]
-layers = ["standalone", "run", "popup", "config", "adapters", "outputs", "save", "sync | inputs"]
+layers = ["standalone", "run", "popup", "config", "adapters", "outputs", "sync | inputs", "save"]
 
 [[tool.importlinter.contracts]]
 name = "Only the adapters import a game engine or a gym/ package"
